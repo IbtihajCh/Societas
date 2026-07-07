@@ -28,6 +28,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Removed
 
+- CI push triggers on `main` (temporarily disabled — skeleton phase)
+  - `.github/workflows/ci.yml`: removed push trigger, PR-only now
+  - `.github/workflows/docker.yml`: removed push trigger, PR-only now
+  - **Re-enable when:** implementation reaches Phase 1 (working simulation + backend code)
+
 ### Fixed
 
 ### Security

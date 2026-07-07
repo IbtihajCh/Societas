@@ -1,13 +1,6 @@
 name: Docker Build
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "docker/**"
-      - "backend/**"
-      - "simulation/**"
-      - "frontend/**"
   pull_request:
     branches: [main]
     paths:
