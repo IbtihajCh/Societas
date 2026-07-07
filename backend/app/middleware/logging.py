@@ -1,44 +1,34 @@
-"""
-Logging Middleware
-==================
-
-Request/response logging middleware.
-"""
+import logging
+import time
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-import time
+
+logger = logging.getLogger("societas.api")
+
+SKIP_PATHS = {"/health", "/ready", "/docs", "/redoc", "/openapi.json"}
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware for logging HTTP requests and responses.
-    
-    TODO: Implement structured logging
-        - Log request method, path, query params
-        - Log response status code
-        - Log request duration
-        - Use structured JSON logging
-    """
-    
     async def dispatch(self, request: Request, call_next):
-        """
-        Process the request and log details.
-        
-        Args:
-            request: Incoming request
-            call_next: Next middleware/endpoint
-            
-        Returns:
-            Response
-        """
+        path = request.url.path
+        if path in SKIP_PATHS:
+            return await call_next(request)
+
         start_time = time.time()
-        
-        # TODO: Log request details
+        method = request.method
+        client_ip = request.client.host if request.client else "unknown"
+
         response = await call_next(request)
-        
-        duration = time.time() - start_time
-        
-        # TODO: Log response details
+
+        duration_ms = (time.time() - start_time) * 1000
+        logger.info(
+            "%s %s -> %d (%.1fms) [%s]",
+            method,
+            path,
+            response.status_code,
+            duration_ms,
+            client_ip,
+        )
         return response
