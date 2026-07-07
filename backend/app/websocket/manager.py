@@ -1,76 +1,40 @@
-"""
-WebSocket Manager
-=================
-
-Manages WebSocket connections for real-time updates.
-"""
+import json
+import logging
+from typing import Set
 
 from fastapi import WebSocket
-from typing import List, Set
-import json
+
+logger = logging.getLogger("societas.websocket")
 
 
 class WebSocketManager:
-    """
-    Manages WebSocket connections for real-time simulation updates.
-    
-    Handles connection lifecycle, broadcasting, and message routing.
-    
-    Attributes:
-        _connections: Set of active WebSocket connections
-    """
-    
     def __init__(self):
-        """Initialize WebSocket manager."""
         self._connections: Set[WebSocket] = set()
-    
+
     async def connect(self, websocket: WebSocket):
-        """
-        Accept a new WebSocket connection.
-        
-        Args:
-            websocket: WebSocket connection to accept
-        """
         await websocket.accept()
         self._connections.add(websocket)
-    
+        logger.info("WebSocket connected (%d active)", len(self._connections))
+
     async def disconnect(self, websocket: WebSocket):
-        """
-        Close a WebSocket connection.
-        
-        Args:
-            websocket: WebSocket connection to close
-        """
-        self._connections.remove(websocket)
-    
+        self._connections.discard(websocket)
+        logger.info("WebSocket disconnected (%d active)", len(self._connections))
+
     async def broadcast(self, message: dict):
-        """
-        Broadcast a message to all connected clients.
-        
-        Args:
-            message: Message to broadcast
-        """
-        # TODO: Implement broadcast
-        # for connection in self._connections:
-        #     await connection.send_json(message)
-        pass
-    
+        dead: list[WebSocket] = []
+        for connection in self._connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                dead.append(connection)
+        for connection in dead:
+            self._connections.discard(connection)
+
     async def send_to(self, websocket: WebSocket, message: dict):
-        """
-        Send a message to a specific client.
-        
-        Args:
-            websocket: Target WebSocket connection
-            message: Message to send
-        """
-        # TODO: Implement send
-        await websocket.send_json(message)
-    
+        try:
+            await websocket.send_json(message)
+        except Exception:
+            self._connections.discard(websocket)
+
     def get_connection_count(self) -> int:
-        """
-        Get the number of active connections.
-        
-        Returns:
-            Number of active connections
-        """
         return len(self._connections)

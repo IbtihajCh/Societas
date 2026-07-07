@@ -1,52 +1,75 @@
-"""
-FastAPI Application
-===================
+import logging
+from contextlib import asynccontextmanager
 
-Main FastAPI application entry point.
-"""
-
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-from backend.app.routers import simulation, policies, metrics, agents, health
+from backend.app.config import get_settings
+from backend.app.database.connection import close_db, init_db
 from backend.app.middleware.logging import LoggingMiddleware
+from backend.app.routers import agents, health, metrics, policies, simulation
 from backend.app.websocket.manager import WebSocketManager
+
+logger = logging.getLogger("societas.api")
+ws_manager = WebSocketManager()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    logger.info("Application started")
+    yield
+    await close_db()
+    logger.info("Application stopped")
 
 
 def create_app() -> FastAPI:
-    """
-    Create and configure the FastAPI application.
-    
-    Returns:
-        Configured FastAPI application
-    """
+    settings = get_settings()
+
     app = FastAPI(
         title="SOCIETAS API",
         description="AI-powered governance simulation API",
         version="0.1.0",
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
-    
-    # Configure CORS
+
+    origins = [o.strip() for o in settings.cors_origins.split(",")]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
-    # Add logging middleware
+
     app.add_middleware(LoggingMiddleware)
-    
-    # Register routers
+
     app.include_router(health.router, prefix="/api/v1", tags=["health"])
     app.include_router(simulation.router, prefix="/api/v1/simulation", tags=["simulation"])
     app.include_router(policies.router, prefix="/api/v1/policies", tags=["policies"])
     app.include_router(metrics.router, prefix="/api/v1/metrics", tags=["metrics"])
     app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
-    
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        logger.exception("Unhandled exception: %s", exc)
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+    @app.websocket("/ws")
+    async def websocket_endpoint(websocket: WebSocket):
+        await ws_manager.connect(websocket)
+        try:
+            while True:
+                data = await websocket.receive_text()
+                await ws_manager.send_to(websocket, {"echo": data})
+        except WebSocketDisconnect:
+            await ws_manager.disconnect(websocket)
+        except Exception:
+            await ws_manager.disconnect(websocket)
+
     return app
 
 
