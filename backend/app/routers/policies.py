@@ -1,78 +1,45 @@
-"""
-Policies Router
-===============
+from fastapi import APIRouter, Depends, HTTPException
 
-Policy CRUD and management endpoints.
-"""
+from shared.dto.policy_dto import PolicyCreateRequestDTO, PolicyListResponseDTO, PolicyResponseDTO
 
-from fastapi import APIRouter, HTTPException
-from typing import List
-
-from shared.dto.policy_dto import PolicyCreateRequestDTO, PolicyResponseDTO, PolicyListResponseDTO
+from backend.app.dependencies import get_policy_service
+from backend.app.services.policy_service import PolicyService
 
 router = APIRouter()
 
 
 @router.get("/", response_model=PolicyListResponseDTO)
-async def list_policies():
-    """
-    List all policies.
-    
-    Returns:
-        PolicyListResponseDTO with all policies
-        
-    TODO: Implement policy listing
-    """
-    # TODO: Get policies from repository
-    return PolicyListResponseDTO()
+async def list_policies(
+    service: PolicyService = Depends(get_policy_service),
+):
+    return await service.list_policies()
 
 
-@router.post("/", response_model=PolicyResponseDTO)
-async def create_policy(request: PolicyCreateRequestDTO):
-    """
-    Create a new policy.
-    
-    Args:
-        request: Policy creation request
-        
-    Returns:
-        Created policy
-        
-    TODO: Implement policy creation
-    """
-    # TODO: Create policy and apply to simulation
-    return PolicyResponseDTO()
+@router.post("/", response_model=PolicyResponseDTO, status_code=201)
+async def create_policy(
+    request: PolicyCreateRequestDTO,
+    service: PolicyService = Depends(get_policy_service),
+):
+    return await service.create_policy(request)
 
 
 @router.get("/{policy_id}", response_model=PolicyResponseDTO)
-async def get_policy(policy_id: str):
-    """
-    Get a specific policy.
-    
-    Args:
-        policy_id: Policy ID
-        
-    Returns:
-        PolicyResponseDTO
-        
-    TODO: Implement policy retrieval
-    """
-    # TODO: Get policy from repository
-    return PolicyResponseDTO()
+async def get_policy(
+    policy_id: str,
+    service: PolicyService = Depends(get_policy_service),
+):
+    policy = await service.get_policy(policy_id)
+    if policy is None:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return policy
 
 
 @router.delete("/{policy_id}")
-async def revoke_policy(policy_id: str):
-    """
-    Revoke a policy.
-    
-    Args:
-        policy_id: Policy ID to revoke
-        
-    Returns:
-        Success status
-        
-    TODO: Implement policy revocation
-    """
-    # TODO: Revoke policy
-    return {"status": "revoked"}
+async def revoke_policy(
+    policy_id: str,
+    service: PolicyService = Depends(get_policy_service),
+):
+    deleted = await service.revoke_policy(policy_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return {"status": "revoked", "policy_id": policy_id}
