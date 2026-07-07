@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: SOCIETAS Documentation
+    url: https://github.com/societas/societas/tree/main/docs
+    about: Check existing documentation before creating an issue
+  - name: Discussion
+    url: https://github.com/societas/societas/discussions
+    about: Use discussions for questions and ideas

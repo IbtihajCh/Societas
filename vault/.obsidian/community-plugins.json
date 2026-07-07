@@ -1,0 +1,11 @@
+{
+  "foldHeading": true,
+  "foldIndent": true,
+  "defaultViewMode": "preview",
+  "livePreview": true,
+  "showFrontmatter": false,
+  "showLineNumber": true,
+  "spellcheck": true,
+  "tabSize": 2,
+  "useTab": false
+}

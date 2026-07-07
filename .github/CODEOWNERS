@@ -1,0 +1,50 @@
+# SOCIETAS CODEOWNERS
+# Each top-level directory is owned by a specific team member.
+# PRs modifying files in these paths require approval from the listed owner.
+
+# Root files — Technical Lead owns all configuration changes
+/README.md @societas/tech-lead
+/CONTRIBUTING.md @societas/tech-lead
+/ROADMAP.md @societas/tech-lead
+/CHANGELOG.md @societas/tech-lead
+/LICENSE @societas/tech-lead
+/SECURITY.md @societas/tech-lead
+/CODE_OF_CONDUCT.md @societas/tech-lead
+/.gitignore @societas/tech-lead @societas/infrastructure
+/.gitattributes @societas/tech-lead
+
+# Backend — Backend Engineer
+/backend/ @societas/backend-engineer
+
+# Frontend — Frontend Engineer
+/frontend/ @societas/frontend-engineer
+
+# Simulation — Simulation Engineer
+/simulation/ @societas/simulation-engineer
+
+# Documentation — Technical Lead
+/docs/ @societas/tech-lead
+
+# Vault — All (knowledge contributions are shared)
+/vault/ @societas/tech-lead @societas/simulation-engineer @societas/ai-engineer @societas/backend-engineer @societas/frontend-engineer @societas/infrastructure
+
+# Prompts — AI Systems Engineer
+/prompts/ @societas/ai-engineer
+
+# Scripts — Infrastructure / DevOps
+/scripts/ @societas/infrastructure
+
+# Docker — Infrastructure / DevOps
+/docker/ @societas/infrastructure
+
+# Presentation — Technical Lead
+/presentation/ @societas/tech-lead
+
+# Tests (cross-cutting) — Technical Lead
+/tests/ @societas/tech-lead
+
+# Tools — Technical Lead
+/tools/ @societas/tech-lead
+
+# GitHub configuration — Technical Lead / Infrastructure
+/.github/ @societas/tech-lead @societas/infrastructure

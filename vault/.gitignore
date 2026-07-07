@@ -1,0 +1,20 @@
+# Obsidian workspace cache (regenerated on open)
+workspace.json
+workspace
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Keep .obsidian configuration (plugins, themes, appearance)
+!.obsidian/
+!.obsidian/appearance.json
+!.obsidian/core-plugins.json
+!.obsidian/community-plugins.json
+
+# Exclude workspace cache inside .obsidian
+.obsidian/workspace.json
+.obsidian/workspace
+.obsidian/cache
+.obsidian/plugins/*
+!.obsidian/plugins/plugins.json

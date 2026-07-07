@@ -1,0 +1,80 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    container_name: societas-backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      - SIMULATION_HOST=simulation
+      - SIMULATION_PORT=50051
+      - VLLM_HOST=vllm
+      - VLLM_PORT=8001
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ../backend:/app
+      - ../prompts:/prompts:ro
+    depends_on:
+      simulation:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - societas-net
+
+  simulation:
+    build:
+      context: ..
+      file: docker/simulation.Dockerfile
+    container_name: societas-simulation
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ../simulation:/app
+    restart: unless-stopped
+    networks:
+      - societas-net
+
+  frontend:
+    build:
+      context: ..
+      file: docker/frontend.Dockerfile
+    container_name: societas-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_WS_URL=ws://backend:8000/ws
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - societas-net
+
+  vllm:
+    build:
+      context: ..
+      file: docker/vllm.Dockerfile
+    container_name: societas-vllm
+    ports:
+      - "${VLLM_PORT:-8001}:8001"
+    environment:
+      - MODEL_NAME=${VLLM_MODEL:-google/gemma-2-9b-it}
+      - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.90}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    networks:
+      - societas-net
+
+networks:
+  societas-net:
+    driver: bridge

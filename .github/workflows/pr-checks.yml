@@ -1,0 +1,85 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Merge Conflict Detection ───────────────────────────────
+  merge-conflict:
+    name: "Check for merge conflicts"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          git fetch origin ${{ github.base_ref }}
+          git merge-base --is-ancestor HEAD origin/${{ github.base_ref }} && echo "Up to date" || (echo "Needs rebase"; exit 1)
+
+  # ── PR Title & Convention ─────────────────────────────────
+  conventional-commit:
+    name: "Conventional commit check"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate PR title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "PR Title: $TITLE"
+          if [[ ! "$TITLE" =~ ^(feat|fix|docs|refactor|test|chore|ci|perf)\([a-z]+\):\ .+$ ]]; then
+            echo "ERROR: PR title must follow conventional commit format: type(scope): description"
+            echo "Examples: feat(sim): add needs-based scoring, fix(ai): resolve prompt injection"
+            exit 1
+          fi
+          echo "✓ PR title passes conventional commit check"
+
+  # ── CHANGELOG Check ────────────────────────────────────────
+  changelog:
+    name: "CHANGELOG updated"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for CHANGELOG changes
+        id: check
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- CHANGELOG.md)
+          if [ -z "$CHANGED" ] && [ "${{ github.event.pull_request.title }}" != "docs"* ]; then
+            echo "WARNING: CHANGELOG.md was not modified. Add an entry under [Unreleased]."
+            exit 0  # Warning only, not a hard block
+          fi
+          echo "✓ CHANGELOG updated"
+
+  # ── File Size Check ────────────────────────────────────────
+  file-size:
+    name: "Check file sizes"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for large files
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git diff --name-only origin/${{ github.base_ref }}...HEAD | while read f; do
+            if [ -f "$f" ]; then
+              SIZE=$(stat --format=%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null)
+              if [ "$SIZE" -gt 1048576 ]; then
+                echo "ERROR: $f is > 1MB ($SIZE bytes). Large files should use Git LFS."
+                exit 1
+              fi
+            fi
+          done
+          echo "✓ All files within size limits"
+
+  # ── LFS Check ──────────────────────────────────────────────
+  lfs:
+    name: "Check Git LFS"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          git lfs track 2>/dev/null && echo "LFS configured" || echo "No LFS configured"
+          echo "NOTE: Add LFS tracking for .docx, .pdf, .png files if they will be committed"

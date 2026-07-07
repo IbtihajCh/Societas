@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+*.so
+
+# Node / Frontend
+node_modules/
+.next/
+dist/
+build/
+*.tsbuildinfo
+.npm/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+Desktop.ini
+*.log
+
+# Obsidian (vault)
+vault/.obsidian/workspace.json
+vault/.obsidian/cache/
+vault/.trash/
+
+# Docker
+docker/.env
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Simulation Data
+simulation/data/
+simulation/output/
+simulation/results/
+*.soc Sim
+
+# Artifacts
+*.bak
+*.tmp
+*.sqlite3
+
+# Scripts
+scripts/*.log
