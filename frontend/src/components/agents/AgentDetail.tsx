@@ -15,20 +15,23 @@ export default function AgentDetail({ agentId }: AgentDetailProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+    const loadAgentDetails = async () => {
+      try {
+        setLoading(true);
+        const data = await apiService.getAgent(agentId);
+        if (!cancelled) setAgent(data);
+      } catch (error) {
+        console.error('Failed to load agent details:', error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
     loadAgentDetails();
+    return () => {
+      cancelled = true;
+    };
   }, [agentId]);
-
-  const loadAgentDetails = async () => {
-    try {
-      setLoading(true);
-      const data = await apiService.getAgent(agentId);
-      setAgent(data);
-    } catch (error) {
-      console.error('Failed to load agent details:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return <p>Loading agent details...</p>;

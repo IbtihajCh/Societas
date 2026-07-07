@@ -48,7 +48,34 @@ React/Next.js dashboard for the SOCIETAS simulation. Provides real-time visualiz
 
 ## API Integration
 
-All API calls go through `services/api.ts` which wraps Axios and provides typed methods for each endpoint.
+All API calls go through `services/api.ts` which wraps Axios and provides typed
+methods for each endpoint. Responses are typed against `src/types/api.ts`.
+
+### Contract source of truth
+
+The TypeScript types in `src/types/api.ts` **mirror the canonical Python DTOs**
+in [`shared/dto/`](../shared/dto/) — not the `contracts/openapi.yaml` spec,
+which is currently stale. Field names are consumed as **snake_case** (e.g.
+`is_running`, `economic_health`) to match the backend serialization directly,
+with no transform layer. Keep `src/types/api.ts` in sync with `shared/dto/*`
+when the backend DTOs change.
+
+Backend endpoints (FastAPI, default `http://localhost:8000/api/v1`):
+
+| Area | Endpoint | Method |
+|------|----------|--------|
+| Health | `/health` | GET |
+| Simulation | `/simulation/status`, `/state` | GET |
+| Simulation | `/simulation/start`, `/stop`, `/tick`, `/reset` | POST |
+| Policies | `/policies` | GET, POST |
+| Policies | `/policies/{id}` | GET, DELETE |
+| Metrics | `/metrics`, `/metrics/dashboard` | GET |
+| Agents | `/agents` | GET |
+| Agents | `/agents/{id}`, `/agents/{id}/history` | GET |
+| WebSocket | `/ws` | WS |
+
+The proxy in `next.config.js` forwards `/api/*` and `/ws` to the backend, so
+the UI can also use relative paths in development.
 
 ## Development
 
@@ -58,6 +85,17 @@ npm run dev
 ```
 
 Open http://localhost:3000
+
+### Prerequisites
+
+The SOCIETAS backend (FastAPI) must be running at `http://localhost:8000`.
+Start it from the repository root:
+
+```bash
+uvicorn backend.app.main:app --reload --port 8000
+```
+
+Set `NEXT_PUBLIC_API_URL` to override the default API base URL.
 
 ## Future Work
 

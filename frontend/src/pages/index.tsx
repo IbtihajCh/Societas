@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 
 /**
@@ -29,7 +30,7 @@ export default function Home() {
         </p>
         
         <div style={{ marginTop: '1rem' }}>
-          <a href="/dashboard" style={{ 
+          <Link href="/dashboard" style={{ 
             padding: '0.5rem 1rem',
             backgroundColor: '#0070f3',
             color: 'white',
@@ -37,7 +38,7 @@ export default function Home() {
             borderRadius: '4px'
           }}>
             Open Dashboard
-          </a>
+          </Link>
         </div>
       </div>
       
