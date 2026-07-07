@@ -16,6 +16,7 @@ The team's central knowledge base. Every design decision, sprint note, meeting r
 | `070-Prompts/` | Prompt library — source of truth for prompts | AI Systems Engineer |
 | `080-Infrastructure/` | Infrastructure notes, deployment records | DevOps Engineer |
 | `090-Reference/` | External references, templates, attachments | All |
+| `095-Roles/` | Personal role guides (gitignored — each member creates their own) | Individual |
 | `100-Mastermind/` | Project context, engineering rules, skeleton spec, audit | All |
 
 ## Conventions

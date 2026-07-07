@@ -38,6 +38,9 @@ vault/.obsidian/workspace.json
 vault/.obsidian/cache/
 vault/.trash/
 
+# Personal Role Guides — each team member maintains their own
+vault/095-Roles/
+
 # Docker
 docker/.env
 
