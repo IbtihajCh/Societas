@@ -6,10 +6,10 @@ Deployment architecture, CI/CD configuration, and operations records.
 
 | Topic | Status | Lead |
 |-------|--------|------|
-| Docker Compose setup | ✓ Complete | DevOps |
-| GitHub Actions CI/CD | ✓ Complete | DevOps |
-| vLLM GPU deployment | ▸ In Progress | DevOps |
-| Production environment | ⬚ Not Started | DevOps |
+| Docker Compose setup | ✓ Complete | DevOps Engineer |
+| GitHub Actions CI/CD | ✓ Complete | DevOps Engineer |
+| vLLM GPU deployment | ▸ In Progress | DevOps Engineer |
+| Production environment | ⬚ Not Started | DevOps Engineer |
 
 ## Conventions
 

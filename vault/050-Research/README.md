@@ -6,11 +6,11 @@ External research, papers, benchmarks, and exploration notes.
 
 | Topic | Status | Lead |
 |-------|--------|------|
-| Deterministic governance models | ✓ Complete | Sim Engineer |
-| LLM-based agent cognition | ▸ In Progress | AI Engineer |
-| Gemma 2 capabilities | ▸ In Progress | AI Engineer |
-| vLLM performance tuning | ▸ In Progress | DevOps |
-| Dashboard visualization frameworks | ⬚ Not Started | Frontend |
+| Deterministic governance models | ✓ Complete | Simulation Engineer |
+| LLM-based agent cognition | ▸ In Progress | AI Systems Engineer |
+| Gemma 2 capabilities | ▸ In Progress | AI Systems Engineer |
+| vLLM performance tuning | ▸ In Progress | DevOps Engineer |
+| Dashboard visualization frameworks | ⬚ Not Started | Frontend Engineer |
 
 ## Conventions
 

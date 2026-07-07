@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Policy",
+  "description": "Government policy definition",
+  "type": "object",
+  "required": ["id", "name", "description", "category", "weights", "enacted_at", "is_active"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique policy identifier"
+    },
+    "name": {
+      "type": "string",
+      "description": "Policy name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Policy description"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["ECONOMIC", "SOCIAL", "CRIMINAL", "HEALTH", "EDUCATION"],
+      "description": "Policy category"
+    },
+    "weights": {
+      "type": "object",
+      "description": "Policy effect weights on agent utilities",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": -1,
+        "maximum": 1
+      }
+    },
+    "enacted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the policy was enacted"
+    },
+    "is_active": {
+      "type": "boolean",
+      "description": "Whether the policy is currently active"
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "agents": [
+    {
+      "id": "agent-001",
+      "traits": {
+        "openness": 0.7,
+        "conscientiousness": 0.6,
+        "extraversion": 0.8,
+        "agreeableness": 0.5,
+        "neuroticism": 0.3,
+        "morality": 0.9,
+        "risk_tolerance": 0.4,
+        "patience": 0.6
+      },
+      "needs": {
+        "levels": {
+          "FOOD": 0.2,
+          "SHELTER": 0.1,
+          "SAFETY": 0.3,
+          "SOCIAL": 0.5,
+          "LEISURE": 0.4
+        }
+      },
+      "emotions": {
+        "levels": {
+          "HAPPINESS": 0.6,
+          "STRESS": 0.3,
+          "FEAR": 0.1,
+          "ANGER": 0.0
+        }
+      },
+      "resources": {
+        "wealth": 1500.0,
+        "health": 0.85
+      }
+    },
+    {
+      "id": "agent-002",
+      "traits": {
+        "openness": 0.3,
+        "conscientiousness": 0.8,
+        "extraversion": 0.2,
+        "agreeableness": 0.7,
+        "neuroticism": 0.6,
+        "morality": 0.5,
+        "risk_tolerance": 0.8,
+        "patience": 0.3
+      },
+      "needs": {
+        "levels": {
+          "FOOD": 0.6,
+          "SHELTER": 0.4,
+          "SAFETY": 0.2,
+          "SOCIAL": 0.1,
+          "LEISURE": 0.2
+        }
+      },
+      "emotions": {
+        "levels": {
+          "HAPPINESS": 0.3,
+          "STRESS": 0.7,
+          "FEAR": 0.4,
+          "ANGER": 0.5
+        }
+      },
+      "resources": {
+        "wealth": 200.0,
+        "health": 0.6
+      }
+    }
+  ]
+}

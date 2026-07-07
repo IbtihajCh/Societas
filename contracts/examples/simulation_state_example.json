@@ -1,0 +1,46 @@
+{
+  "tick": 100,
+  "economy": {
+    "gdp": 5000000.0,
+    "unemployment_rate": 0.08,
+    "inflation_rate": 0.02,
+    "wealth_distribution": [100, 200, 500, 1000, 2000, 5000]
+  },
+  "crime": {
+    "crime_rate": 0.05,
+    "enforcement_effectiveness": 0.75,
+    "crime_types": {
+      "THEFT": 0.02,
+      "FRAUD": 0.01,
+      "VIOLENCE": 0.005,
+      "DRUGS": 0.015
+    }
+  },
+  "needs": {
+    "average_needs": {
+      "FOOD": 0.25,
+      "SHELTER": 0.20,
+      "SAFETY": 0.30,
+      "SOCIAL": 0.45,
+      "LEISURE": 0.35
+    },
+    "fulfillment_rates": {
+      "FOOD": 0.85,
+      "SHELTER": 0.90,
+      "SAFETY": 0.75,
+      "SOCIAL": 0.60,
+      "LEISURE": 0.50
+    }
+  },
+  "psychology": {
+    "average_morality": 0.72,
+    "average_happiness": 0.65,
+    "average_stress": 0.35,
+    "emotional_distribution": {
+      "HAPPY": 0.45,
+      "CONTENT": 0.30,
+      "STRESSED": 0.15,
+      "UNHAPPY": 0.10
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SimulationState",
+  "description": "Complete state of the simulation world",
+  "type": "object",
+  "required": ["tick", "economy", "crime", "needs", "psychology"],
+  "properties": {
+    "tick": {
+      "type": "integer",
+      "description": "Current simulation tick",
+      "minimum": 0
+    },
+    "economy": {
+      "type": "object",
+      "description": "Economic state",
+      "required": ["gdp", "unemployment_rate", "inflation_rate", "wealth_distribution"],
+      "properties": {
+        "gdp": { "type": "number", "minimum": 0 },
+        "unemployment_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "inflation_rate": { "type": "number" },
+        "wealth_distribution": {
+          "type": "array",
+          "items": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "crime": {
+      "type": "object",
+      "description": "Crime state",
+      "required": ["crime_rate", "enforcement_effectiveness", "crime_types"],
+      "properties": {
+        "crime_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "enforcement_effectiveness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "crime_types": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "needs": {
+      "type": "object",
+      "description": "Population needs state",
+      "required": ["average_needs", "fulfillment_rates"],
+      "properties": {
+        "average_needs": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "fulfillment_rates": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "psychology": {
+      "type": "object",
+      "description": "Population psychology state",
+      "required": ["average_morality", "average_happiness", "average_stress", "emotional_distribution"],
+      "properties": {
+        "average_morality": { "type": "number", "minimum": 0, "maximum": 1 },
+        "average_happiness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "average_stress": { "type": "number", "minimum": 0, "maximum": 1 },
+        "emotional_distribution": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+[
+  {
+    "id": "policy-001",
+    "name": "Universal Basic Income",
+    "description": "Provides monthly stipend to all citizens",
+    "category": "ECONOMIC",
+    "weights": {
+      "FOOD": 0.3,
+      "SHELTER": 0.2,
+      "SAFETY": 0.1,
+      "SOCIAL": 0.15,
+      "LEISURE": 0.1
+    },
+    "enacted_at": "2026-07-07T10:00:00Z",
+    "is_active": true
+  },
+  {
+    "id": "policy-002",
+    "name": "Community Policing Initiative",
+    "description": "Increases police presence in neighborhoods",
+    "category": "CRIMINAL",
+    "weights": {
+      "SAFETY": 0.4,
+      "SOCIAL": -0.1
+    },
+    "enacted_at": "2026-07-07T12:00:00Z",
+    "is_active": true
+  },
+  {
+    "id": "policy-003",
+    "name": "Mental Health Support",
+    "description": "Provides free counseling services",
+    "category": "HEALTH",
+    "weights": {
+      "SAFETY": 0.2,
+      "SOCIAL": 0.1
+    },
+    "enacted_at": "2026-07-07T14:00:00Z",
+    "is_active": false
+  }
+]

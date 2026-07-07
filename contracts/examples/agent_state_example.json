@@ -1,0 +1,42 @@
+[
+  {
+    "id": "agent-001",
+    "traits": {
+      "openness": 0.7,
+      "conscientiousness": 0.6,
+      "extraversion": 0.8,
+      "agreeableness": 0.5,
+      "neuroticism": 0.3,
+      "morality": 0.9,
+      "risk_tolerance": 0.4,
+      "patience": 0.6
+    },
+    "needs": {
+      "levels": {
+        "FOOD": 0.2,
+        "SHELTER": 0.1,
+        "SAFETY": 0.3,
+        "SOCIAL": 0.5,
+        "LEISURE": 0.4
+      }
+    },
+    "emotions": {
+      "levels": {
+        "HAPPINESS": 0.6,
+        "STRESS": 0.3,
+        "FEAR": 0.1,
+        "ANGER": 0.0
+      }
+    },
+    "resources": {
+      "wealth": 1500.0,
+      "health": 0.85
+    },
+    "decision_scores": {
+      "WORK": 0.7,
+      "SOCIALIZE": 0.5,
+      "REST": 0.3,
+      "COMMIT_CRIME": 0.1
+    }
+  }
+]

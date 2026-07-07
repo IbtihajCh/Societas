@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DecisionRequest",
+  "description": "Request for AI to make a decision",
+  "type": "object",
+  "required": ["agent_state", "options", "context"],
+  "properties": {
+    "agent_state": {
+      "type": "object",
+      "description": "Current agent state",
+      "$ref": "agent_state.json"
+    },
+    "options": {
+      "type": "array",
+      "description": "Available action options",
+      "items": {
+        "type": "object",
+        "required": ["action_type", "deterministic_score"],
+        "properties": {
+          "action_type": { "type": "string" },
+          "deterministic_score": { "type": "number" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "description": "Decision context",
+      "properties": {
+        "tick": { "type": "integer" },
+        "ambiguity_detected": { "type": "boolean" },
+        "policy_weights": { "type": "object" }
+      }
+    }
+  }
+}

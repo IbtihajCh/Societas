@@ -1,0 +1,465 @@
+openapi: 3.0.3
+info:
+  title: SOCIETAS API
+  description: AI-Powered Governance Simulation API
+  version: 0.1.0
+  contact:
+    name: SOCIETAS Team
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+
+paths:
+  /health:
+    get:
+      summary: Health Check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /simulation/status:
+    get:
+      summary: Get Simulation Status
+      operationId: getSimulationStatus
+      responses:
+        '200':
+          description: Current simulation status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationStatusDTO'
+
+  /simulation/start:
+    post:
+      summary: Start Simulation
+      operationId: startSimulation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulationStartRequestDTO'
+      responses:
+        '200':
+          description: Simulation started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationStatusDTO'
+
+  /simulation/stop:
+    post:
+      summary: Stop Simulation
+      operationId: stopSimulation
+      responses:
+        '200':
+          description: Simulation stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationStatusDTO'
+
+  /simulation/tick:
+    post:
+      summary: Advance One Tick
+      operationId: advanceTick
+      responses:
+        '200':
+          description: Tick advanced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TickResult'
+
+  /simulation/state:
+    get:
+      summary: Get Simulation State
+      operationId: getSimulationState
+      responses:
+        '200':
+          description: Current simulation state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationStateResponseDTO'
+
+  /simulation/reset:
+    post:
+      summary: Reset Simulation
+      operationId: resetSimulation
+      responses:
+        '200':
+          description: Simulation reset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulationStatusDTO'
+
+  /policies:
+    get:
+      summary: List Policies
+      operationId: listPolicies
+      parameters:
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: List of policies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyListResponseDTO'
+    post:
+      summary: Create Policy
+      operationId: createPolicy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyCreateRequestDTO'
+      responses:
+        '201':
+          description: Policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponseDTO'
+
+  /policies/{policy_id}:
+    get:
+      summary: Get Policy
+      operationId: getPolicy
+      parameters:
+        - name: policy_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponseDTO'
+    delete:
+      summary: Revoke Policy
+      operationId: revokePolicy
+      parameters:
+        - name: policy_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Policy revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyResponseDTO'
+
+  /metrics:
+    get:
+      summary: Get Metrics
+      operationId: getMetrics
+      parameters:
+        - name: tick_from
+          in: query
+          schema:
+            type: integer
+        - name: tick_to
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Simulation metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponseDTO'
+
+  /metrics/dashboard:
+    get:
+      summary: Get Dashboard Data
+      operationId: getDashboardData
+      responses:
+        '200':
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardState'
+
+  /agents:
+    get:
+      summary: List Agents
+      operationId: listAgents
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentListResponseDTO'
+
+  /agents/{agent_id}:
+    get:
+      summary: Get Agent
+      operationId: getAgent
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentDetailDTO'
+
+  /agents/{agent_id}/history:
+    get:
+      summary: Get Agent History
+      operationId: getAgentHistory
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Agent action history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentAction'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    SimulationStatusDTO:
+      type: object
+      properties:
+        isRunning:
+          type: boolean
+        currentTick:
+          type: integer
+        population:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    SimulationStartRequestDTO:
+      type: object
+      properties:
+        populationSize:
+          type: integer
+          default: 1000
+        seed:
+          type: integer
+          nullable: true
+        tickRateMs:
+          type: integer
+          default: 1000
+        maxTicks:
+          type: integer
+          nullable: true
+
+    TickResult:
+      type: object
+      properties:
+        tick:
+          type: integer
+        agentsActed:
+          type: integer
+        events:
+          type: array
+          items:
+            type: object
+        newState:
+          $ref: '#/components/schemas/SimulationStateResponseDTO'
+
+    SimulationStateResponseDTO:
+      type: object
+      properties:
+        tick:
+          type: integer
+        economy:
+          type: object
+        crime:
+          type: object
+        needs:
+          type: object
+        psychology:
+          type: object
+
+    PolicyCreateRequestDTO:
+      type: object
+      required:
+        - name
+        - description
+        - category
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [ECONOMIC, SOCIAL, CRIMINAL, HEALTH, EDUCATION]
+        weights:
+          type: object
+          additionalProperties:
+            type: number
+
+    PolicyResponseDTO:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        weights:
+          type: object
+        enactedAt:
+          type: string
+          format: date-time
+        isActive:
+          type: boolean
+
+    PolicyListResponseDTO:
+      type: object
+      properties:
+        policies:
+          type: array
+          items:
+            $ref: '#/components/schemas/PolicyResponseDTO'
+        total:
+          type: integer
+
+    MetricsResponseDTO:
+      type: object
+      properties:
+        metrics:
+          type: array
+          items:
+            type: object
+        tickRange:
+          type: object
+          properties:
+            from:
+              type: integer
+            to:
+              type: integer
+
+    DashboardState:
+      type: object
+      properties:
+        currentTick:
+          type: integer
+        population:
+          type: integer
+        metrics:
+          type: object
+        recentEvents:
+          type: array
+          items:
+            type: object
+
+    AgentSummaryDTO:
+      type: object
+      properties:
+        id:
+          type: string
+        persona:
+          type: string
+        lastActionTick:
+          type: integer
+
+    AgentDetailDTO:
+      type: object
+      properties:
+        id:
+          type: string
+        persona:
+          type: string
+        traits:
+          type: object
+        wealth:
+          type: number
+        employmentStatus:
+          type: string
+        happiness:
+          type: number
+        health:
+          type: number
+        lastActionTick:
+          type: integer
+        recentActions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentAction'
+
+    AgentListResponseDTO:
+      type: object
+      properties:
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentSummaryDTO'
+        total:
+          type: integer
+
+    AgentAction:
+      type: object
+      properties:
+        type:
+          type: string
+        tick:
+          type: integer
+        details:
+          type: object

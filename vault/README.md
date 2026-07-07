@@ -7,15 +7,16 @@ The team's central knowledge base. Every design decision, sprint note, meeting r
 | Folder | Purpose | Owner |
 |--------|---------|-------|
 | `000-Index/` | Map of Content (MOC) — entry point for navigation | All |
-| `010-Architecture/` | System architecture notes, diagrams, models | Tech Lead |
-| `020-Decisions/` | ADR mirror — linked from `docs/adr/` | Tech Lead |
+| `010-Architecture/` | System architecture notes, diagrams, models | Technical Lead |
+| `020-Decisions/` | ADR mirror — linked from `docs/adr/` | Technical Lead |
 | `030-Sprints/` | Sprint planning, retrospectives, velocity tracking | All |
 | `040-Meetings/` | Meeting notes organized by date | All |
-| `050-Research/` | External research, papers, benchmarks | AI Engineer |
+| `050-Research/` | External research, papers, benchmarks | AI Systems Engineer |
 | `060-Features/` | Feature specifications (one note per feature) | All |
-| `070-Prompts/` | Prompt library — source of truth for prompts | AI Engineer |
-| `080-Infrastructure/` | Infrastructure notes, deployment records | DevOps |
+| `070-Prompts/` | Prompt library — source of truth for prompts | AI Systems Engineer |
+| `080-Infrastructure/` | Infrastructure notes, deployment records | DevOps Engineer |
 | `090-Reference/` | External references, templates, attachments | All |
+| `100-Mastermind/` | Project context, engineering rules, skeleton spec, audit | All |
 
 ## Conventions
 

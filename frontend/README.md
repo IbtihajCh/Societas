@@ -1,39 +1,71 @@
-# Frontend — Dashboard & Visualization
+# SOCIETAS Frontend
 
 **Owner:** Frontend Engineer
 
-Provides the user interface for monitoring and interacting with the SOCIETAS simulation. Renders real-time agent activity, economic charts, policy impact reports, and the news feed.
+## Purpose
 
-## Responsibilities
+React/Next.js dashboard for the SOCIETAS simulation. Provides real-time visualization of simulation state, agent behavior, and policy effects.
 
-- Real-time simulation dashboard
-- Agent state visualization and exploration
-- Economic charts and metrics (time-series, distributions)
-- News feed and narrative display
-- Policy configuration interface
-- Policy impact reports
-- Spotlight agent story viewer
+## Tech Stack
 
-## Technology
+- **Framework:** Next.js 14 (React 18)
+- **Language:** TypeScript
+- **State Management:** Zustand
+- **Charts:** Recharts
+- **HTTP Client:** Axios
+- **Styling:** CSS Modules
 
-- TypeScript + React (or Next.js)
-- Charting library for real-time data
-- WebSocket client for live updates
-- Component library consistent with project design system
+## Features
 
-## Dependencies
+- Real-time simulation monitoring via WebSocket
+- Dashboard with key metrics and charts
+- Agent browser with detail view
+- Policy management interface
+- News and narrative feed
+- Simulation controls (start/stop/step)
 
-- `backend/` — consumes REST + WebSocket APIs
+## Pages
 
-## Conventions
+- `/` - Home page with overview
+- `/dashboard` - Main simulation dashboard
+- `/policies` - Policy management
+- `/agents` - Agent browser
 
-- Components in `src/components/`
-- Pages in `src/pages/`
-- Hooks in `src/hooks/`
-- Tests co-located with components (`Component.test.tsx`)
+## Components
 
-## Related
+### Dashboard
+- `MetricsPanel` - Key metrics display
+- `SimulationControls` - Start/stop/step controls
+- `EventLog` - Real-time event feed
 
-- [Coding Standards](../docs/guides/coding-standards.md)
-- [Architecture Overview](../docs/references/architecture-overview.md)
-- [Feature Specs](../vault/060-Features/)
+### Policies
+- `PolicyList` - Active policies display
+- `PolicyForm` - Policy creation form
+
+### Agents
+- `AgentList` - Agent browser
+- `AgentDetail` - Agent detail view
+
+## API Integration
+
+All API calls go through `services/api.ts` which wraps Axios and provides typed methods for each endpoint.
+
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+Open http://localhost:3000
+
+## Future Work
+
+- Implement WebSocket connection for real-time updates
+- Add chart components for metrics visualization
+- Implement policy effect visualization
+- Add agent behavior timeline
+- Add news feed with AI-generated narratives
+- Implement responsive design
+- Add dark mode support
+- Add export/import functionality

@@ -1,41 +1,50 @@
-# Simulation — Deterministic Engine
+# Simulation Module
 
 **Owner:** Simulation Engineer
 
-The core of SOCIETAS. This is a fully deterministic, explainable agent-based modeling engine. No LLM involvement. Every computation is reproducible and mathematically grounded.
+## Purpose
+
+Core deterministic simulation engine for SOCIETAS. Implements agent-based modeling with psychological traits, economic systems, needs fulfillment, and policy application.
 
 ## Responsibilities
 
-- World simulation and environment state
-- Agent state management (needs, psychology, emotions, morality)
-- Economy system (resources, employment, wealth distribution)
-- Decision scoring pipeline (action utility calculation)
-- Ambiguity detection and escalation threshold
-- Policy application and effect propagation
-- Crime and enforcement subsystem
-- Tick update and scheduling
-- Data export for analysis and replay
+- Manage autonomous agents with decision-making capabilities
+- Simulate economic systems (employment, wealth, markets)
+- Track agent needs and psychological states
+- Apply government policies and calculate effects
+- Execute deterministic tick-based simulation
+- Collect and aggregate simulation metrics
+- Publish events for other subsystems
 
-## Design Principles
+## Dependencies
 
-1. **Deterministic** — same seed + same input = same output, always
-2. **Explainable** — every decision can be traced to its inputs
-3. **Performant** — capable of simulating 10,000+ agents in real-time
-4. **Modular** — subsystems are independently replaceable and testable
-5. **No LLM** — Gemma never enters this directory
+- `shared/` - Shared schemas, types, and interfaces
+- `numpy` - Deterministic random number generation
 
-## Conventions
+## Public Interfaces
 
-- Engine entry point: `engine/`
-- Agents in `agents/`
-- Economy in `economy/`
-- Psychology in `psychology/`
-- Policies in `policies/`
-- Tests mirror source structure (`tests/test_engine/`, etc.)
-- >90% branch coverage required
+### SimulationEngine
+- `tick()` - Advance simulation by one tick
+- `reset()` - Reset to initial state
+- `apply_policy()` - Apply a government policy
+- `get_state()` - Get current world state
+- `get_metrics()` - Get simulation metrics
+- `get_agent()` - Get specific agent state
+- `get_agents()` - Get all agents
 
-## Related
+### Agent
+- `evaluate_needs()` - Evaluate agent needs
+- `calculate_utility_scores()` - Calculate action utilities
+- `select_action()` - Select best action
+- `execute_action()` - Execute selected action
 
-- [ADR-002: Deterministic Simulation Design](../docs/adr/ADR-002-deterministic-simulation-design.md)
-- [Coding Standards](../docs/guides/coding-standards.md)
-- [Master Context §4-6](../docs/SOCIETAS_Master_Context.md)
+## Future Work
+
+- Implement full tick execution logic
+- Add agent lifecycle (birth, death, aging)
+- Implement economy subsystem
+- Add crime and enforcement
+- Implement needs fulfillment
+- Add psychology and emotions
+- Implement policy effect calculation
+- Add event generation and narration triggers

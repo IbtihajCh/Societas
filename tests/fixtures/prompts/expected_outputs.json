@@ -1,0 +1,100 @@
+{
+  "persona-generation": {
+    "input": {
+      "traits": {
+        "openness": 0.7,
+        "conscientiousness": 0.6,
+        "extraversion": 0.8,
+        "agreeableness": 0.5,
+        "neuroticism": 0.3,
+        "morality": 0.9,
+        "risk_tolerance": 0.4,
+        "patience": 0.6
+      }
+    },
+    "expected_output": {
+      "persona": "A sociable and open-minded individual who values honesty and tends to remain calm under pressure. Moderately conscientious and patient, with a cautious approach to risk.",
+      "version": "1.0.0"
+    }
+  },
+  "policy-translation": {
+    "input": {
+      "policy_name": "Universal Basic Income",
+      "policy_description": "Provides monthly stipend to all citizens",
+      "policy_category": "ECONOMIC"
+    },
+    "expected_output": {
+      "weights": {
+        "FOOD": 0.3,
+        "SHELTER": 0.2,
+        "SAFETY": 0.1,
+        "SOCIAL": 0.15,
+        "LEISURE": 0.1
+      },
+      "version": "1.0.0"
+    }
+  },
+  "tie-break": {
+    "input": {
+      "agent_state": {
+        "id": "agent-001",
+        "needs": {
+          "FOOD": 0.5,
+          "SOCIAL": 0.5
+        }
+      },
+      "options": [
+        {
+          "action_type": "WORK",
+          "deterministic_score": 0.51
+        },
+        {
+          "action_type": "SOCIALIZE",
+          "deterministic_score": 0.49
+        }
+      ],
+      "context": {
+        "ambiguity_detected": true,
+        "tick": 100
+      }
+    },
+    "expected_output": {
+      "selected_action": "WORK",
+      "confidence": 0.65,
+      "reasoning": "Given the agent's slightly higher need for food and current resources, working provides better long-term stability.",
+      "scores": {
+        "WORK": 0.55,
+        "SOCIALIZE": 0.45
+      },
+      "version": "1.0.0"
+    }
+  },
+  "narrative-generation": {
+    "input": {
+      "events": [
+        {
+          "type": "AGENT_ACTED",
+          "agent_id": "agent-001",
+          "action": "COMMIT_CRIME",
+          "tick": 100
+        },
+        {
+          "type": "POLICY_ENACTED",
+          "policy_name": "Community Policing",
+          "tick": 95
+        }
+      ],
+      "context": {
+        "tick": 100,
+        "crime_rate": 0.08
+      }
+    },
+    "expected_output": {
+      "headline": "Crime Spikes Despite New Policing Initiative",
+      "content": "Local authorities report an increase in criminal activity as community policing measures take effect. Residents express concern over safety...",
+      "category": "CRIME",
+      "sentiment": "NEGATIVE",
+      "version": "1.0.0"
+    }
+  }
+}

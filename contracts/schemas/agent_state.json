@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentState",
+  "description": "Complete state of an agent in the simulation",
+  "type": "object",
+  "required": ["id", "traits", "needs", "emotions", "resources", "decision_scores"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique agent identifier"
+    },
+    "traits": {
+      "type": "object",
+      "description": "Agent personality traits (8 dimensions)",
+      "required": ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism", "morality", "risk_tolerance", "patience"],
+      "properties": {
+        "openness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "conscientiousness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "extraversion": { "type": "number", "minimum": 0, "maximum": 1 },
+        "agreeableness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "neuroticism": { "type": "number", "minimum": 0, "maximum": 1 },
+        "morality": { "type": "number", "minimum": 0, "maximum": 1 },
+        "risk_tolerance": { "type": "number", "minimum": 0, "maximum": 1 },
+        "patience": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "needs": {
+      "type": "object",
+      "description": "Current need levels",
+      "required": ["levels"],
+      "properties": {
+        "levels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "emotions": {
+      "type": "object",
+      "description": "Current emotional state",
+      "required": ["levels"],
+      "properties": {
+        "levels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": -1,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "description": "Agent resources",
+      "required": ["wealth", "health"],
+      "properties": {
+        "wealth": { "type": "number", "minimum": 0 },
+        "health": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "decision_scores": {
+      "type": "object",
+      "description": "Scores for each possible action",
+      "additionalProperties": {
+        "type": "number"
+      }
+    }
+  }
+}
