@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import AgentList from '@/components/agents/AgentList';
 import AgentDetail from '@/components/agents/AgentDetail';
 import { apiService } from '@/services/api';
+import { AgentSummaryDTO } from '@/types/api';
 
 /**
  * Agents Page
@@ -9,25 +10,28 @@ import { apiService } from '@/services/api';
  * Agent browser and detail view.
  */
 export default function Agents() {
-  const [agents, setAgents] = useState([]);
+  const [agents, setAgents] = useState<AgentSummaryDTO[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+    const loadAgents = async () => {
+      try {
+        setLoading(true);
+        const data = await apiService.getAgents();
+        if (!cancelled) setAgents(data.agents);
+      } catch (error) {
+        console.error('Failed to load agents:', error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
     loadAgents();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const loadAgents = async () => {
-    try {
-      setLoading(true);
-      const data = await apiService.getAgents();
-      setAgents(data);
-    } catch (error) {
-      console.error('Failed to load agents:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSelectAgent = (agentId: string) => {
     setSelectedAgent(agentId);

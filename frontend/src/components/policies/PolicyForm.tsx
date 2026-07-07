@@ -1,31 +1,52 @@
 import React, { useState } from 'react';
 
+import { PolicyCategory, PolicyCreateRequestDTO } from '@/types/api';
+
 /**
  * Policy Form Component
- * 
+ *
  * Form for creating new policies.
  */
 interface PolicyFormProps {
-  onSubmit: (policyData: any) => void;
+  onSubmit: (policyData: PolicyCreateRequestDTO) => void;
 }
+
+const CATEGORY_OPTIONS: { value: PolicyCategory; label: string }[] = [
+  { value: PolicyCategory.ECONOMIC, label: 'Economic' },
+  { value: PolicyCategory.SOCIAL, label: 'Social' },
+  { value: PolicyCategory.ENVIRONMENTAL, label: 'Environmental' },
+  { value: PolicyCategory.PUBLIC_ORDER, label: 'Public Order' },
+  { value: PolicyCategory.EDUCATION, label: 'Education' },
+  { value: PolicyCategory.HEALTHCARE, label: 'Healthcare' },
+  { value: PolicyCategory.INFRASTRUCTURE, label: 'Infrastructure' },
+  { value: PolicyCategory.CULTURAL, label: 'Cultural' },
+];
 
 export default function PolicyForm({ onSubmit }: PolicyFormProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('ECONOMIC');
+  const [category, setCategory] = useState<PolicyCategory>(
+    PolicyCategory.ECONOMIC,
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({ name, description, category });
     setName('');
     setDescription('');
-    setCategory('ECONOMIC');
+    setCategory(PolicyCategory.ECONOMIC);
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <form
+      onSubmit={handleSubmit}
+      style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+    >
       <div>
-        <label htmlFor="name" style={{ display: 'block', marginBottom: '0.5rem' }}>
+        <label
+          htmlFor="name"
+          style={{ display: 'block', marginBottom: '0.5rem' }}
+        >
           Policy Name
         </label>
         <input
@@ -38,13 +59,16 @@ export default function PolicyForm({ onSubmit }: PolicyFormProps) {
             width: '100%',
             padding: '0.5rem',
             border: '1px solid #eaeaea',
-            borderRadius: '4px'
+            borderRadius: '4px',
           }}
         />
       </div>
-      
+
       <div>
-        <label htmlFor="description" style={{ display: 'block', marginBottom: '0.5rem' }}>
+        <label
+          htmlFor="description"
+          style={{ display: 'block', marginBottom: '0.5rem' }}
+        >
           Description
         </label>
         <textarea
@@ -58,34 +82,37 @@ export default function PolicyForm({ onSubmit }: PolicyFormProps) {
             padding: '0.5rem',
             border: '1px solid #eaeaea',
             borderRadius: '4px',
-            resize: 'vertical'
+            resize: 'vertical',
           }}
         />
       </div>
-      
+
       <div>
-        <label htmlFor="category" style={{ display: 'block', marginBottom: '0.5rem' }}>
+        <label
+          htmlFor="category"
+          style={{ display: 'block', marginBottom: '0.5rem' }}
+        >
           Category
         </label>
         <select
           id="category"
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          onChange={(e) => setCategory(e.target.value as PolicyCategory)}
           style={{
             width: '100%',
             padding: '0.5rem',
             border: '1px solid #eaeaea',
-            borderRadius: '4px'
+            borderRadius: '4px',
           }}
         >
-          <option value="ECONOMIC">Economic</option>
-          <option value="SOCIAL">Social</option>
-          <option value="CRIMINAL">Criminal</option>
-          <option value="HEALTH">Health</option>
-          <option value="EDUCATION">Education</option>
+          {CATEGORY_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
-      
+
       <button
         type="submit"
         style={{
@@ -95,7 +122,7 @@ export default function PolicyForm({ onSubmit }: PolicyFormProps) {
           border: 'none',
           borderRadius: '4px',
           cursor: 'pointer',
-          fontSize: '1rem'
+          fontSize: '1rem',
         }}
       >
         Create Policy
