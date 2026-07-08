@@ -57,20 +57,20 @@ services:
   vllm:
     build:
       context: ..
-      file: docker/vllm.Dockerfile
+      file: docker/vllm-rocm.Dockerfile
     container_name: societas-vllm
     ports:
       - "${VLLM_PORT:-8001}:8001"
     environment:
-      - MODEL_NAME=${VLLM_MODEL:-google/gemma-2-9b-it}
+      - MODEL_NAME=${VLLM_MODEL:-google/gemma-4-31B}
       - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.90}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      - video
+      - render
+    shm_size: '8gb'
     restart: unless-stopped
     networks:
       - societas-net
