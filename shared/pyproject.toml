@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=64.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "societas-shared"
+version = "0.1.0"
+description = "Shared schemas, DTOs, interfaces, types, constants, and utilities for SOCIETAS"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["shared*"]
