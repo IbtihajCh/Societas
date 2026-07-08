@@ -80,13 +80,13 @@ class SimulationService:
 
     def _state_to_dto(self, state: SimulationState) -> SimulationStateResponseDTO:
         return SimulationStateResponseDTO(
-            tick=state.tick,
+            tick=state.time_step,
             population=state.population,
-            economic_health=state.economy.health if state.economy else 0.5,
-            social_cohesion=state.psychology.social_cohesion if state.psychology else 0.5,
-            environmental_quality=0.5,
-            public_order=state.crime.public_order if state.crime else 0.5,
-            innovation_index=state.economy.innovation_index if state.economy else 0.5,
-            unlust=state.psychology.unlust if state.psychology else 0.0,
-            morality=state.psychology.morality if state.psychology else 0.5,
+            economic_health=state.economic_health,
+            social_cohesion=state.social_cohesion,
+            environmental_quality=state.environmental_quality,
+            public_order=state.public_order,
+            innovation_index=state.innovation_index,
+            unlust=state.unlust,
+            morality=state.morality,
         )
