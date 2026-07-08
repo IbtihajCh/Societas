@@ -63,6 +63,12 @@ class SimulationEngine(ISimulationEngine):
         self._event_bus = EventBus()
         self._tick_scheduler = TickScheduler()
     
+    def stop(self) -> None:
+        """
+        Stop the simulation execution.
+        """
+        self._is_running = False
+
     def tick(self) -> TickResult:
         """
         Advance the simulation by one tick.

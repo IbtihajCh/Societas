@@ -10,6 +10,7 @@ from shared.dto.simulation_dto import (
 from shared.interfaces.i_simulation_engine import ISimulationEngine
 from shared.schemas.simulation_state import SimulationState
 
+from backend.app.websocket.manager import ws_manager
 from backend.app.repositories.simulation_repository import SimulationRepository
 from simulation.engine.config import SimulationConfig
 from simulation.engine.simulation_engine import SimulationEngine
@@ -45,8 +46,7 @@ class SimulationService:
 
     async def stop_simulation(self) -> SimulationStatusDTO:
         if self._engine is not None:
-            if hasattr(self._engine, "_is_running"):
-                self._engine._is_running = False
+            self._engine.stop()
         return await self.get_status()
 
     async def advance_tick(self) -> SimulationStateResponseDTO:
@@ -55,6 +55,13 @@ class SimulationService:
         result = await asyncio.to_thread(self._engine.tick)
         state = self._engine.get_state()
         await self._repository.save_snapshot(result.tick, state)
+
+        await ws_manager.broadcast({
+            "type": "tick_completed",
+            "tick": result.tick,
+            "population": state.population,
+        })
+
         for action_result in result.agent_results:
             if action_result is not None:
                 await self._repository.save_tick_record(
@@ -62,6 +69,12 @@ class SimulationService:
                     event_type="agent_acted",
                     data={"agent_id": str(action_result.agent_id), "action": str(action_result.action)},
                 )
+                await ws_manager.broadcast({
+                    "type": "agent_acted",
+                    "agent_id": str(action_result.agent_id),
+                    "action": str(action_result.action),
+                })
+
         return self._state_to_dto(state)
 
     async def get_state(self) -> SimulationStateResponseDTO:
@@ -80,13 +93,13 @@ class SimulationService:
 
     def _state_to_dto(self, state: SimulationState) -> SimulationStateResponseDTO:
         return SimulationStateResponseDTO(
-            tick=state.tick,
+            tick=state.time_step,
             population=state.population,
-            economic_health=state.economy.health if state.economy else 0.5,
-            social_cohesion=state.psychology.social_cohesion if state.psychology else 0.5,
-            environmental_quality=0.5,
-            public_order=state.crime.public_order if state.crime else 0.5,
-            innovation_index=state.economy.innovation_index if state.economy else 0.5,
-            unlust=state.psychology.unlust if state.psychology else 0.0,
-            morality=state.psychology.morality if state.psychology else 0.5,
+            economic_health=state.economic_health,
+            social_cohesion=state.social_cohesion,
+            environmental_quality=state.environmental_quality,
+            public_order=state.public_order,
+            innovation_index=state.innovation_index,
+            unlust=state.unlust,
+            morality=state.morality,
         )

@@ -38,3 +38,6 @@ class WebSocketManager:
 
     def get_connection_count(self) -> int:
         return len(self._connections)
+
+
+ws_manager = WebSocketManager()

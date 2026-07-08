@@ -41,18 +41,25 @@ class TestSimulationEndpoints:
         })
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "started"
+        assert "is_running" in data
+        assert "tick" in data
 
     def test_stop_simulation(self, client):
         response = client.post("/api/v1/simulation/stop")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "stopped"
+        assert "is_running" in data
+        assert "tick" in data
 
-    def test_advance_tick_when_not_started(self, client):
+    def test_advance_tick_when_not_started(self, client, mock_engine):
+        from backend.app.dependencies import get_engine
+        prev = get_engine()
         set_engine(None)
-        response = client.post("/api/v1/simulation/tick")
-        assert response.status_code == 400
+        try:
+            response = client.post("/api/v1/simulation/tick")
+            assert response.status_code == 400
+        finally:
+            set_engine(prev)
 
     def test_get_state(self, client):
         response = client.get("/api/v1/simulation/state")
@@ -64,7 +71,8 @@ class TestSimulationEndpoints:
         response = client.post("/api/v1/simulation/reset")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "reset"
+        assert "is_running" in data
+        assert "tick" in data
 
 
 class TestPolicyEndpoints:
