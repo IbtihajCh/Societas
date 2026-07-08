@@ -9,10 +9,9 @@ from backend.app.config import get_settings
 from backend.app.database.connection import close_db, init_db
 from backend.app.middleware.logging import LoggingMiddleware
 from backend.app.routers import agents, health, metrics, policies, simulation
-from backend.app.websocket.manager import WebSocketManager
+from backend.app.websocket.manager import ws_manager
 
 logger = logging.getLogger("societas.api")
-ws_manager = WebSocketManager()
 
 
 @asynccontextmanager

@@ -51,10 +51,15 @@ class TestSimulationEndpoints:
         assert "is_running" in data
         assert "tick" in data
 
-    def test_advance_tick_when_not_started(self, client):
+    def test_advance_tick_when_not_started(self, client, mock_engine):
+        from backend.app.dependencies import get_engine
+        prev = get_engine()
         set_engine(None)
-        response = client.post("/api/v1/simulation/tick")
-        assert response.status_code == 400
+        try:
+            response = client.post("/api/v1/simulation/tick")
+            assert response.status_code == 400
+        finally:
+            set_engine(prev)
 
     def test_get_state(self, client):
         response = client.get("/api/v1/simulation/state")
