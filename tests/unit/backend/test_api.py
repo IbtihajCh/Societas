@@ -41,13 +41,15 @@ class TestSimulationEndpoints:
         })
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "started"
+        assert "is_running" in data
+        assert "tick" in data
 
     def test_stop_simulation(self, client):
         response = client.post("/api/v1/simulation/stop")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "stopped"
+        assert "is_running" in data
+        assert "tick" in data
 
     def test_advance_tick_when_not_started(self, client):
         set_engine(None)
@@ -64,7 +66,8 @@ class TestSimulationEndpoints:
         response = client.post("/api/v1/simulation/reset")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "reset"
+        assert "is_running" in data
+        assert "tick" in data
 
 
 class TestPolicyEndpoints:

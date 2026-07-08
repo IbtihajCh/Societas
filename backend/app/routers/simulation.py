@@ -7,7 +7,7 @@ from shared.dto.simulation_dto import (
     SimulationStatusDTO,
 )
 
-from backend.app.dependencies import get_simulation_service
+from backend.app.dependencies import get_simulation_service, set_engine
 from backend.app.services.simulation_service import SimulationService
 
 router = APIRouter()
@@ -20,30 +20,31 @@ async def get_simulation_status(
     return await service.get_status()
 
 
-@router.post("/start")
+@router.post("/start", response_model=SimulationStatusDTO)
 async def start_simulation(
     request: SimulationStartRequestDTO,
     service: SimulationService = Depends(get_simulation_service),
 ):
     status = await service.start_simulation(request)
-    return {"simulation_id": "sim-001", "status": "started", "tick": status.tick}
+    engine = service.get_engine()
+    if engine is not None:
+        set_engine(engine)
+    return status
 
 
-@router.post("/stop")
+@router.post("/stop", response_model=SimulationStatusDTO)
 async def stop_simulation(
     service: SimulationService = Depends(get_simulation_service),
 ):
-    status = await service.stop_simulation()
-    return {"status": "stopped", "tick": status.tick}
+    return await service.stop_simulation()
 
 
-@router.post("/tick")
+@router.post("/tick", response_model=SimulationStateResponseDTO)
 async def advance_tick(
     service: SimulationService = Depends(get_simulation_service),
 ):
     try:
-        state = await service.advance_tick()
-        return {"tick": state.tick, "status": "completed"}
+        return await service.advance_tick()
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -55,10 +56,9 @@ async def get_simulation_state(
     return await service.get_state()
 
 
-@router.post("/reset")
+@router.post("/reset", response_model=SimulationStatusDTO)
 async def reset_simulation(
     seed: Optional[int] = None,
     service: SimulationService = Depends(get_simulation_service),
 ):
-    status = await service.reset_simulation(seed)
-    return {"status": "reset", "tick": status.tick}
+    return await service.reset_simulation(seed)
