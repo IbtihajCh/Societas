@@ -5,7 +5,7 @@ model: google/gemma-2-9b-it
 temperature: 0.3
 max_tokens: 256
 version: 1.0.0
-status: draft
+status: active
 ---
 
 # Policy Translation

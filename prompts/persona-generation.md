@@ -5,7 +5,7 @@ model: google/gemma-2-9b-it
 temperature: 0.7
 max_tokens: 128
 version: 1.0.0
-status: draft
+status: active
 ---
 
 # Persona Generation

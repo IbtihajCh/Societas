@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
@@ -9,7 +9,8 @@ from backend.app.config import get_settings
 from backend.app.database.connection import close_db, init_db
 from backend.app.middleware.logging import LoggingMiddleware
 from backend.app.routers import agents, health, metrics, policies, simulation
-from backend.app.websocket.manager import ws_manager
+from backend.app.routers import ai as ai_router
+from backend.app.websocket.manager import WebSocketManager, ws_manager
 
 logger = logging.getLogger("societas.api")
 
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(simulation.router, prefix="/api/v1/simulation", tags=["simulation"])
     app.include_router(policies.router, prefix="/api/v1/policies", tags=["policies"])
     app.include_router(metrics.router, prefix="/api/v1/metrics", tags=["metrics"])
+    app.include_router(ai_router.router, prefix="/api/v1/ai", tags=["ai"])
     app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
 
     @app.exception_handler(Exception)
