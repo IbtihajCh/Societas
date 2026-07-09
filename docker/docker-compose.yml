@@ -7,17 +7,10 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
-      - SIMULATION_HOST=simulation
-      - SIMULATION_PORT=50051
-      - VLLM_HOST=vllm
-      - VLLM_PORT=8001
+      - VLLM_HOST=165.245.130.202
+      - VLLM_PORT=8000
+      - VLLM_API_KEY=not-needed
       - LOG_LEVEL=${LOG_LEVEL:-info}
-    volumes:
-      - ../backend:/app
-      - ../prompts:/prompts:ro
-    depends_on:
-      simulation:
-        condition: service_started
     restart: unless-stopped
     networks:
       - societas-net
@@ -25,7 +18,7 @@ services:
   simulation:
     build:
       context: ..
-      file: docker/simulation.Dockerfile
+      dockerfile: docker/simulation.Dockerfile
     container_name: societas-simulation
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-info}
@@ -38,16 +31,13 @@ services:
   frontend:
     build:
       context: ..
-      file: docker/frontend.Dockerfile
+      dockerfile: docker/frontend.Dockerfile
     container_name: societas-frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-      - NEXT_PUBLIC_WS_URL=ws://backend:8000/ws
-    volumes:
-      - ../frontend:/app
-      - /app/node_modules
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
     depends_on:
       - backend
     restart: unless-stopped
@@ -57,7 +47,7 @@ services:
   vllm:
     build:
       context: ..
-      file: docker/vllm-rocm.Dockerfile
+      dockerfile: docker/vllm-rocm.Dockerfile
     container_name: societas-vllm
     ports:
       - "${VLLM_PORT:-8001}:8001"

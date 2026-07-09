@@ -1,0 +1,15 @@
+.git/
+.gitignore
+.vault/
+node_modules/
+frontend/node_modules/
+vault/
+*.md
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+*.db
+*.db-wal
+*.db-shm

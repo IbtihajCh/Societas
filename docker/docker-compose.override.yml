@@ -1,0 +1,10 @@
+services:
+  vllm:
+    profiles: ["disabled"]
+  simulation:
+    profiles: ["disabled"]
+  backend:
+    environment:
+      - VLLM_HOST=165.245.130.202
+      - VLLM_PORT=8000
+      - VLLM_API_KEY=not-needed

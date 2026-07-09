@@ -23,17 +23,19 @@ export enum PolicyCategory {
 
 export enum ActionType {
   WORK = 'WORK',
-  LEISURE = 'LEISURE',
-  SOCIALIZE = 'SOCIALIZE',
-  CONSUME = 'CONSUME',
-  SAVE = 'SAVE',
-  INVEST = 'INVEST',
-  EDUCATE = 'EDUCATE',
+  BUY_FOOD = 'BUY_FOOD',
   REST = 'REST',
-  MIGRATE = 'MIGRATE',
+  SEEK_JOB = 'SEEK_JOB',
+  BEG = 'BEG',
+  BEFRIEND = 'BEFRIEND',
+  CONSOLE = 'CONSOLE',
+  ISOLATE = 'ISOLATE',
+  SHARE = 'SHARE',
+  STEAL = 'STEAL',
+  HARM_OTHER = 'HARM_OTHER',
   PROTEST = 'PROTEST',
-  COMMIT_CRIME = 'COMMIT_CRIME',
-  VOLUNTEER = 'VOLUNTEER',
+  COMPLAIN = 'COMPLAIN',
+  COMPLY = 'COMPLY',
   IDLE = 'IDLE',
 }
 
@@ -47,11 +49,8 @@ export enum EmploymentStatus {
 
 export enum WealthClass {
   POOR = 'POOR',
-  WORKING = 'WORKING',
   MIDDLE = 'MIDDLE',
-  UPPER_MIDDLE = 'UPPER_MIDDLE',
-  WEALTHY = 'WEALTHY',
-  ELITE = 'ELITE',
+  RICH = 'RICH',
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +81,14 @@ export interface SimulationStateResponseDTO {
   innovation_index: number;
   unlust: number;
   morality: number;
+  food_availability: number;
+  water_availability: number;
+  crime_rate: number;
+  protest_intensity: number;
+  unemployment_rate: number;
+  tax_rate: number;
+  welfare_enabled: boolean;
+  welfare_amount: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +128,9 @@ export interface AgentSummaryDTO {
   employment_status: EmploymentStatus;
   age: number;
   is_alive: boolean;
+  emotion: string;
+  unlust: number;
+  job_type: string;
 }
 
 export interface AgentDetailDTO {
@@ -133,9 +143,35 @@ export interface AgentDetailDTO {
   employment_status: EmploymentStatus;
   wealth_class: WealthClass;
   age: number;
+  is_alive: boolean;
   location: string;
-  last_action: ActionType | null;
+  last_action: string | null;
+  last_reasoning: string;
   social_connections: number;
+  gender: string;
+  culture: string;
+  born_tick: number;
+  unlust: number;
+  happiness_score: number;
+  emotion: string;
+  emotion_timer: number;
+  good_acts: number;
+  crimes_committed: number;
+  notoriety: number;
+  trust_in_govt: number;
+  protest_count: number;
+  money: number;
+  base_salary: number;
+  employed: boolean;
+  education: string;
+  property: boolean;
+  health: number;
+  job_type: string;
+  grid_x: number;
+  grid_y: number;
+  spouse: string | null;
+  enemies: string[];
+  community_id: string | null;
 }
 
 export interface AgentListResponseDTO {
