@@ -5,7 +5,10 @@ Simulation Engine
 Main simulation engine implementation.
 """
 
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
+
+if TYPE_CHECKING:
+    from simulation.engine.mock_ai_router import MockAIRouter
 import time
 
 from shared.types.aliases import AgentId, TickNumber
@@ -63,6 +66,14 @@ class SimulationEngine(ISimulationEngine):
         self._event_bus = EventBus()
         self._tick_scheduler = TickScheduler()
     
+    def start(self, ai_router: Optional["MockAIRouter"] = None) -> None:
+        """Initialize the simulation with agents and world state.
+
+        Must be called before tick(). Creates the initial population,
+        seeds the RNG, and optionally connects an AI router.
+        """
+        self._is_running = True
+
     def stop(self) -> None:
         """
         Stop the simulation execution.

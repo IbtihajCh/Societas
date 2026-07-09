@@ -34,6 +34,14 @@ def mock_engine():
         innovation_index=0.6,
         unlust=0.1,
         morality=0.7,
+        food_availability=0.85,
+        water_availability=0.9,
+        crime_rate=0.05,
+        protest_intensity=0.0,
+        unemployment_rate=0.1,
+        tax_rate=0.15,
+        welfare_enabled=False,
+        welfare_amount=8.0,
     )
     engine.get_metrics.return_value = SimulationMetrics()
     return engine

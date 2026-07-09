@@ -54,5 +54,13 @@ class SimulationState:
     crime: CrimeState = field(default_factory=CrimeState)
     needs: NeedsState = field(default_factory=NeedsState)
     psychology: PsychologyState = field(default_factory=PsychologyState)
+    food_availability: float = 0.8
+    water_availability: float = 0.8
+    crime_rate: float = 0.05
+    protest_intensity: float = 0.0
+    unemployment_rate: float = 0.1
+    tax_rate: float = 0.15
+    welfare_enabled: bool = False
+    welfare_amount: float = 8.0
     active_policy_ids: List[str] = field(default_factory=list)
     metadata: Dict[str, object] = field(default_factory=dict)
