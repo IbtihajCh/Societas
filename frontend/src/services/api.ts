@@ -2,11 +2,13 @@ import axios, { AxiosError } from 'axios';
 
 import {
   AgentDetailDTO,
+  AgentHistoryResponseDTO,
   AgentListResponseDTO,
   HealthResponse,
   MetricsResponseDTO,
   PolicyCreateRequestDTO,
   PolicyListResponseDTO,
+  PolicyRevokeResponseDTO,
   PolicyResponseDTO,
   SimulationStartRequestDTO,
   SimulationStateResponseDTO,
@@ -131,8 +133,8 @@ export const apiService = {
     return response.data;
   },
 
-  revokePolicy: async (policyId: string): Promise<PolicyResponseDTO> => {
-    const response = await apiClient.delete<PolicyResponseDTO>(
+  revokePolicy: async (policyId: string): Promise<PolicyRevokeResponseDTO> => {
+    const response = await apiClient.delete<PolicyRevokeResponseDTO>(
       `/policies/${policyId}`,
     );
     return response.data;
@@ -178,8 +180,8 @@ export const apiService = {
     return response.data;
   },
 
-  getAgentHistory: async (agentId: string): Promise<unknown[]> => {
-    const response = await apiClient.get<unknown[]>(
+  getAgentHistory: async (agentId: string): Promise<AgentHistoryResponseDTO> => {
+    const response = await apiClient.get<AgentHistoryResponseDTO>(
       `/agents/${agentId}/history`,
     );
     return response.data;

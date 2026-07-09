@@ -3,7 +3,6 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { apiService } from '@/services/api';
 import {
   SimulationStateResponseDTO,
-  SimulationStatusDTO,
   MetricPointDTO,
 } from '@/types/api';
 
