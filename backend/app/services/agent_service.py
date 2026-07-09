@@ -44,6 +44,7 @@ class AgentService:
             employment_status=agent.employment_status,
             age=agent.age,
             is_alive=agent.is_alive,
+            emotion=agent.emotions.primary.value if agent.emotions else "content",
         )
 
     def _agent_to_detail(self, agent: AgentState) -> AgentDetailDTO:
@@ -57,6 +58,7 @@ class AgentService:
             employment_status=agent.employment_status,
             wealth_class=agent.wealth_class,
             age=agent.age,
+            is_alive=agent.is_alive,
             location=agent.location,
             last_action=agent.decision_scores.top_action if agent.decision_scores else None,
             social_connections=len(agent.social_connections),

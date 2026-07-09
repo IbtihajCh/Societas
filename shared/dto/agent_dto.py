@@ -32,6 +32,7 @@ class AgentSummaryDTO:
     employment_status: EmploymentStatus = EmploymentStatus.UNEMPLOYED
     age: int = 0
     is_alive: bool = True
+    emotion: str = "content"
 
 
 @dataclass
@@ -49,6 +50,7 @@ class AgentDetailDTO:
         employment_status: Current employment status
         wealth_class: Current wealth classification
         age: Agent age
+        is_alive: Whether the agent is active
         location: Current location
         last_action: Last action taken
         social_connections: Number of social connections
@@ -63,6 +65,7 @@ class AgentDetailDTO:
     employment_status: EmploymentStatus = EmploymentStatus.UNEMPLOYED
     wealth_class: WealthClass = WealthClass.WORKING
     age: int = 0
+    is_alive: bool = True
     location: str = "default"
     last_action: Optional[ActionType] = None
     social_connections: int = 0

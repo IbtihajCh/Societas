@@ -57,10 +57,19 @@ class SimulationService:
         state = self._engine.get_state()
         await self._repository.save_snapshot(result.tick, state)
 
+        agents = self._engine.get_agents()
+        ambiguity_count = sum(
+            1 for a in agents
+            if a.decision_scores and a.decision_scores.is_ambiguous()
+        ) if agents else 0
         await ws_manager.broadcast({
             "type": "tick_completed",
             "tick": result.tick,
             "population": state.population,
+            "state_hash": hash(state),
+            "agent_count": len(agents) if agents else 0,
+            "ambiguity_count": ambiguity_count,
+            "ai_calls": ambiguity_count,
         })
 
         for action_result in result.agent_actions:
