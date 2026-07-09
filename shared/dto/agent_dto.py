@@ -28,7 +28,7 @@ class AgentSummaryDTO:
     
     id: AgentId
     persona: str = ""
-    wealth_class: WealthClass = WealthClass.WORKING
+    wealth_class: WealthClass = WealthClass.MIDDLE
     employment_status: EmploymentStatus = EmploymentStatus.UNEMPLOYED
     age: int = 0
     is_alive: bool = True
@@ -61,7 +61,7 @@ class AgentDetailDTO:
     emotions: Dict[str, float] = field(default_factory=dict)
     resources: Dict[str, float] = field(default_factory=dict)
     employment_status: EmploymentStatus = EmploymentStatus.UNEMPLOYED
-    wealth_class: WealthClass = WealthClass.WORKING
+    wealth_class: WealthClass = WealthClass.MIDDLE
     age: int = 0
     location: str = "default"
     last_action: Optional[ActionType] = None

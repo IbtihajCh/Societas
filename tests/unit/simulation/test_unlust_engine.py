@@ -4,6 +4,8 @@ Verifies compute_unlust, morality_active, is_thanatos_active,
 and get_unlust_state against the Freudian Unlust formula.
 """
 
+import pytest
+
 from shared.schemas.agent_state import AgentState, AgentNeeds, AgentResources, AgentTraits
 from shared.types.aliases import AgentId, NeedValue
 from shared.types.enums import NeedType
@@ -16,10 +18,10 @@ from simulation.agents.unlust_engine import (
 
 
 def _make_agent(
-    food: float = 0.5,
-    water: float = 0.5,
-    safety: float = 0.5,
-    social: float = 0.5,
+    food: float = 0.7,
+    water: float = 0.7,
+    safety: float = 0.7,
+    social: float = 0.7,
     money: float = 100.0,
     morality: float = 0.5,
 ) -> AgentState:
@@ -46,40 +48,40 @@ def _make_agent(
 
 
 def test_zero_unlust() -> None:
-    """All needs at 0.5+, money >= 600 -> unlust = 0.0."""
-    agent = _make_agent(food=0.5, water=0.5, safety=0.5, social=0.5, money=600)
+    """All needs at 0.7+, money >= 600 -> unlust = 0.0."""
+    agent = _make_agent(food=0.7, water=0.7, safety=0.7, social=0.7, money=600)
     assert compute_unlust(agent) == 0.0
 
 
 def test_max_unlust() -> None:
-    """All needs at 0.0, money = 0 -> unlust = 0.5*(0.28+0.22+0.20+0.12) + 1.0*0.18 = 0.59."""
+    """All needs at 0.0, money = 0 -> unlust = 0.7*(0.28+0.22+0.20+0.12) + 1.0*0.18 = 0.754."""
     agent = _make_agent(food=0.0, water=0.0, safety=0.0, social=0.0, money=0)
-    expected = 0.5 * (0.28 + 0.22 + 0.20 + 0.12) + 1.0 * 0.18
+    expected = 0.7 * (0.28 + 0.22 + 0.20 + 0.12) + 1.0 * 0.18
     assert compute_unlust(agent) == expected
 
 
 def test_food_deficit_only() -> None:
-    """Food=0.2, others=0.8, money=600 -> unlust = (0.5-0.2)*0.28 = 0.084."""
+    """Food=0.2, others=0.8, money=600 -> unlust = (0.7-0.2)*0.28 = 0.14."""
     agent = _make_agent(food=0.2, water=0.8, safety=0.8, social=0.8, money=600)
-    assert compute_unlust(agent) == 0.084
+    assert compute_unlust(agent) == pytest.approx(0.14)
 
 
 def test_water_deficit_only() -> None:
-    """Water=0.2, others=0.8, money=600 -> unlust = (0.5-0.2)*0.22 = 0.066."""
+    """Water=0.2, others=0.8, money=600 -> unlust = (0.7-0.2)*0.22 = 0.11."""
     agent = _make_agent(food=0.8, water=0.2, safety=0.8, social=0.8, money=600)
-    assert compute_unlust(agent) == 0.066
+    assert compute_unlust(agent) == pytest.approx(0.11)
 
 
 def test_safety_deficit_only() -> None:
-    """Safety=0.2, others=0.8, money=600 -> unlust = (0.5-0.2)*0.20 = 0.06."""
+    """Safety=0.2, others=0.8, money=600 -> unlust = (0.7-0.2)*0.20 = 0.10."""
     agent = _make_agent(food=0.8, water=0.8, safety=0.2, social=0.8, money=600)
-    assert compute_unlust(agent) == 0.06
+    assert compute_unlust(agent) == pytest.approx(0.10)
 
 
 def test_social_deficit_only() -> None:
-    """Social=0.2, others=0.8, money=600 -> unlust = (0.5-0.2)*0.12 = 0.036."""
+    """Social=0.2, others=0.8, money=600 -> unlust = (0.7-0.2)*0.12 = 0.06."""
     agent = _make_agent(food=0.8, water=0.8, safety=0.8, social=0.2, money=600)
-    assert compute_unlust(agent) == 0.036
+    assert compute_unlust(agent) == pytest.approx(0.06)
 
 
 def test_money_deficit_only() -> None:
@@ -115,7 +117,7 @@ def test_no_negative_unlust() -> None:
 def test_unlust_clamped_to_1() -> None:
     """With deficits driving over 1.0, result is clamped to 1.0.
 
-    Max possible from the formula is 0.59 (all needs=0, money=0), so clamping
+    Max possible from the formula is 0.754 (all needs=0, money=0), so clamping
     to 1.0 is a theoretical safeguard. This test confirms it never exceeds 1.0.
     """
     agent = _make_agent(food=0.0, water=0.0, safety=0.0, social=0.0, money=0)

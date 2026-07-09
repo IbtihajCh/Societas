@@ -7,13 +7,17 @@ wealth class derivation, and determinism guarantees.
 """
 
 from copy import deepcopy
+from unittest.mock import patch
 
 import pytest
 
 from shared.constants.defaults import (
     DESPAIR_MORTALITY_RATE,
     FAMILY_DECAY_RATE,
+    FOOD_DEATH_THRESHOLD,
     FOOD_DECAY_RATE,
+    HEALTH_DEATH_THRESHOLD,
+    JOB_LOSS_RATE,
     REPUTATION_DECAY_RATE,
     ROMANTIC_DECAY_RATE,
     SAFETY_DECAY_RATE,
@@ -24,6 +28,7 @@ from shared.constants.defaults import (
     SLEEP_REPLENISH_RATE,
     SOCIAL_DECAY_RATE,
     UNLUST_FINANCIAL_DIVISOR,
+    WATER_DEATH_THRESHOLD,
     WATER_DECAY_RATE,
 )
 from shared.schemas.agent_state import (
@@ -35,9 +40,9 @@ from shared.schemas.agent_state import (
 )
 from shared.schemas.simulation_state import SimulationState
 from shared.types.aliases import AgentId
-from shared.types.enums import EmotionType, NeedType, WealthClass
+from shared.types.enums import EmotionType, EmploymentStatus, NeedType, WealthClass
 from shared.utilities.deterministic_rng import DeterministicRNG
-from simulation.agents.needs_calculator import check_death, decay_needs, derive_wealth_class
+from simulation.agents.needs_calculator import check_death, decay_needs, derive_wealth_class, maybe_lose_job
 
 
 # ---------------------------------------------------------------------------
@@ -337,7 +342,15 @@ class TestCheckDeath:
     def test_death_starvation(self) -> None:
         """Food <= FOOD_DEATH_THRESHOLD triggers death."""
         agent = _make_agent()
-        _set_need(agent, NeedType.FOOD, 0.0)
+        _set_need(agent, NeedType.FOOD, FOOD_DEATH_THRESHOLD)
+        rng = DeterministicRNG(42)
+
+        assert check_death(agent, rng) is True
+
+    def test_death_starvation_below_threshold(self) -> None:
+        """Food below threshold triggers death."""
+        agent = _make_agent()
+        _set_need(agent, NeedType.FOOD, FOOD_DEATH_THRESHOLD - 0.01)
         rng = DeterministicRNG(42)
 
         assert check_death(agent, rng) is True
@@ -345,23 +358,23 @@ class TestCheckDeath:
     def test_death_dehydration(self) -> None:
         """Water <= WATER_DEATH_THRESHOLD triggers death."""
         agent = _make_agent()
-        _set_need(agent, NeedType.WATER, 0.0)
+        _set_need(agent, NeedType.WATER, WATER_DEATH_THRESHOLD)
         rng = DeterministicRNG(42)
 
         assert check_death(agent, rng) is True
 
     def test_death_health(self) -> None:
         """Health <= HEALTH_DEATH_THRESHOLD triggers death."""
-        agent = _make_agent(health=0.0)
+        agent = _make_agent(health=HEALTH_DEATH_THRESHOLD)
         rng = DeterministicRNG(42)
 
         assert check_death(agent, rng) is True
 
     def test_death_starvation_takes_precedence(self) -> None:
         """Starvation death is detected even if other conditions also hold."""
-        agent = _make_agent(health=0.0)
-        _set_need(agent, NeedType.FOOD, 0.0)
-        _set_need(agent, NeedType.WATER, 0.0)
+        agent = _make_agent(health=HEALTH_DEATH_THRESHOLD)
+        _set_need(agent, NeedType.FOOD, FOOD_DEATH_THRESHOLD)
+        _set_need(agent, NeedType.WATER, WATER_DEATH_THRESHOLD)
         rng = DeterministicRNG(42)
 
         assert check_death(agent, rng) is True
@@ -583,3 +596,118 @@ class TestEdgeCases:
         decay_needs(agent, world, DeterministicRNG(42))
 
         assert agent.resources.health == pytest.approx(0.75)
+
+
+# ---------------------------------------------------------------------------
+# Job loss tests
+# ---------------------------------------------------------------------------
+
+class TestMaybeLoseJob:
+    """Probabilistic job loss mechanic tests."""
+
+    def test_job_loss_doesnt_affect_unemployed(self) -> None:
+        """Unemployed agent returns False and fields remain unchanged."""
+        agent = _make_agent()
+        # Default: employed=False, employment_status=UNEMPLOYED
+        assert not agent.resources.employed
+        original_status = agent.employment_status
+        original_salary = agent.resources.base_salary
+
+        rng = DeterministicRNG(42)
+        result = maybe_lose_job(agent, rng)
+
+        assert result is False
+        assert agent.resources.employed is False
+        assert agent.employment_status == original_status
+        assert agent.resources.base_salary == original_salary
+
+    def test_job_loss_rate_zero(self) -> None:
+        """With JOB_LOSS_RATE=0, employed agent never loses job."""
+        agent = _make_agent()
+        agent.resources.employed = True
+        agent.employment_status = EmploymentStatus.EMPLOYED
+        agent.resources.base_salary = 30000.0
+
+        # Controlled RNG that would trigger if rate were > 0
+        class _ControlledRNG(DeterministicRNG):
+            def __init__(self) -> None:
+                super().__init__(0)
+
+            def random(self) -> float:
+                return 0.0
+
+        with patch("simulation.agents.needs_calculator.JOB_LOSS_RATE", 0.0):
+            result = maybe_lose_job(agent, _ControlledRNG())
+
+        assert result is False
+        assert agent.resources.employed is True
+        assert agent.resources.base_salary == 30000.0
+
+    def test_job_loss_occurs(self) -> None:
+        """Employed agent with favorable RNG roll loses job."""
+        agent = _make_agent()
+        agent.resources.employed = True
+        agent.employment_status = EmploymentStatus.EMPLOYED
+        agent.resources.base_salary = 30000.0
+
+        class _ControlledRNG(DeterministicRNG):
+            def __init__(self) -> None:
+                super().__init__(0)
+
+            def random(self) -> float:
+                return 0.0  # Always < JOB_LOSS_RATE (0.002)
+
+        result = maybe_lose_job(agent, _ControlledRNG())
+
+        assert result is True
+
+    def test_job_loss_occurs_boundary(self) -> None:
+        """RNG roll exactly at JOB_LOSS_RATE does NOT trigger job loss (strict <)."""
+        agent = _make_agent()
+        agent.resources.employed = True
+        agent.employment_status = EmploymentStatus.EMPLOYED
+        agent.resources.base_salary = 30000.0
+
+        class _ControlledRNG(DeterministicRNG):
+            def __init__(self) -> None:
+                super().__init__(0)
+
+            def random(self) -> float:
+                return JOB_LOSS_RATE  # Equal to rate, not less than
+
+        result = maybe_lose_job(agent, _ControlledRNG())
+
+        assert result is False
+        assert agent.resources.employed is True
+
+    def test_job_loss_sets_fields(self) -> None:
+        """On job loss, employed=False, employment_status=UNEMPLOYED, base_salary=0.0."""
+        agent = _make_agent()
+        agent.resources.employed = True
+        agent.employment_status = EmploymentStatus.EMPLOYED
+        agent.resources.base_salary = 30000.0
+
+        class _ControlledRNG(DeterministicRNG):
+            def __init__(self) -> None:
+                super().__init__(0)
+
+            def random(self) -> float:
+                return 0.0
+
+        maybe_lose_job(agent, _ControlledRNG())
+
+        assert agent.resources.employed is False
+        assert agent.employment_status == EmploymentStatus.UNEMPLOYED
+        assert agent.resources.base_salary == pytest.approx(0.0)
+
+    def test_job_loss_deterministic(self) -> None:
+        """Same seed produces same job loss outcome."""
+        def run() -> bool:
+            agent = _make_agent()
+            agent.resources.employed = True
+            agent.employment_status = EmploymentStatus.EMPLOYED
+            agent.resources.base_salary = 30000.0
+            rng = DeterministicRNG(seed=42)
+            return maybe_lose_job(agent, rng)
+
+        assert run() == run()

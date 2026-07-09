@@ -253,23 +253,27 @@ def validate_action(
 def deterministic_fallback(
     agent: AgentState, world: SimulationState, rng: DeterministicRNG
 ) -> ActionType:
-    """Simplified 3-level priority queue for when LLM is unavailable.
+    """Weighted priority queue for when LLM is unavailable.
 
-    This is a safety net — much simpler than the 7-level queue.
-    The LLM is the primary decision-maker.
+    Levels 1-2 are strict (survival/employment). Level 3 uses weighted
+    random selection based on agent state, personality, and unmet needs
+    so that social, prosocial, criminal, and political actions emerge
+    naturally instead of always defaulting to WORK.
 
     Args:
         agent: The agent making the decision.
         world: Current world state.
-        rng: Deterministic RNG.
+        rng: Deterministic RNG for weighted selection.
 
     Returns:
         An ActionType for the agent to execute.
     """
     food = agent.needs.get_level(NeedType.FOOD)
     water = agent.needs.get_level(NeedType.WATER)
+    social = agent.needs.get_level(NeedType.SOCIAL_CONNECTION)
     money = agent.resources.money
     is_moral = morality_active(agent.unlust, agent.traits.morality)
+    unlust = agent.unlust
 
     # Level 1 — Critical Survival
     if food < 0.08 or water < 0.08:
@@ -287,9 +291,51 @@ def deterministic_fallback(
     if money < 120:
         return ActionType.WORK if agent.resources.employed else ActionType.BEG
 
-    # Level 3 — Default
+    # Level 3 — Weighted selection based on state and personality
+    weights: dict[ActionType, float] = {}
+    weights[ActionType.WORK] = 40.0
+    weights[ActionType.REST] = 10.0
+
+    # Social needs
+    if social < 0.5:
+        weights[ActionType.BEFRIEND] = 15.0
+    else:
+        weights[ActionType.BEFRIEND] = 5.0
+
+    # Prosocial actions
+    if agent.traits.morality > 0.68 and money > 250:
+        weights[ActionType.SHARE] = 10.0
+    if agent.emotions.primary in (EmotionType.SAD, EmotionType.DESPAIR):
+        weights[ActionType.CONSOLE] = 5.0
+
+    # Political dissatisfaction
+    if agent.trust_in_govt < 0.3:
+        weights[ActionType.COMPLAIN] = 5.0
+
+    # Withdrawal under stress
+    if unlust > 0.4:
+        weights[ActionType.ISOLATE] = 5.0
+
+    # Desperation overrides (unlust elevated but below morality gate)
+    if unlust > 0.45 and not is_moral:
+        weights[ActionType.STEAL] = 20.0
+        weights[ActionType.PROTEST] = 15.0
+        if agent.traits.anger_tendency > 0.6:
+            weights[ActionType.HARM_OTHER] = 5.0
+
+    # Anger-driven actions
+    if agent.emotions.primary == EmotionType.ANGRY:
+        weights[ActionType.PROTEST] = weights.get(ActionType.PROTEST, 0.0) + 20.0
+        if not is_moral:
+            weights[ActionType.STEAL] = weights.get(ActionType.STEAL, 0.0) + 10.0
+            weights[ActionType.HARM_OTHER] = weights.get(ActionType.HARM_OTHER, 0.0) + 8.0
+
+    # Despair-driven actions
     if agent.emotions.primary == EmotionType.DESPAIR:
-        return ActionType.ISOLATE
-    if agent.emotions.primary == EmotionType.ANGRY and not is_moral:
-        return ActionType.PROTEST
-    return ActionType.WORK if agent.resources.employed else ActionType.REST
+        weights[ActionType.ISOLATE] = weights.get(ActionType.ISOLATE, 0.0) + 25.0
+        weights[ActionType.BEG] = 10.0
+
+    # Pick weighted random
+    actions = list(weights.keys())
+    values = list(weights.values())
+    return rng.weighted_choice(actions, values)

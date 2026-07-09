@@ -23,7 +23,7 @@ from shared.schemas.simulation_state import SimulationState
 from shared.schemas.tick_result import AgentActionResult, TickResult
 from shared.schemas.policy import GovernmentPolicy
 from shared.utilities.deterministic_rng import DeterministicRNG
-from simulation.agents.needs_calculator import decay_needs, check_death
+from simulation.agents.needs_calculator import decay_needs, check_death, maybe_lose_job
 from simulation.agents.unlust_engine import compute_unlust
 from simulation.agents.emotion_engine import (
     compute_happiness,
@@ -104,6 +104,9 @@ def run_tick(
     ambiguity_count = 0
 
     for agent in living_agents:
+        # Probabilistic job loss before action selection
+        maybe_lose_job(agent, rng)
+
         if not should_evaluate_this_tick(agent, tick_number):
             # Continue last action
             if agent.last_action != ActionType.IDLE:

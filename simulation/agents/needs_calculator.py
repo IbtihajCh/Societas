@@ -14,6 +14,7 @@ from shared.constants.defaults import (
     FOOD_DEATH_THRESHOLD,
     FOOD_DECAY_RATE,
     HEALTH_DEATH_THRESHOLD,
+    JOB_LOSS_RATE,
     REPUTATION_DECAY_RATE,
     ROMANTIC_DECAY_RATE,
     SAFETY_DECAY_RATE,
@@ -29,13 +30,14 @@ from shared.constants.defaults import (
 )
 from shared.schemas.agent_state import AgentState
 from shared.schemas.simulation_state import SimulationState
-from shared.types.enums import EmotionType, NeedType, WealthClass
+from shared.types.enums import EmotionType, EmploymentStatus, NeedType, WealthClass
 from shared.utilities.deterministic_rng import DeterministicRNG
 
 __all__ = [
     "decay_needs",
     "check_death",
     "derive_wealth_class",
+    "maybe_lose_job",
 ]
 
 
@@ -180,3 +182,27 @@ def derive_wealth_class(money: float) -> WealthClass:
     if money < 15000.0:
         return WealthClass.MIDDLE
     return WealthClass.RICH
+
+
+def maybe_lose_job(agent: AgentState, rng: DeterministicRNG) -> bool:
+    """Probabilistic job loss. Returns True if agent lost job this tick.
+
+    Rate is ``JOB_LOSS_RATE`` (default 0.002 = 0.2% per tick).
+    Only affects employed agents. On job loss, sets employed=False,
+    employment_status=UNEMPLOYED, base_salary=0.0.
+
+    Args:
+        agent: The agent to evaluate for job loss (modified in place).
+        rng: Deterministic RNG for the probability roll.
+
+    Returns:
+        True if the agent lost their job this tick, False otherwise.
+    """
+    if not agent.resources.employed:
+        return False
+    if rng.random() < JOB_LOSS_RATE:
+        agent.resources.employed = False
+        agent.employment_status = EmploymentStatus.UNEMPLOYED
+        agent.resources.base_salary = 0.0
+        return True
+    return False

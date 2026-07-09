@@ -8,6 +8,8 @@
 
 **Supersedes:** None
 
+**Amended by:** [ADR-005](ADR-005-simulation-implementation-architecture.md) (2026-07-08)
+
 ---
 
 ## Context
@@ -66,6 +68,27 @@ This trace is available to the dashboard and can be replayed for auditing.
 **Negative:**
 - Adds complexity to the decision pipeline
 - If Gemma provides wildly divergent scores, fusion may produce unexpected results
+
+## Amendment (ADR-005, 2026-07-08)
+
+The fusion mechanism is clarified: fusion occurs **within priority levels**, not
+across all actions. The decision pipeline is now:
+
+1. **Priority queue** (deterministic, 7 Maslow levels, first-match-wins) selects
+   the priority level.
+2. **Utility scoring** (deterministic) computes scores for candidate actions within
+   that level.
+3. **Ambiguity detection** checks if top-2 scores are within 0.05.
+4. If ambiguous AND LLM available: **fusion** (0.7 det + 0.3 Gemma).
+5. If not ambiguous OR LLM unavailable: **deterministic selection** (highest score).
+
+The fusion formula, weights (0.7/0.3), and explainability mandate are unchanged.
+Fusion simply operates on a smaller action set (the candidates within a priority
+level, typically 2-3 actions) rather than all 14 actions. This is more efficient
+and more meaningful — Gemma only weighs in when the deterministic engine is genuinely
+uncertain between actions at the same Maslow priority level.
+
+---
 
 ## Related
 

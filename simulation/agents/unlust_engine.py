@@ -1,7 +1,8 @@
 """Unlust engine — computes the Freudian Unlust (dissatisfaction) score.
 
 The Unlust score measures how far below satisfactory each core need is.
-Only deficits below 0.5 count — being above 0.5 on a need does NOT reduce Unlust.
+Only deficits below UNLUST_NEED_THRESHOLD (default 0.7) count — being above
+the threshold on a need does NOT reduce Unlust.
 Range: 0.0 (fully satisfied) to 1.0 (maximally desperate).
 """
 
@@ -14,6 +15,7 @@ from shared.constants.defaults import (
     UNLUST_FINANCIAL_WEIGHT,
     UNLUST_FOOD_WEIGHT,
     UNLUST_MORALITY_GATE,
+    UNLUST_NEED_THRESHOLD,
     UNLUST_SAFETY_WEIGHT,
     UNLUST_SOCIAL_WEIGHT,
     UNLUST_WATER_WEIGHT,
@@ -31,13 +33,14 @@ def compute_unlust(agent: AgentState) -> float:
     """Compute the Freudian Unlust score (0.0-1.0).
 
     Formula (exact from Guide):
-        unlust = (max(0, 0.5 - food)    * 0.28)
-               + (max(0, 0.5 - water)   * 0.22)
-               + (max(0, 0.5 - safety)  * 0.20)
-               + (max(0, 0.5 - social)  * 0.12)
+        unlust = (max(0, THRESHOLD - food)    * 0.28)
+               + (max(0, THRESHOLD - water)   * 0.22)
+               + (max(0, THRESHOLD - safety)  * 0.20)
+               + (max(0, THRESHOLD - social)  * 0.12)
                + (max(0, 1.0 - (money/600)) * 0.18)
 
-    Only counts deficit below 0.5 for each need.
+    THRESHOLD defaults to 0.7 (configurable via UNLUST_NEED_THRESHOLD).
+    Only counts deficit below THRESHOLD for each need.
     Money deficit is relative to the 600 threshold.
 
     Args:
@@ -53,10 +56,10 @@ def compute_unlust(agent: AgentState) -> float:
     money_ratio = min(1.0, agent.resources.money / UNLUST_FINANCIAL_DIVISOR)
 
     unlust = (
-        max(0.0, 0.5 - food) * UNLUST_FOOD_WEIGHT
-        + max(0.0, 0.5 - water) * UNLUST_WATER_WEIGHT
-        + max(0.0, 0.5 - safety) * UNLUST_SAFETY_WEIGHT
-        + max(0.0, 0.5 - social) * UNLUST_SOCIAL_WEIGHT
+        max(0.0, UNLUST_NEED_THRESHOLD - food) * UNLUST_FOOD_WEIGHT
+        + max(0.0, UNLUST_NEED_THRESHOLD - water) * UNLUST_WATER_WEIGHT
+        + max(0.0, UNLUST_NEED_THRESHOLD - safety) * UNLUST_SAFETY_WEIGHT
+        + max(0.0, UNLUST_NEED_THRESHOLD - social) * UNLUST_SOCIAL_WEIGHT
         + max(0.0, 1.0 - money_ratio) * UNLUST_FINANCIAL_WEIGHT
     )
 

@@ -26,6 +26,7 @@ from shared.types.enums import (
     EmploymentStatus,
     JobType,
     NeedType,
+    WealthClass,
 )
 from shared.constants.defaults import (
     BASE_FOOD_COST,
@@ -37,6 +38,12 @@ from shared.constants.defaults import (
     REPUTATION_CHANGE_CRIMINAL,
     GRID_SIZE,
     INTERACTION_RADIUS,
+    SALARY_MULTIPLIER_POOR,
+    SALARY_MULTIPLIER_MIDDLE,
+    SALARY_MULTIPLIER_RICH,
+    FOOD_COST_MULTIPLIER_POOR,
+    FOOD_COST_MULTIPLIER_MIDDLE,
+    FOOD_COST_MULTIPLIER_RICH,
 )
 from shared.constants.simulation_constants import JOBS_BY_EDUCATION, SALARY_RANGES
 from shared.utilities.deterministic_rng import DeterministicRNG
@@ -92,6 +99,7 @@ def _make_agent(
     enemies: list[AgentId] | None = None,
     social_connections: list[AgentId] | None = None,
     employment_status: EmploymentStatus = EmploymentStatus.UNEMPLOYED,
+    wealth_class: WealthClass = WealthClass.POOR,
 ) -> AgentState:
     """Build an AgentState with the given attributes."""
     needs = AgentNeeds(
@@ -144,6 +152,7 @@ def _make_agent(
         enemies=enemies or [],
         social_connections=social_connections or [],
         employment_status=employment_status,
+        wealth_class=wealth_class,
     )
 
 
@@ -171,14 +180,15 @@ class TestWork:
 
     def test_work_earns_money(self) -> None:
         """Employed agent with base_salary earns money after tax."""
-        agent = _make_agent(money=0, base_salary=100, employed=True)
+        agent = _make_agent(money=0, base_salary=100, employed=True, wealth_class=WealthClass.MIDDLE)
         world = _make_world(tax_rate=0.15)
         rng = DeterministicRNG(42)
         result = execute_action(agent, ActionType.WORK, world, [], rng)
         # salary = 100 * 0.85 = 85
         # productivity = 1.0 (NORMAL)
         # creativity = 1.0 + (0.5 - 0.5) * 0.4 = 1.0
-        # income = 85 * 1.0 * 1.0 = 85
+        # salary_mult = 1.0 (MIDDLE)
+        # income = 85 * 1.0 * 1.0 * 1.0 = 85
         assert agent.resources.money == pytest.approx(85.0)
         assert "earned" in result.outcome
         assert result.score_delta["money"] == pytest.approx(85.0)
@@ -221,11 +231,50 @@ class TestWork:
 
     def test_work_updates_wealth(self) -> None:
         """Wealth mirrors money after work."""
-        agent = _make_agent(money=0, base_salary=100, employed=True, wealth=0)
+        agent = _make_agent(money=0, base_salary=100, employed=True, wealth=0,
+                            wealth_class=WealthClass.MIDDLE)
         world = _make_world(tax_rate=0.15)
         rng = DeterministicRNG(42)
         execute_action(agent, ActionType.WORK, world, [], rng)
         assert agent.resources.wealth == pytest.approx(agent.resources.money)
+
+    def test_work_poor_salary(self) -> None:
+        """Poor agent earns at 0.6x salary multiplier."""
+        poor = _make_agent(money=0, base_salary=100, employed=True,
+                           wealth_class=WealthClass.POOR)
+        middle = _make_agent(money=0, base_salary=100, employed=True,
+                             wealth_class=WealthClass.MIDDLE)
+        world = _make_world(tax_rate=0.0)
+        rng = DeterministicRNG(42)
+        execute_action(poor, ActionType.WORK, world, [], rng)
+        middle_rng = DeterministicRNG(42)
+        execute_action(middle, ActionType.WORK, world, [], middle_rng)
+        # Poor earns 0.6x of middle (same seed gives same productivity/creativity)
+        assert poor.resources.money == pytest.approx(middle.resources.money * SALARY_MULTIPLIER_POOR)
+
+    def test_work_rich_salary(self) -> None:
+        """Rich agent earns at 1.3x salary multiplier."""
+        rich = _make_agent(money=0, base_salary=100, employed=True,
+                           wealth_class=WealthClass.RICH)
+        middle = _make_agent(money=0, base_salary=100, employed=True,
+                             wealth_class=WealthClass.MIDDLE)
+        world = _make_world(tax_rate=0.0)
+        rng = DeterministicRNG(42)
+        execute_action(rich, ActionType.WORK, world, [], rng)
+        middle_rng = DeterministicRNG(42)
+        execute_action(middle, ActionType.WORK, world, [], middle_rng)
+        # Rich earns 1.3x of middle (same seed gives same productivity/creativity)
+        assert rich.resources.money == pytest.approx(middle.resources.money * SALARY_MULTIPLIER_RICH)
+
+    def test_work_middle_salary(self) -> None:
+        """Middle agent earns at 1.0x salary multiplier (baseline)."""
+        agent = _make_agent(money=0, base_salary=100, employed=True,
+                            wealth_class=WealthClass.MIDDLE)
+        world = _make_world(tax_rate=0.0)
+        rng = DeterministicRNG(42)
+        execute_action(agent, ActionType.WORK, world, [], rng)
+        # income = 100 * 1.0 * 1.0 * 1.0 * 1.0 = 100 (no tax, NORMAL, 0.5 creativity)
+        assert agent.resources.money == pytest.approx(100.0)
 
 
 # ===========================================================================
@@ -238,12 +287,13 @@ class TestBuyFood:
 
     def test_buy_food_success(self) -> None:
         """Agent with enough money buys food, increases food and water needs."""
-        agent = _make_agent(money=100, food=0.0, water=0.0)
+        agent = _make_agent(money=100, food=0.0, water=0.0, wealth_class=WealthClass.MIDDLE)
         world = _make_world(food_availability=1.0)
         rng = DeterministicRNG(42)
         execute_action(agent, ActionType.BUY_FOOD, world, [], rng)
         # scarcity = 2.0 - 1.0 = 1.0
-        # food_cost = 10 * 1.0 = 10
+        # food_mult = 1.0 (MIDDLE)
+        # food_cost = 10 * 1.0 * 1.0 = 10
         assert agent.resources.money == pytest.approx(90.0)
         assert agent.needs.get_level(NeedType.FOOD) == pytest.approx(0.30)
         assert agent.needs.get_level(NeedType.WATER) == pytest.approx(0.20)
@@ -258,13 +308,42 @@ class TestBuyFood:
 
     def test_buy_food_scarcity(self) -> None:
         """Lower food availability increases food cost."""
-        agent = _make_agent(money=100)
+        agent = _make_agent(money=100, wealth_class=WealthClass.MIDDLE)
         world = _make_world(food_availability=0.5)
         rng = DeterministicRNG(42)
         execute_action(agent, ActionType.BUY_FOOD, world, [], rng)
         # scarcity = 2.0 - 0.5 = 1.5
-        # food_cost = 10 * 1.5 = 15
+        # food_mult = 1.0 (MIDDLE)
+        # food_cost = 10 * 1.5 * 1.0 = 15
         assert agent.resources.money == pytest.approx(85.0)
+
+    def test_buy_food_poor_cost(self) -> None:
+        """Poor agent pays 1.3x for food (food deserts)."""
+        poor = _make_agent(money=100, wealth_class=WealthClass.POOR)
+        middle = _make_agent(money=100, wealth_class=WealthClass.MIDDLE)
+        world = _make_world(food_availability=1.0)
+        rng = DeterministicRNG(42)
+        execute_action(poor, ActionType.BUY_FOOD, world, [], rng)
+        middle_rng = DeterministicRNG(42)
+        execute_action(middle, ActionType.BUY_FOOD, world, [], middle_rng)
+        # POOR: food_cost = 10 * 1.0 * 1.3 = 13, money = 87
+        # MIDDLE: food_cost = 10 * 1.0 * 1.0 = 10, money = 90
+        assert poor.resources.money == pytest.approx(87.0)
+        assert middle.resources.money == pytest.approx(90.0)
+
+    def test_buy_food_rich_cost(self) -> None:
+        """Rich agent pays 0.8x for food (cheaper food access)."""
+        rich = _make_agent(money=100, wealth_class=WealthClass.RICH)
+        middle = _make_agent(money=100, wealth_class=WealthClass.MIDDLE)
+        world = _make_world(food_availability=1.0)
+        rng = DeterministicRNG(42)
+        execute_action(rich, ActionType.BUY_FOOD, world, [], rng)
+        middle_rng = DeterministicRNG(42)
+        execute_action(middle, ActionType.BUY_FOOD, world, [], middle_rng)
+        # RICH: food_cost = 10 * 1.0 * 0.8 = 8, money = 92
+        # MIDDLE: food_cost = 10 * 1.0 * 1.0 = 10, money = 90
+        assert rich.resources.money == pytest.approx(92.0)
+        assert middle.resources.money == pytest.approx(90.0)
 
 
 # ===========================================================================

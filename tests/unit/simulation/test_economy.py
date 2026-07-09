@@ -58,19 +58,19 @@ class TestApplyRent:
         assert apply_rent(agent) == 0.0
 
     def test_apply_rent_poor(self) -> None:
-        """Poor, no property → pays 2.0."""
+        """Poor, no property → pays 5.0."""
         agent = _make_agent(wealth_class=WealthClass.POOR, property=False)
-        assert apply_rent(agent) == 2.0
+        assert apply_rent(agent) == 5.0
 
     def test_apply_rent_middle(self) -> None:
-        """Middle, no property → pays 15.0."""
+        """Middle, no property → pays 25.0."""
         agent = _make_agent(wealth_class=WealthClass.MIDDLE, property=False)
-        assert apply_rent(agent) == 15.0
+        assert apply_rent(agent) == 25.0
 
     def test_apply_rent_rich(self) -> None:
-        """Rich, no property → pays 50.0."""
+        """Rich, no property → pays 80.0."""
         agent = _make_agent(wealth_class=WealthClass.RICH, property=False)
-        assert apply_rent(agent) == 50.0
+        assert apply_rent(agent) == 80.0
 
     def test_apply_rent_money_clamped(self) -> None:
         """Money goes to 0, not negative, when rent exceeds cash."""
@@ -143,10 +143,10 @@ class TestProcessEconomyTick:
         world = _make_world(welfare_enabled=True)
         result = process_economy_tick(agents, world)
 
-        # Agent 0 (poor, renter, unemployed): pays 2 rent, gets 8 welfare
-        # Agent 1 (middle, renter, employed): pays 15 rent, no welfare
+        # Agent 0 (poor, renter, unemployed): pays 5 rent, gets 8 welfare
+        # Agent 1 (middle, renter, employed): pays 25 rent, no welfare
         # Agent 2 (rich, owner, employed): no rent, no welfare
-        assert result["total_rent"] == 17.0
+        assert result["total_rent"] == 30.0
         assert result["total_welfare"] == 8.0
         assert result["rent_payers"] == 2.0
         assert result["welfare_recipients"] == 1.0
@@ -180,8 +180,8 @@ class TestProcessEconomyTick:
         world = _make_world(welfare_enabled=True)
         result = process_economy_tick(agents, world)
 
-        # Only agent 1 is alive: pays 15 rent, employed so no welfare
-        assert result["total_rent"] == 15.0
+        # Only agent 1 is alive: pays 25 rent, employed so no welfare
+        assert result["total_rent"] == 25.0
         assert result["total_welfare"] == 0.0
         assert result["rent_payers"] == 1.0
         assert result["welfare_recipients"] == 0.0

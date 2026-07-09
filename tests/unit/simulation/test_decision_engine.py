@@ -455,11 +455,20 @@ def test_fallback_angry_amoral() -> None:
 
 
 def test_fallback_default_work() -> None:
-    """Normal agent, employed=True → WORK (Level 3 final fallback)."""
+    """Normal agent, employed=True → weighted selection (WORK has highest weight).
+
+    With seed=42, the weighted distribution should select WORK most often.
+    Run 20 trials and verify WORK is the most common selection.
+    """
     agent = _make_agent(money=200, employed=True)
     world = _make_world()
-    rng = DeterministicRNG(seed=42)
-    assert deterministic_fallback(agent, world, rng) == ActionType.WORK
+    counts: dict[ActionType, int] = {}
+    for seed in range(20):
+        rng = DeterministicRNG(seed=seed)
+        action = deterministic_fallback(agent, world, rng)
+        counts[action] = counts.get(action, 0) + 1
+    # WORK should be the most common (weight=40 out of ~60 total)
+    assert max(counts, key=lambda a: counts[a]) == ActionType.WORK
 
 
 def test_fallback_default_rest() -> None:

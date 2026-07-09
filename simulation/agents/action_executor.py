@@ -1,6 +1,6 @@
 """Action executor — executes all 14 agent actions with deterministic state updates."""
 
-from shared.types.enums import ActionType, EmotionType, NeedType, EmploymentStatus
+from shared.types.enums import ActionType, EmotionType, NeedType, EmploymentStatus, WealthClass
 from shared.schemas.agent_state import AgentState
 from shared.schemas.simulation_state import SimulationState
 from shared.schemas.tick_result import AgentActionResult
@@ -14,6 +14,12 @@ from shared.constants.defaults import (
     SHARE_PERCENTAGE,
     REPUTATION_CHANGE_GOOD,
     REPUTATION_CHANGE_CRIMINAL,
+    SALARY_MULTIPLIER_POOR,
+    SALARY_MULTIPLIER_MIDDLE,
+    SALARY_MULTIPLIER_RICH,
+    FOOD_COST_MULTIPLIER_POOR,
+    FOOD_COST_MULTIPLIER_MIDDLE,
+    FOOD_COST_MULTIPLIER_RICH,
 )
 from shared.constants.simulation_constants import (
     SALARY_RANGES,
@@ -171,11 +177,17 @@ def execute_action(
 
 
 def _do_work(agent: AgentState, world: SimulationState, result: AgentActionResult) -> None:
-    """Work action: earn salary minus tax, modified by productivity and creativity."""
+    """Work action: earn salary minus tax, modified by productivity, creativity, and wealth class."""
     salary = agent.resources.base_salary * (1.0 - world.tax_rate)
     productivity = emotion_productivity_mod(agent.emotions.primary)
     creativity_mod = 1.0 + (agent.traits.creativity - 0.5) * 0.4
-    income = salary * productivity * creativity_mod
+    if agent.wealth_class == WealthClass.POOR:
+        salary_mult = SALARY_MULTIPLIER_POOR
+    elif agent.wealth_class == WealthClass.MIDDLE:
+        salary_mult = SALARY_MULTIPLIER_MIDDLE
+    else:
+        salary_mult = SALARY_MULTIPLIER_RICH
+    income = salary * productivity * creativity_mod * salary_mult
 
     agent.resources.money += income
     agent.resources.wealth = agent.resources.money
@@ -190,7 +202,13 @@ def _do_work(agent: AgentState, world: SimulationState, result: AgentActionResul
 def _do_buy_food(agent: AgentState, world: SimulationState, result: AgentActionResult) -> None:
     """Buy food action: spend money, increase food and water needs."""
     scarcity = SCARCITY_BASE - world.food_availability
-    food_cost = BASE_FOOD_COST * scarcity
+    if agent.wealth_class == WealthClass.POOR:
+        food_mult = FOOD_COST_MULTIPLIER_POOR
+    elif agent.wealth_class == WealthClass.MIDDLE:
+        food_mult = FOOD_COST_MULTIPLIER_MIDDLE
+    else:
+        food_mult = FOOD_COST_MULTIPLIER_RICH
+    food_cost = BASE_FOOD_COST * scarcity * food_mult
 
     if agent.resources.money < food_cost:
         result.outcome = "insufficient_funds"

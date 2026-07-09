@@ -142,9 +142,9 @@ PROPERTY_OWNERSHIP: dict[WealthClass, float] = {
 
 # Rent cost per tick by wealth class
 RENT_COST: dict[WealthClass, float] = {
-    WealthClass.POOR: 2.0,
-    WealthClass.MIDDLE: 15.0,
-    WealthClass.RICH: 50.0,
+    WealthClass.POOR: 5.0,
+    WealthClass.MIDDLE: 25.0,
+    WealthClass.RICH: 80.0,
 }
 
 # === BETA DISTRIBUTION PARAMETERS ===

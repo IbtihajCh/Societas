@@ -8,6 +8,8 @@
 
 **Supersedes:** None
 
+**Amended by:** [ADR-005](ADR-005-simulation-implementation-architecture.md) (2026-07-08)
+
 ---
 
 ## Context
@@ -55,6 +57,28 @@ However, the simulation must also integrate with Gemma (an LLM), which is inhere
 **Negative:**
 - Floating-point determinism across platforms requires using fixed-point or deterministic libraries
 - Adding new random elements requires updating the seeding strategy
+
+## Amendment (ADR-005, 2026-07-08)
+
+The deterministic boundary is clarified: LLM IS used in Layer 1 for tie-breaking
+within priority levels and for policy translation. However:
+
+- The **fusion step** (mixing deterministic scores with Gemma scores) is deterministic
+  given both inputs — this principle from the original ADR holds.
+- The **priority queue** (Maslow hierarchy, first-match-wins) is fully deterministic
+  and is the primary selection mechanism.
+- **Utility scoring** within priority levels is fully deterministic.
+- LLM is only invoked when the top two utility scores are within the ambiguity
+  threshold (0.05) — approximately 5-15% of decisions per tick.
+- **Deterministic fallbacks** exist for all LLM use cases, ensuring the simulation
+  is fully reproducible without AMD GPU.
+- The **state hash** excludes LLM reasoning strings (only includes deterministic
+  state: agent needs, money, emotion, unlust, alive status, world variables).
+
+The core principle remains: same seed + same config + same LLM responses = identical
+simulation. Without LLM, deterministic fallbacks ensure full reproducibility.
+
+---
 
 ## Related
 

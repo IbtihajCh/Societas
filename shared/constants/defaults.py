@@ -67,6 +67,7 @@ UNLUST_SOCIAL_WEIGHT: float = 0.12
 UNLUST_FINANCIAL_WEIGHT: float = 0.18
 UNLUST_FINANCIAL_DIVISOR: float = 600.0
 UNLUST_MORALITY_GATE: float = 0.58
+UNLUST_NEED_THRESHOLD: float = 0.7
 
 # === Need decay rates (base, before scarcity modifier) ===
 FOOD_DECAY_RATE: float = 0.018
@@ -87,15 +88,24 @@ SLEEP_HALF_TIMER_THRESHOLD: float = 0.3
 
 # === Death ===
 DESPAIR_MORTALITY_RATE: float = 0.004
-FOOD_DEATH_THRESHOLD: float = 0.0
-WATER_DEATH_THRESHOLD: float = 0.0
-HEALTH_DEATH_THRESHOLD: float = 0.0
+FOOD_DEATH_THRESHOLD: float = 0.02
+WATER_DEATH_THRESHOLD: float = 0.02
+HEALTH_DEATH_THRESHOLD: float = 0.02
+JOB_LOSS_RATE: float = 0.002
 
 # === Economy ===
 BASE_FOOD_COST: float = 10.0
 DEFAULT_TAX_RATE: float = 0.15
 DEFAULT_WELFARE_AMOUNT: float = 8.0
 BASE_UNEMPLOYMENT_RATE: float = 0.10
+
+# === Wealth-class multipliers (POOR, MIDDLE, RICH) ===
+SALARY_MULTIPLIER_POOR: float = 0.6
+SALARY_MULTIPLIER_MIDDLE: float = 1.0
+SALARY_MULTIPLIER_RICH: float = 1.3
+FOOD_COST_MULTIPLIER_POOR: float = 1.3   # poor pay more for food (food deserts)
+FOOD_COST_MULTIPLIER_MIDDLE: float = 1.0
+FOOD_COST_MULTIPLIER_RICH: float = 0.8   # rich have cheaper food access
 
 # === World ===
 FOOD_AVAILABILITY_DEFAULT: float = 0.85

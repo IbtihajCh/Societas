@@ -8,6 +8,8 @@
 
 **Supersedes:** None
 
+**Amended by:** [ADR-005](ADR-005-simulation-implementation-architecture.md) (2026-07-08)
+
 ---
 
 ## Context
@@ -65,6 +67,27 @@ The threshold and all additional conditions are defined in a single `escalation_
 **Negative:**
 - Agents near the threshold behave differently than those clearly above/below
 - Risk of threshold gaming if policies are designed to exploit ambiguity
+
+## Amendment (ADR-005, 2026-07-08)
+
+The escalation threshold is now applied **within priority levels**, not across all
+actions. The Maslow priority queue (ADR-005) first narrows the action set to the
+2-3 candidates at the matched priority level. Ambiguity detection then checks if
+the top two utility scores within that level are within 0.05.
+
+This means:
+- Single-action levels (e.g., Level 2: isolate, Level 4: seek_job) never escalate.
+- Multi-action levels (e.g., Level 1: buy_food/steal/beg, Level 6: share/console)
+  escalate when the deterministic engine is genuinely uncertain.
+- The threshold value (0.05), additional conditions (emotional variance,
+  morality-survival conflict, 3+ actions in band), and configuration approach
+  are unchanged.
+
+Result: LLM calls are proportional to uncertainty within Maslow levels, not
+population size. Approximately 5-15% of agent decisions per tick trigger
+escalation.
+
+---
 
 ## Related
 
