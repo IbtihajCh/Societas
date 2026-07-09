@@ -122,6 +122,16 @@ class ISimulationEngine(ABC):
         ...
     
     @abstractmethod
+    def stop(self) -> None:
+        """
+        Stop the simulation execution.
+        
+        Sets the running state to False. Does not reset
+        or clear any simulation state.
+        """
+        ...
+
+    @abstractmethod
     def is_running(self) -> bool:
         """
         Check if the simulation is currently running.

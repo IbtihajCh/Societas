@@ -42,10 +42,21 @@ def mock_engine():
 @pytest.fixture(autouse=True)
 def setup_db():
     import asyncio
+    import os
     from backend.app.database.connection import init_db, close_db
+    from backend.app.config import get_settings
+    db_path = get_settings().database_path
     asyncio.run(init_db())
     yield
     asyncio.run(close_db())
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    wal_path = db_path + "-wal"
+    shm_path = db_path + "-shm"
+    if os.path.exists(wal_path):
+        os.remove(wal_path)
+    if os.path.exists(shm_path):
+        os.remove(shm_path)
 
 
 @pytest.fixture(autouse=True)

@@ -11,7 +11,7 @@ Contains Dockerfiles and docker-compose configuration for the entire SOCIETAS st
 | `backend` | `backend.Dockerfile` | 8000 | simulation, vllm |
 | `simulation` | `simulation.Dockerfile` | — | — |
 | `frontend` | `frontend.Dockerfile` | 3000 | backend |
-| `vllm` | `vllm.Dockerfile` | 8001 | — |
+| `vllm` | `vllm-rocm.Dockerfile` | 8001 | — (ROCm / AMD GPU) |
 
 ## Quick Start
 

@@ -69,6 +69,28 @@ Dependency flow: `main.py → config → database → repositories → services 
 
 ---
 
+---
+
+## Audit Fixes (July 8, 2026 — 4 commits, +80 / -22 lines)
+
+Integration gaps identified by tech lead code audit, all resolved:
+
+| # | Issue | Fix | Commit(s) |
+|---|-------|-----|-----------|
+| 1 | Engine lost between requests (DI/container.py) | `start_simulation` syncs engine to global ref via `set_engine()` | `642f0fc` |
+| 2 | `stop_simulation` accesses private `_is_running` | Added `stop()` to `ISimulationEngine` interface + `SimulationEngine`; service uses `self._engine.stop()` | `31ac0eb`, `1486c43`, `37765c3` |
+| 3 | API returns hardcoded dicts not DTOs | All 4 mutation endpoints return `SimulationStatusDTO` / `SimulationStateResponseDTO` directly | `642f0fc` |
+| 4 | WebSocket broadcast never triggered | `advance_tick` now broadcasts `tick_completed` + `agent_acted` events | `37765c3` |
+| 5 | Test global side effect + DB leakage | `set_engine(None)` test saves/restores engine ref; `setup_db` fixture deletes DB file after each test | `642f0fc`, `37765c3` |
+
+**Bonus fixes:**
+- `_state_to_dto` read from sub-objects (`state.economy.health`) that don't exist — now reads `SimulationState` top-level fields
+- `ws_manager` moved from `main.py` to `websocket/manager.py` to break circular import (service → main → router → service)
+
+**Current test status:** 17/17 passing ✅
+
+---
+
 ## Next Steps (proposed)
 
 - AI Router integration (`IAIRouter` for LLM-powered agent decisions)
