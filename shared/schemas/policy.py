@@ -85,6 +85,9 @@ class ImpactDelta:
     safety_delta: float = 0.0
     social_delta: float = 0.0
     anger_spike: float = 0.0
+    new_tax_rate: float | None = None
+    welfare_on: bool | None = None
+    food_event: float | None = None
 
 
 @dataclass
