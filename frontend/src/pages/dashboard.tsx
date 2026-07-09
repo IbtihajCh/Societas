@@ -11,16 +11,7 @@ import EventLog from '@/components/dashboard/EventLog';
  */
 export default function Dashboard() {
   const { state, metrics, isConnected } = useSimulation();
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    // TODO: Connect to WebSocket for real-time updates
-    // TODO: Fetch initial state and metrics
-    
-    return () => {
-      // TODO: Cleanup WebSocket connection
-    };
-  }, []);
+  const tick = state?.tick ?? 0;
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
@@ -33,7 +24,7 @@ export default function Dashboard() {
       <SimulationControls />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '2rem' }}>
-        <MetricsPanel metrics={metrics} />
+        <MetricsPanel state={state} />
         <EventLog />
       </div>
 

@@ -1,18 +1,14 @@
 import React from 'react';
+import { SimulationStateResponseDTO } from '@/types/api';
 
-/**
- * Metrics Panel Component
- * 
- * Displays key simulation metrics in a grid layout.
- */
 interface MetricsPanelProps {
-  metrics: any;
+  state: SimulationStateResponseDTO | null;
 }
 
-export default function MetricsPanel({ metrics }: MetricsPanelProps) {
-  // TODO: Display metrics in a grid
-  // TODO: Add charts for trend visualization
-  
+export default function MetricsPanel({ state }: MetricsPanelProps) {
+  const format = (v: number | undefined | null, d = 'N/A') =>
+    v !== undefined && v !== null ? v.toFixed(2) : d;
+
   return (
     <div style={{ 
       padding: '1rem', 
@@ -25,22 +21,42 @@ export default function MetricsPanel({ metrics }: MetricsPanelProps) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
         <div>
           <strong>Population:</strong>
-          <div>{metrics?.population || 'N/A'}</div>
+          <div>{state?.population ?? 'N/A'}</div>
         </div>
         
         <div>
-          <strong>Average Happiness:</strong>
-          <div>{metrics?.happiness?.toFixed(2) || 'N/A'}</div>
+          <strong>Economic Health:</strong>
+          <div>{format(state?.economic_health)}</div>
+        </div>
+        
+        <div>
+          <strong>Social Cohesion:</strong>
+          <div>{format(state?.social_cohesion)}</div>
         </div>
         
         <div>
           <strong>Crime Rate:</strong>
-          <div>{metrics?.crimeRate?.toFixed(2) || 'N/A'}</div>
+          <div>{format(state?.crime_rate)}</div>
         </div>
         
         <div>
-          <strong>GDP:</strong>
-          <div>{metrics?.gdp?.toFixed(2) || 'N/A'}</div>
+          <strong>Protest Intensity:</strong>
+          <div>{format(state?.protest_intensity)}</div>
+        </div>
+        
+        <div>
+          <strong>Unemployment:</strong>
+          <div>{format(state?.unemployment_rate)}</div>
+        </div>
+        
+        <div>
+          <strong>System Unlust:</strong>
+          <div>{format(state?.unlust)}</div>
+        </div>
+        
+        <div>
+          <strong>Morality:</strong>
+          <div>{format(state?.morality)}</div>
         </div>
       </div>
     </div>
