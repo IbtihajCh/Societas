@@ -24,6 +24,9 @@ Closed **10 integration gaps** across 6 additional commits to align the backend 
 | 8 | No AI router DI provider | Added `_ai_router` global + `get_ai_router()` / `set_ai_router()` to `container.py` | `c1114ca` |
 | 9 | `SimulationState` / DTO missing 8 fields | Added `food_availability`, `water_availability`, `crime_rate`, `protest_intensity`, `unemployment_rate`, `tax_rate`, `welfare_enabled`, `welfare_amount` to both schema and DTO | `c0fc4b5` |
 | 10 | `_state_to_dto` reads from non-existent sub-objects | Now reads directly from `SimulationState` top-level fields | `1486c43` |
+| 11 | `AgentDetailDTO` missing `is_alive` | Added field + service mapping | `49b8db0` |
+| 12 | `AgentSummaryDTO` missing `emotion` | Mapped from `agent.emotions.primary` | `49b8db0` |
+| 13 | WebSocket `tick_completed` too minimal | Added `state_hash`, `agent_count`, `ambiguity_count`, `ai_calls` | `49b8db0` |
 
 **Bonus:** Moved `ws_manager` from `main.py` to `websocket/manager.py` to break circular import chain.
 
