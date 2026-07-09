@@ -22,12 +22,14 @@ class PolicyCreateRequestDTO:
         description: Policy description
         category: Policy category
         weights: Policy weight modifiers
+        policy_text: Natural language policy text for LLM translation
     """
     
     name: str = ""
     description: str = ""
     category: PolicyCategory = PolicyCategory.ECONOMIC
     weights: Dict[str, float] = field(default_factory=dict)
+    policy_text: Optional[str] = None
 
 
 @dataclass
@@ -43,6 +45,8 @@ class PolicyResponseDTO:
         weights: Policy weight modifiers
         is_active: Whether policy is active
         enactment_tick: Tick when enacted
+        impact_deltas: Impact deltas per wealth class (maps wealth class name
+            to dict of ImpactDelta fields)
     """
     
     id: PolicyId
@@ -52,6 +56,7 @@ class PolicyResponseDTO:
     weights: Dict[str, float] = field(default_factory=dict)
     is_active: bool = True
     enactment_tick: int = 0
+    impact_deltas: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
 
 @dataclass

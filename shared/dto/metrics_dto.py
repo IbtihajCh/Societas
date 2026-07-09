@@ -36,6 +36,11 @@ class MetricsResponseDTO:
         economy: Economic metrics time series
         crime: Crime metrics time series
         happiness: Happiness metrics time series
+        unlust: Unlust time series
+        morality: Morality time series
+        protest_intensity: Protest intensity time series
+        action_frequencies: Frequency of each action type
+        emotion_distribution: Distribution of emotions across agents
         summary: Summary statistics
     """
     
@@ -44,4 +49,9 @@ class MetricsResponseDTO:
     economy: List[MetricPointDTO] = field(default_factory=list)
     crime: List[MetricPointDTO] = field(default_factory=list)
     happiness: List[MetricPointDTO] = field(default_factory=list)
+    unlust: List[MetricPointDTO] = field(default_factory=list)
+    morality: List[MetricPointDTO] = field(default_factory=list)
+    protest_intensity: List[MetricPointDTO] = field(default_factory=list)
+    action_frequencies: Dict[str, int] = field(default_factory=dict)
+    emotion_distribution: Dict[str, int] = field(default_factory=dict)
     summary: Dict[str, float] = field(default_factory=dict)

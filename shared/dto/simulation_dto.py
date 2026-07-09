@@ -63,6 +63,14 @@ class SimulationStateResponseDTO:
         innovation_index: Innovation index
         unlust: Systemic dissatisfaction
         morality: Average morality
+        food_availability: Food availability level
+        water_availability: Water availability level
+        crime_rate: Current crime rate
+        protest_intensity: Current protest intensity
+        unemployment_rate: Current unemployment rate
+        tax_rate: Current tax rate
+        welfare_enabled: Whether welfare is enabled
+        welfare_amount: Welfare benefit amount
     """
     
     tick: TickNumber = TickNumber(0)
@@ -74,3 +82,11 @@ class SimulationStateResponseDTO:
     innovation_index: float = 0.5
     unlust: float = 0.0
     morality: float = 0.5
+    food_availability: float = 0.85
+    water_availability: float = 0.90
+    crime_rate: float = 0.05
+    protest_intensity: float = 0.0
+    unemployment_rate: float = 0.10
+    tax_rate: float = 0.15
+    welfare_enabled: bool = False
+    welfare_amount: float = 8.0

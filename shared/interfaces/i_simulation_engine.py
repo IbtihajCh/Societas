@@ -2,12 +2,16 @@
 Simulation Engine Interface
 ============================
 
-Abstract interface for the simulation engine.
+Abstract interface for the simulation engine. Defines the lifecycle contract:
+start() MUST be called before tick().
 """
+
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
+from shared.interfaces.i_ai_router import IAIRouter
 from shared.types.aliases import AgentId, TickNumber
 from shared.schemas.agent_state import AgentState
 from shared.schemas.simulation_state import SimulationState
@@ -23,6 +27,13 @@ class ISimulationEngine(ABC):
     Defines the contract that all simulation engine implementations
     must fulfill. The simulation engine is responsible for managing
     the world state, processing ticks, and coordinating subsystems.
+    
+    Lifecycle:
+        1. Call start() to initialize agents, seed RNG, and optionally connect AI router.
+        2. Call tick() repeatedly to advance the simulation.
+        3. Call reset() to return to initial state.
+        
+        start() MUST be called before tick() — raises RuntimeError otherwise.
     """
     
     @abstractmethod
@@ -138,5 +149,29 @@ class ISimulationEngine(ABC):
         
         Returns:
             True if running, False otherwise
+        """
+        ...
+
+    @abstractmethod
+    def start(self, ai_router: Optional[IAIRouter] = None) -> None:
+        """Initialize the simulation: create agents, seed RNG, optionally set AI router.
+
+        MUST be called before tick(). Raises RuntimeError if tick() is called
+        before start().
+
+        Args:
+            ai_router: Optional AI router for LLM-driven decisions. If None,
+                uses deterministic fallback for all decisions.
+        """
+        ...
+
+    @abstractmethod
+    def set_ai_router(self, router: IAIRouter) -> None:
+        """Set or replace the AI router mid-simulation.
+
+        Allows hot-swapping between MockAIRouter and VLLMRouter without restarting.
+
+        Args:
+            router: The AI router to use for subsequent ticks.
         """
         ...
