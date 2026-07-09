@@ -75,14 +75,14 @@ export default function SimulationControls() {
         
         <button 
           onClick={handleAdvance}
-          disabled={isRunning}
+          disabled={!isRunning}
           style={{
             padding: '0.5rem 1rem',
-            backgroundColor: isRunning ? '#ccc' : '#4caf50',
+            backgroundColor: !isRunning ? '#ccc' : '#4caf50',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: isRunning ? 'not-allowed' : 'pointer'
+            cursor: !isRunning ? 'not-allowed' : 'pointer'
           }}
         >
           Advance Tick

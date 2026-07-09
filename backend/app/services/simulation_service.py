@@ -51,7 +51,7 @@ class SimulationService:
         return await self.get_status()
 
     async def advance_tick(self) -> SimulationStateResponseDTO:
-        if self._engine is None:
+        if self._engine is None or not self._engine.is_running():
             raise RuntimeError("Simulation not started")
         result = await asyncio.to_thread(self._engine.tick)
         state = self._engine.get_state()
