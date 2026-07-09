@@ -4,7 +4,7 @@ purpose: shared-system-components
 model: google/gemma-2-9b-it
 temperature: varies
 version: 1.0.0
-status: draft
+status: active
 ---
 
 # Shared System Prompt Components

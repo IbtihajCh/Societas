@@ -25,9 +25,20 @@ class MockAIRouter(IAIRouter):
         self._available: bool = True
     
     def translate_policy(self, persona: str, goal: str, context: dict) -> PolicyWeights:
-        """Return mock policy weights."""
-        # TODO: Implement with realistic mock weights
-        raise NotImplementedError("Mock translate_policy not yet implemented")
+        economic = 0.5 if any(w in goal.lower() for w in ["tax", "economy", "market", "trade"]) else 0.3
+        social = 0.5 if any(w in goal.lower() for w in ["welfare", "social", "health", "education"]) else 0.3
+        environment = 0.5 if any(w in goal.lower() for w in ["environment", "green", "climate"]) else 0.3
+        public_order = 0.5 if any(w in goal.lower() for w in ["order", "crime", "security", "law"]) else 0.3
+        innovation = 0.5 if any(w in goal.lower() for w in ["innovation", "tech", "research"]) else 0.3
+        cultural = 0.5 if any(w in goal.lower() for w in ["culture", "tradition", "heritage"]) else 0.3
+        return PolicyWeights(
+            economic_freedom=economic,
+            social_welfare=social,
+            environmental_protection=environment,
+            public_order=public_order,
+            innovation=innovation,
+            cultural_preservation=cultural,
+        )
     
     def tie_break(self, request: DecisionRequest) -> DecisionResponse:
         """Return mock tie-break decision."""

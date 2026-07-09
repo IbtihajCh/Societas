@@ -1,49 +1,37 @@
-"""
-Persona Generator
-=================
+﻿import logging
+from typing import Optional
 
-Generates natural language personas from agent traits.
-"""
-
-from shared.schemas.agent_state import AgentTraits
 from models.router.config import AIConfig
+from models.client.prompt_loader import PromptLoader
+from models.client.amd_client import AMDClient
+
+logger = logging.getLogger("societas.ai.persona")
 
 
 class PersonaGenerator:
-    """
-    Generates natural language personas from agent traits using AI.
-    
-    Uses the persona-generation prompt to create engaging
-    1-2 sentence personas from 8 psychological traits.
-    
-    Attributes:
-        config: AI configuration
-    """
-    
-    def __init__(self, config: AIConfig):
-        """
-        Initialize the persona generator.
-        
-        Args:
-            config: AI configuration
-        """
+    def __init__(self, config: AIConfig, client: Optional[AMDClient] = None):
         self.config = config
-    
+        self._client = client or AMDClient(config)
+        self._loader = PromptLoader()
+
     def generate(self, traits: dict) -> str:
-        """
-        Generate a natural language persona from traits.
-        
-        Args:
-            traits: Dictionary of trait values
-            
-        Returns:
-            Natural language persona string
-            
-        TODO: Implement persona generation
-            - Load persona-generation.md prompt
-            - Render template with traits
-            - Call vLLM API with temperature 0.7
-            - Return persona string
-        """
-        # TODO: Implement
-        return ""
+        prompt, frontmatter = self._loader.load("persona-generation.md")
+        temperature = frontmatter.get("temperature", 0.7)
+        max_tokens = frontmatter.get("max_tokens", 128)
+
+        traits_text = ", ".join(f"{k}={v}" for k, v in traits.items())
+
+        result = self._client.chat_completion(
+            messages=[
+                {"role": "system", "content": prompt},
+                {
+                    "role": "user",
+                    "content": f"Generate a persona from these traits: {traits_text}",
+                },
+            ],
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+        content = result.get("content", "").strip()
+        return content if content else "A simple simulation agent."

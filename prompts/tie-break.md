@@ -5,7 +5,7 @@ model: google/gemma-2-9b-it
 temperature: 0.2
 max_tokens: 196
 version: 1.0.0
-status: draft
+status: active
 ---
 
 # Tie-Break Decision
@@ -24,8 +24,8 @@ You are the final arbiter in a governance simulation. Two or more policy options
   "morality": "float — aggregate ethical alignment score [-1.0, 1.0]",
   "options": [
     {
-      "id": "string",
-      "label": "string",
+      "label": "string — option label matching DecisionOption.label",
+      "action": "string — ActionType enum value",
       "utility_scores": {
         "economic": "float",
         "social": "float",
@@ -40,7 +40,7 @@ You are the final arbiter in a governance simulation. Two or more policy options
 
 ```json
 {
-  "action": "string — selected option id",
+  "action": "string — the label or ActionType from the chosen option",
   "confidence": 0.0..1.0,
   "reason": "string — concise justification (1 sentence)"
 }
