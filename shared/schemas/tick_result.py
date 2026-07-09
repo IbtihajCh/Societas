@@ -6,47 +6,46 @@ Defines the tick result schema for the SOCIETAS simulation.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List
 
-from shared.types.aliases import TickNumber, AgentId, EventId
+from shared.types.aliases import AgentId, EventId, TickNumber
+from shared.types.enums import ActionType
 
 
 @dataclass
 class AgentActionResult:
-    """
-    Result of an agent's action during a tick.
-    
+    """Result of an agent's action during a tick.
+
     Attributes:
-        agent_id: ID of the acting agent
-        action: Action taken
-        outcome: Outcome description
-        score_delta: Change in agent's state scores
+        agent_id: ID of the acting agent.
+        action: Action taken.
+        outcome: Outcome description.
+        score_delta: Change in agent's state scores.
+        metadata: Additional metadata (e.g., LLM reasoning, decision source).
     """
-    
+
     agent_id: AgentId
-    action: str = ""
+    action: ActionType = ActionType.IDLE
     outcome: str = ""
     score_delta: Dict[str, float] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class TickResult:
-    """
-    Result of a single simulation tick.
-    
-    Contains all changes and events that occurred during the tick.
-    
+    """Result of a single simulation tick.
+
     Attributes:
-        tick: Tick number
-        agent_actions: List of agent action results
-        state_changes: Summary of state changes
-        events_generated: List of generated event IDs
-        ambiguity_count: Number of ambiguous decisions resolved
-        ai_calls: Number of AI model calls made
-        duration_ms: Tick processing duration in milliseconds
-        state_hash: Hash of the resulting state (for determinism verification)
+        tick: Tick number.
+        agent_actions: List of agent action results.
+        state_changes: Summary of state changes.
+        events_generated: List of generated event IDs.
+        ambiguity_count: Number of ambiguous decisions resolved.
+        ai_calls: Number of AI model calls made.
+        duration_ms: Tick processing duration in milliseconds.
+        state_hash: Hash of the resulting state (for determinism verification).
     """
-    
+
     tick: TickNumber
     agent_actions: List[AgentActionResult] = field(default_factory=list)
     state_changes: Dict[str, float] = field(default_factory=dict)

@@ -56,3 +56,12 @@ class SimulationState:
     psychology: PsychologyState = field(default_factory=PsychologyState)
     active_policy_ids: List[str] = field(default_factory=list)
     metadata: Dict[str, object] = field(default_factory=dict)
+    # Extended world state fields per Project Guide and ADR-005:
+    food_availability: float = 0.85
+    water_availability: float = 0.90
+    crime_rate: float = 0.05
+    protest_intensity: float = 0.0
+    unemployment_rate: float = 0.10
+    tax_rate: float = 0.15
+    welfare_enabled: bool = False
+    welfare_amount: float = 8.0

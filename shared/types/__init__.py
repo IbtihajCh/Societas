@@ -10,6 +10,10 @@ from shared.types.enums import (
     NeedType,
     EmotionType,
     WealthClass,
+    Gender,
+    Culture,
+    EducationLevel,
+    JobType,
     PolicyCategory,
     CrimeType,
     EmploymentStatus,
@@ -24,6 +28,7 @@ from shared.types.aliases import (
     ConfidenceScore,
     PopulationCount,
     Percentage,
+    GridCoordinate,
 )
 
 __all__ = [
@@ -31,6 +36,10 @@ __all__ = [
     "NeedType",
     "EmotionType",
     "WealthClass",
+    "Gender",
+    "Culture",
+    "EducationLevel",
+    "JobType",
     "PolicyCategory",
     "CrimeType",
     "EmploymentStatus",
@@ -43,4 +52,5 @@ __all__ = [
     "ConfidenceScore",
     "PopulationCount",
     "Percentage",
+    "GridCoordinate",
 ]

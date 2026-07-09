@@ -33,3 +33,9 @@ PopulationCount = NewType("PopulationCount", int)
 
 Percentage = NewType("Percentage", float)
 """Percentage value (0.0 to 100.0)."""
+
+GridCoordinate = NewType("GridCoordinate", int)
+"""Grid coordinate (0 to GRID_SIZE-1)."""
+
+GridCoordinate = NewType("GridCoordinate", int)
+"""Grid coordinate value (0 to GRID_SIZE-1) for the toroidal grid."""

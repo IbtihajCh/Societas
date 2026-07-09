@@ -3,207 +3,143 @@ Enumeration Types for SOCIETAS
 ================================
 
 Defines all enumeration types used throughout the simulation.
+Aligned with the Project Guide v1.0 and ADR-005.
 """
 
-from enum import Enum, auto
+from enum import Enum, StrEnum, IntEnum, auto
 
 
-class ActionType(Enum):
-    """Possible actions an agent can take."""
-    
-    WORK = auto()
-    """Agent chooses to work/seek employment."""
-    
-    LEISURE = auto()
-    """Agent chooses leisure activities."""
-    
-    SOCIALIZE = auto()
-    """Agent chooses to socialize with others."""
-    
-    CONSUME = auto()
-    """Agent chooses to consume goods/services."""
-    
-    SAVE = auto()
-    """Agent chooses to save money."""
-    
-    INVEST = auto()
-    """Agent chooses to invest resources."""
-    
-    EDUCATE = auto()
-    """Agent chooses to pursue education."""
-    
-    REST = auto()
-    """Agent chooses to rest/recover."""
-    
-    MIGRATE = auto()
-    """Agent chooses to migrate to another area."""
-    
-    PROTEST = auto()
-    """Agent chooses to protest policies."""
-    
-    COMMIT_CRIME = auto()
-    """Agent chooses to commit a crime."""
-    
-    VOLUNTEER = auto()
-    """Agent chooses to volunteer/help others."""
-    
-    IDLE = auto()
-    """Agent has no clear action."""
+class ActionType(StrEnum):
+    """Actions available to agents (15 values per Project Guide)."""
+
+    WORK = "work"
+    BUY_FOOD = "buy_food"
+    REST = "rest"
+    SEEK_JOB = "seek_job"
+    BEG = "beg"
+    BEFRIEND = "befriend"
+    CONSOLE = "console"
+    ISOLATE = "isolate"
+    SHARE = "share"
+    STEAL = "steal"
+    HARM_OTHER = "harm_other"
+    PROTEST = "protest"
+    COMPLAIN = "complain"
+    COMPLY = "comply"
+    IDLE = "idle"
 
 
-class NeedType(Enum):
-    """Types of needs that agents experience."""
-    
-    FOOD = auto()
-    """Need for food/nutrition."""
-    
-    SHELTER = auto()
-    """Need for shelter/housing."""
-    
-    SAFETY = auto()
-    """Need for safety/security."""
-    
-    SOCIAL = auto()
-    """Need for social connection."""
-    ESTEEM = auto()
-    """Need for esteem/recognition."""
-    
-    SELF_ACTUALIZATION = auto()
-    """Need for self-actualization."""
-    
-    HEALTH = auto()
-    """Need for health/medical care."""
-    
-    EDUCATION = auto()
-    """Need for education/learning."""
-    
-    ENTERTAINMENT = auto()
-    """Need for entertainment/recreation."""
+class NeedType(StrEnum):
+    """Maslow hierarchy of needs — 13 needs across 5 layers."""
+
+    # Layer 1: Physiological
+    FOOD = "food"
+    WATER = "water"
+    SLEEP = "sleep"
+    SEXUAL_TENSION = "sexual_tension"
+    # Layer 2: Safety
+    SAFETY = "safety"
+    FINANCIAL_SECURITY = "financial_security"
+    SHELTER = "shelter"
+    # Layer 3: Love/Belonging
+    SOCIAL_CONNECTION = "social_connection"
+    FAMILY_BOND = "family_bond"
+    ROMANTIC_BOND = "romantic_bond"
+    # Layer 4: Esteem
+    SELF_ESTEEM = "self_esteem"
+    REPUTATION = "reputation"
+    INFERIORITY_GAP = "inferiority_gap"
 
 
-class EmotionType(Enum):
-    """Emotional states that agents can experience."""
-    
-    HAPPY = auto()
-    """Positive emotional state."""
-    
-    SAD = auto()
-    """Negative emotional state - sadness."""
-    
-    ANGRY = auto()
-    """Negative emotional state - anger."""
-    
-    FEARFUL = auto()
-    """Negative emotional state - fear."""
-    
-    SURPRISED = auto()
-    """Neutral emotional state - surprise."""
-    
-    DISGUSTED = auto()
-    """Negative emotional state - disgust."""
-    
-    CONTENT = auto()
-    """Positive emotional state - contentment."""
-    
-    ANXIOUS = auto()
-    """Negative emotional state - anxiety."""
-    
-    HOPEFUL = auto()
-    """Positive emotional state - hope."""
-    
-    DESPAIRING = auto()
-    """Negative emotional state - despair."""
+class EmotionType(StrEnum):
+    """Five emotional states with timers per Project Guide."""
+
+    HAPPY = "happy"
+    NORMAL = "normal"
+    SAD = "sad"
+    ANGRY = "angry"
+    DESPAIR = "despair"
 
 
-class WealthClass(Enum):
-    """Wealth classification for agents."""
-    
-    POOR = auto()
-    """Low wealth, struggling financially."""
-    
-    WORKING = auto()
-    """Moderate wealth, working class."""
-    
-    MIDDLE = auto()
-    """Average wealth, middle class."""
-    
-    UPPER_MIDDLE = auto()
-    """Above average wealth."""
-    
-    WEALTHY = auto()
-    """High wealth."""
-    
-    ELITE = auto()
-    """Very high wealth, top tier."""
+class WealthClass(StrEnum):
+    """Three wealth classes per Project Guide."""
+
+    POOR = "poor"
+    MIDDLE = "middle"
+    RICH = "rich"
+
+
+class Gender(StrEnum):
+    """Agent gender identity."""
+
+    MALE = "male"
+    FEMALE = "female"
+
+
+class Culture(StrEnum):
+    """Agent cultural background (A, B, or C)."""
+
+    A = "A"
+    B = "B"
+    C = "C"
+
+
+class EducationLevel(IntEnum):
+    """Education level achieved by an agent."""
+
+    NONE = 0
+    PRIMARY = 1
+    SECONDARY = 2
+    HIGHER = 3
+
+
+class JobType(StrEnum):
+    """Job types available in the economy (11 jobs + unemployed)."""
+
+    ENGINEER = "engineer"
+    COMPUTER_SCIENTIST = "computer_scientist"
+    PILOT = "pilot"
+    DOCTOR = "doctor"
+    THERAPIST = "therapist"
+    MECHANIC = "mechanic"
+    ELECTRICIAN = "electrician"
+    CONSTRUCTION_PLANNER = "construction_planner"
+    CONSTRUCTION_WORKER = "construction_worker"
+    CLEANER = "cleaner"
+    TAXI_DRIVER = "taxi_driver"
+    UNEMPLOYED = "unemployed"
 
 
 class PolicyCategory(Enum):
     """Categories of government policies."""
-    
+
     ECONOMIC = auto()
-    """Economic/fiscal policies."""
-    
     SOCIAL = auto()
-    """Social welfare policies."""
-    
     ENVIRONMENTAL = auto()
-    """Environmental protection policies."""
-    
     PUBLIC_ORDER = auto()
-    """Law enforcement/public order policies."""
-    
     EDUCATION = auto()
-    """Education policies."""
-    
     HEALTHCARE = auto()
-    """Healthcare policies."""
-    
     INFRASTRUCTURE = auto()
-    """Infrastructure development policies."""
-    
     CULTURAL = auto()
-    """Cultural preservation policies."""
 
 
 class CrimeType(Enum):
     """Types of crimes that can occur."""
-    
+
     THEFT = auto()
-    """Property theft."""
-    
     VIOLENCE = auto()
-    """Violent crime."""
-    
     FRAUD = auto()
-    """Financial fraud."""
-    
     VANDALISM = auto()
-    """Property damage."""
-    
     DRUG_OFFENSE = auto()
-    """Drug-related crime."""
-    
     TAX_EVASION = auto()
-    """Tax evasion."""
-    
     CORRUPTION = auto()
-    """Corruption/bribery."""
 
 
 class EmploymentStatus(Enum):
     """Employment status of agents."""
-    
+
     EMPLOYED = auto()
-    """Currently employed."""
-    
     UNEMPLOYED = auto()
-    """Currently unemployed, seeking work."""
-    
     STUDENT = auto()
-    """Currently in education."""
-    
     RETIRED = auto()
-    """Retired from work."""
-    
     UNABLE_TO_WORK = auto()
-    """Unable to work (disability/illness)."""

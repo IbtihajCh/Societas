@@ -6,7 +6,7 @@ Provides a seeded random number generator for deterministic simulation.
 """
 
 import numpy as np
-from typing import Optional
+from typing import Any, Optional
 
 
 class DeterministicRNG:
@@ -92,6 +92,59 @@ class DeterministicRNG:
             x: List to shuffle
         """
         self._rng.shuffle(x)
+
+    def beta(self, a: float, b: float) -> float:
+        """Generate a random float from a Beta distribution.
+
+        Args:
+            a: Alpha shape parameter.
+            b: Beta shape parameter.
+
+        Returns:
+            Random float in [0.0, 1.0] from Beta(a, b) distribution.
+        """
+        return float(self._rng.beta(a, b))
+
+    def weighted_choice(self, items: list[Any], weights: list[float]) -> Any:
+        """Pick an item based on weight probabilities.
+
+        Args:
+            items: List of items to choose from.
+            weights: Corresponding probability weights (will be normalized).
+
+        Returns:
+            A single chosen item.
+
+        Raises:
+            ValueError: If items and weights have different lengths or are empty.
+        """
+        if len(items) != len(weights):
+            raise ValueError(f"items ({len(items)}) and weights ({len(weights)}) must match")
+        if len(items) == 0:
+            raise ValueError("Cannot choose from empty list")
+        total = sum(weights)
+        if total <= 0:
+            raise ValueError("Sum of weights must be positive")
+        probs = [w / total for w in weights]
+        return items[int(self._rng.choice(len(items), p=probs))]
+
+    def integers(
+        self, low: int, high: Optional[int] = None, size: Optional[int] = None
+    ) -> int | list[int]:
+        """Generate random integers in [low, high).
+
+        Args:
+            low: Lower bound (inclusive). If high is None, range is [0, low).
+            high: Upper bound (exclusive).
+            size: Number of integers to generate (None = single value).
+
+        Returns:
+            Single int or list of ints.
+        """
+        result = self._rng.integers(low, high, size=size)
+        if size is None:
+            return int(result)
+        return [int(x) for x in result]
     
     def reset(self, seed: Optional[int] = None) -> None:
         """

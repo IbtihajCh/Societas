@@ -18,7 +18,7 @@ from shared.schemas.economy_state import EconomyState
 from shared.schemas.crime_state import CrimeState
 from shared.schemas.needs_state import NeedsState
 from shared.schemas.psychology_state import PsychologyState
-from shared.schemas.policy import Policy, GovernmentPolicy, PolicyWeights
+from shared.schemas.policy import Policy, GovernmentPolicy, PolicyWeights, ImpactDelta
 from shared.schemas.decision import DecisionRequest, DecisionResponse, DecisionOption
 from shared.schemas.news_event import NewsEvent, SpotlightNarration
 from shared.schemas.metrics import SimulationMetrics, MetricDataPoint
@@ -41,6 +41,7 @@ __all__ = [
     "Policy",
     "GovernmentPolicy",
     "PolicyWeights",
+    "ImpactDelta",
     "DecisionRequest",
     "DecisionResponse",
     "DecisionOption",

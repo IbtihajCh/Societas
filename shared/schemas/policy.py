@@ -6,10 +6,10 @@ Defines policy and government policy schemas for the SOCIETAS simulation.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
-from shared.types.aliases import PolicyId
-from shared.types.enums import PolicyCategory
+from shared.types.aliases import AgentId, PolicyId
+from shared.types.enums import PolicyCategory, WealthClass
 
 
 @dataclass
@@ -67,6 +67,27 @@ class Policy:
 
 
 @dataclass
+class ImpactDelta:
+    """Per-wealth-class impact delta from a government policy.
+
+    Applied each tick to agents of the corresponding wealth class.
+
+    Attributes:
+        money_delta: Change in money per tick (pounds, can be negative).
+        food_delta: Change in food need level per tick (-0.20 to +0.20).
+        safety_delta: Change in safety need level per tick (-0.20 to +0.20).
+        social_delta: Change in social need level per tick (-0.10 to +0.10).
+        anger_spike: One-time anger increase (0.0 to 0.30).
+    """
+
+    money_delta: float = 0.0
+    food_delta: float = 0.0
+    safety_delta: float = 0.0
+    social_delta: float = 0.0
+    anger_spike: float = 0.0
+
+
+@dataclass
 class GovernmentPolicy:
     """
     An active government policy with runtime state.
@@ -84,6 +105,7 @@ class GovernmentPolicy:
     
     policy: Policy = field(default_factory=lambda: Policy(id=PolicyId("")))
     applied_effects: Dict[str, float] = field(default_factory=dict)
-    affected_agents: int = 0
+    affected_agents: List[AgentId] = field(default_factory=list)
     total_cost: float = 0.0
     effectiveness: float = 0.0
+    impact_deltas: Dict[WealthClass, ImpactDelta] = field(default_factory=dict)

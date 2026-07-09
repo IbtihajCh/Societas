@@ -46,3 +46,110 @@ DEFAULT_VLLM_PORT: int = 8001
 
 DEFAULT_VLLM_MODEL: str = "google/gemma-2-9b-it"
 """Default vLLM model identifier."""
+
+# === Emotion thresholds (per Project Guide) ===
+HAPPY_THRESHOLD: float = 0.65
+SAD_THRESHOLD: float = 0.35
+ANGRY_UNLUST_THRESHOLD: float = 0.58
+DESPAIR_UNLUST_THRESHOLD: float = 0.82
+ANGRY_TENDENCY_THRESHOLD: float = 0.4
+
+# === Emotion timers (ticks) ===
+SAD_TIMER: int = 2
+ANGRY_TIMER: int = 3
+DESPAIR_TIMER: int = 4
+
+# === Unlust engine weights ===
+UNLUST_FOOD_WEIGHT: float = 0.28
+UNLUST_WATER_WEIGHT: float = 0.22
+UNLUST_SAFETY_WEIGHT: float = 0.20
+UNLUST_SOCIAL_WEIGHT: float = 0.12
+UNLUST_FINANCIAL_WEIGHT: float = 0.18
+UNLUST_FINANCIAL_DIVISOR: float = 600.0
+UNLUST_MORALITY_GATE: float = 0.58
+
+# === Need decay rates (base, before scarcity modifier) ===
+FOOD_DECAY_RATE: float = 0.018
+WATER_DECAY_RATE: float = 0.014
+SLEEP_DECAY_RATE: float = 0.010
+SEXUAL_TENSION_GROWTH_RATE: float = 0.008
+SAFETY_DECAY_RATE: float = 0.004
+SOCIAL_DECAY_RATE: float = 0.009
+FAMILY_DECAY_RATE: float = 0.005
+ROMANTIC_DECAY_RATE: float = 0.006
+SELF_ESTEEM_DECAY_RATE: float = 0.003
+REPUTATION_DECAY_RATE: float = 0.001
+
+# === Sleep replenishment ===
+SLEEP_REPLENISH_RATE: float = 0.05
+SLEEP_RESET_THRESHOLD: float = 0.5
+SLEEP_HALF_TIMER_THRESHOLD: float = 0.3
+
+# === Death ===
+DESPAIR_MORTALITY_RATE: float = 0.004
+FOOD_DEATH_THRESHOLD: float = 0.0
+WATER_DEATH_THRESHOLD: float = 0.0
+HEALTH_DEATH_THRESHOLD: float = 0.0
+
+# === Economy ===
+BASE_FOOD_COST: float = 10.0
+DEFAULT_TAX_RATE: float = 0.15
+DEFAULT_WELFARE_AMOUNT: float = 8.0
+BASE_UNEMPLOYMENT_RATE: float = 0.10
+
+# === World ===
+FOOD_AVAILABILITY_DEFAULT: float = 0.85
+WATER_AVAILABILITY_DEFAULT: float = 0.90
+SCARCITY_BASE: float = 2.0
+
+# === Grid ===
+GRID_SIZE: int = 20
+INTERACTION_RADIUS: int = 2
+
+# === Happiness weights (must sum to ~1.0) ===
+HAPPINESS_FOOD_WEIGHT: float = 0.11
+HAPPINESS_WATER_WEIGHT: float = 0.09
+HAPPINESS_SAFETY_WEIGHT: float = 0.09
+HAPPINESS_SOCIAL_WEIGHT: float = 0.09
+HAPPINESS_SLEEP_WEIGHT: float = 0.08
+HAPPINESS_SELF_ESTEEM_WEIGHT: float = 0.08
+HAPPINESS_FINANCIAL_WEIGHT: float = 0.08
+HAPPINESS_HEALTH_WEIGHT: float = 0.13
+HAPPINESS_REPUTATION_WEIGHT: float = 0.05
+HAPPINESS_UNLUST_WEIGHT: float = 0.15
+HAPPINESS_EMPLOYED_BONUS: float = 0.05
+
+# === Adler comparison ===
+ADLER_GAP_THRESHOLD: float = 0.15
+ADLER_INFERIORITY_GAIN_PER_GAP: float = 0.1
+ADLER_SELF_ESTEEM_CHANGE_PER_GAP: float = 0.05
+ADLER_UNLUST_CHANGE_PER_GAP: float = 0.03
+ADLER_DOMINANCE_CHANGE_PER_GAP: float = 0.02
+ADLER_SUPERIORITY_GAIN: float = 0.02
+
+# === Decision ===
+DECISION_STAGGER_INTERVAL: int = 3
+MORAL_DILEMMA_FOOD_THRESHOLD: float = 0.15
+MORAL_DILEMMA_MORALITY_THRESHOLD: float = 0.5
+MORAL_DILEMMA_UNLUST_THRESHOLD: float = 0.5
+
+# === Agent actions ===
+SEEK_JOB_BASE_CHANCE: float = 0.08
+BEG_MAX_AMOUNT: float = 5.0
+STEAL_PERCENTAGE_CAP: float = 0.18
+STEAL_AMOUNT_CAP: float = 60.0
+SHARE_PERCENTAGE: float = 0.06
+REPUTATION_CHANGE_GOOD: float = 0.02
+REPUTATION_CHANGE_CRIMINAL: float = -0.06
+REPUTATION_CHANGE_KILL: float = -0.30
+REPUTATION_DECAY_RATE: float = 0.001
+
+# === Metrics ===
+NEWS_INTERVAL_TICKS: int = 10
+
+# --- Grid constants ---
+GRID_SIZE: int = 20
+"""Size of the N×N toroidal grid. Agents wrap around edges."""
+
+INTERACTION_RADIUS: int = 2
+"""Maximum Euclidean distance for agent-to-agent interaction on the grid."""

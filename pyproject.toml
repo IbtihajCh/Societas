@@ -31,6 +31,7 @@ disallow_any_unimported = false
 minversion = "7.0"
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+pythonpath = ["."]
 
 [tool.coverage.run]
 source = ["simulation", "backend"]
