@@ -22,10 +22,10 @@ Proposal → Review → Accepted → (optional) Superseded/Deprecated
 | ADR | Title | Status |
 |-----|-------|--------|
 | [ADR-001](ADR-001-record-architecture-decisions.md) | Record Architecture Decisions | Accepted |
-| [ADR-002](ADR-002-deterministic-simulation-design.md) | Deterministic Simulation Design | Proposed (amended by ADR-005) |
-| [ADR-003](ADR-003-hybrid-decision-fusion.md) | Hybrid Decision Fusion | Proposed (amended by ADR-005) |
-| [ADR-004](ADR-004-escalation-threshold.md) | LLM Escalation Threshold | Proposed (amended by ADR-005) |
-| [ADR-005](ADR-005-simulation-implementation-architecture.md) | Simulation Implementation Architecture | Proposed |
+| [ADR-002](ADR-002-deterministic-simulation-design.md) | Deterministic Simulation Design | Accepted (amended by ADR-005) |
+| [ADR-003](ADR-003-hybrid-decision-fusion.md) | Hybrid Decision Fusion | Accepted (amended by ADR-005) |
+| [ADR-004](ADR-004-escalation-threshold.md) | LLM Escalation Threshold | Accepted (amended by ADR-005) |
+| [ADR-005](ADR-005-simulation-implementation-architecture.md) | Simulation Implementation Architecture | Accepted |
 
 ## Template
 

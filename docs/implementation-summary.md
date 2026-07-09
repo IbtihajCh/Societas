@@ -3,7 +3,7 @@
 **Date:** July 9, 2026
 **Owner:** Simulation Engineer
 **Branch:** `sim/implementation-v2`
-**Status:** Complete — all 6 phases implemented, 475 tests passing
+**Status:** Complete — all 6 phases implemented, 500 tests passing (P1-P5 tuning + engine integration)
 
 ---
 
@@ -24,13 +24,13 @@ The complete deterministic simulation engine for SOCIETAS — the "heart and sou
 
 | Metric | Value |
 |---|---|
-| Total tests | **475** |
-| Source files created/modified | **23** |
+| Total tests | **500** |
+| Source files created/modified | **25** |
 | Test files | **20** |
-| Python LOC | **~4,100** (source modules only) |
-| Git commits | **6** (one per phase) |
-| Phases completed | **6/6** |
-| Test suite runtime | **14.99s** |
+| Python LOC | **~4,300** (source modules only) |
+| Git commits | **9** (6 phases + 3 engine/tuning/docs) |
+| Phases completed | **6/6** (plus P1-P5 tuning + engine integration) |
+| Test suite runtime | **~60s** |
 
 ### What Works End-to-End
 
@@ -46,6 +46,7 @@ The complete deterministic simulation engine for SOCIETAS — the "heart and sou
 10. **Tick loop**: 10-step cycle (policy effects → needs decay → economy → emotions → decisions → actions → movement → death → metrics → state hash)
 11. **Metrics**: world-level (crime rate, protest intensity, unemployment, average unlust/morality) and wealth-stratified. SHA-256 state hash for determinism verification
 12. **Integration verification**: 80 agents survive 100 ticks without mass death, all values in expected ranges, determinism confirmed (same seed = same hash)
+13. **Engine integration**: `SimulationEngine.tick()` wired to `run_tick()` — `start()` initializes agents and RNG, `reset()` clears state, `RuntimeError` if tick() called before start(). Backend can drive simulation directly via `engine.start(router)` → `engine.tick()`
 
 ### What's Missing (Deferred)
 
@@ -53,7 +54,7 @@ The complete deterministic simulation engine for SOCIETAS — the "heart and sou
 |---|---|
 | `VLLMRouter` (real Gemma calls) | Needs vLLM API access — `MockAIRouter` implements same interface |
 | Prompt schema updates | Needs model-specific tuning — templates exist in `prompts/` |
-| `config_loader.py` + `default_config.yaml` | All values are constants in `defaults.py` for now |
+| `Engine.start()` must be called before `tick()` | `SimulationEngine.tick()` raises `RuntimeError` if `start()` not called — documented in playbook |
 | Riot event (>30% angry/despair) | Deferred to v2 (community formation required) |
 | Marriage/children/inheritance | Deferred to v2 |
 | Education progression | Deferred to v2 |
@@ -63,51 +64,43 @@ The complete deterministic simulation engine for SOCIETAS — the "heart and sou
 
 ### How to Run
 
-```bash
-# Create venv and install deps
-python -m venv venv
-.\venv\Scripts\python.exe -m pip install numpy pytest pytest-cov
+```python
+from simulation.engine.simulation_engine import SimulationEngine
+from simulation.engine.config import SimulationConfig
+from simulation.engine.mock_ai_router import MockAIRouter
 
-# Run all tests
-.\venv\Scripts\python.exe -m pytest tests/unit/ -v
+config = SimulationConfig(population_size=80, seed=42)
+engine = SimulationEngine(config)
+engine.start(ai_router=MockAIRouter(seed=42))
 
-# Run integration tests only
-.\venv\Scripts\python.exe -m pytest tests/unit/simulation/test_integration.py -v
-
-# Run full simulation with sample data
-.\venv\Scripts\python.exe -c "
-from shared.utilities.deterministic_rng import DeterministicRNG
-from shared.schemas.simulation_state import SimulationState
-from simulation.agents.agent_factory import create_initial_population
-from simulation.engine.tick_loop import run_tick
-
-rng = DeterministicRNG(seed=42)
-agents = create_initial_population(80, rng)
-world = SimulationState()
-for tick in range(100):
-    result = run_tick(tick, agents, world, rng, [], None)
-living = sum(1 for a in agents if a.is_alive)
-print(f'After 100 ticks: {living}/80 alive, unlust={world.unlust:.2f}, crime={world.crime_rate:.2f}')
-print(f'Hash: {result.state_hash[:16]}...')
-"
+for _ in range(100):
+    result = engine.tick()
+    print(f'Tick {result.tick}: {len(result.agent_actions)} actions, hash={result.state_hash[:16]}')
 ```
 
 ### Documentation Suite
 
 | Document | Location | Status |
-|---|---|---|
+|---|---|---|---|
 | Implementation Guide | `docs/SOCIETAS_Simulation_Implementation_Guide.md` | v2.0 — 20 sections, all formulas |
 | Project Guide | `docs/SOCIETAS_Project_Guide.md` | v1.0 — external design doc |
-| ADR-005 | `docs/adr/ADR-005-simulation-implementation-architecture.md` | Proposed — amends ADR-002/003/004 |
+| ADR-005 | `docs/adr/ADR-005-simulation-implementation-architecture.md` | Accepted — amends ADR-002/003/004 |
 | Feature Spec | `vault/060-Features/simulation-engine-v1.md` | Draft |
 | Progress Report | `docs/progress-report-simulation.md` | Live — updated |
 | Simulation README | `simulation/README.md` | Updated |
 | AGENTS.md | `AGENTS.md` (repo root) | Simulation engineer operating manual |
+| Engine Reference | `docs/engine-reference.md` | Concise guide for other teams |
+| Cross-Team Integration Guide | `docs/cross-team-integration-guide.md` | Backend/AI/Frontend/DevOps tasks |
+| Development Playbook | `simulation/development-playbook.md` | Patterns learned during implementation |
+| Test Reports | `simulation/test_reports/` | 29 scenarios + reports + meta-analysis |
 | This Summary | `docs/implementation-summary.md` | Created |
 
 ### Git History
 
 ```
+11df418 feat(sim): wire tick loop into SimulationEngine + cross-team integration docs
+2553e3d feat(sim): P1-P5 fixes — death pathways, wealth effects, fallback variety, unlust threshold
+e528751 docs(sim): finalize documentation — changelog, progress report, implementation summary, README
 38d2bd3 test(sim): Phase 6 End-to-end integration tests — 27 tests, 475 total
 fa91faf feat(sim): Phase 5 LLM Integration — MockAIRouter, tick loop, policy fallback
 b8a72f5 feat(sim): Phase 4 World & Economy — economy, metrics, policy effects

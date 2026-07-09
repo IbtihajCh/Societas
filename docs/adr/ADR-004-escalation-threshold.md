@@ -1,6 +1,6 @@
 # ADR-004: LLM Escalation Threshold
 
-**Status:** Proposed
+**Status:** Accepted (amended by ADR-005)
 
 **Date:** 2026-07-07
 
@@ -86,6 +86,8 @@ This means:
 Result: LLM calls are proportional to uncertainty within Maslow levels, not
 population size. Approximately 5-15% of agent decisions per tick trigger
 escalation.
+
+**Implementation evolved:** Escalation now triggers on 5 moral dilemma conditions (starving+moral, angry+high morality, despair+money, high unlust+dominance, financial crisis+bonds). Staggered evaluation (1/3 agents per tick) reduces total LLM calls. See ADR-005 Implementation Outcomes.
 
 ---
 

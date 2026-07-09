@@ -1,6 +1,6 @@
 # ADR-005: Simulation Implementation Architecture
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-07-08
 
@@ -105,9 +105,14 @@ translates it to impact deltas, and agents react in real-time.
 | Persona generation | Agent creation at simulation start | 0.7 | Once per agent (batched) |
 | News generation | Periodic world news from events | 0.8 | Every 10 ticks |
 
-**Model:** Gemma 2 27B IT on AMD GPU (198GB VRAM) via vLLM, or Fireworks AI as
-fallback. Batched calls for efficiency (~8 ambiguous decisions per tick -> 1
-batched LLM call).
+**Models (final implementation):** Three Gemma 4 models:
+- **Gemma 4 E2B** (~1GB) — Agent brains (all primary LLM decisions). Runs at ~55 tokens/sec on AMD GPU.
+- **Gemma 4 26B A4B** (~16.5GB) — Moral dilemma escalation (thinking mode). Only invoked ~1-2% of decisions.
+- **Gemma 4 31B** (~20.3GB) — Governance/policy translation (reserved for future use).
+Total ~40GB of 198GB VRAM.
+
+Batched calls for efficiency: agents are staggered across ticks (1/3 per tick),
+so ~1 batched call per tick for ~80 agents.
 
 ### 5. v1 Scope
 
@@ -162,6 +167,37 @@ and ensures the hackathon demo works even if GPU is unavailable.
 - LLM non-determinism means state hash diverges across runs with AI enabled
   (mitigated by: state hash excludes LLM reasoning, fallback is deterministic)
 - Replacing enums requires updating all test fixtures and prompt schemas
+
+## Implementation Outcomes
+
+**Status as of 2026-07-09:** Fully implemented. 500 tests passing across 20 test files.
+
+### What was built
+- 23 source files (17 created, 6 modified) totaling ~4,100 LOC
+- 20 test files with 500 tests (determinism, integration, edge cases)
+- 10-step tick loop wired into SimulationEngine.tick()
+- MockAIRouter for testing without GPU (VLLMRouter spec written for AI team)
+
+### Deviations from original decision
+1. **Decision architecture evolved:** The original "Maslow priority queue + utility scoring + LLM fusion" was replaced by an "E2B Hybrid" approach where the LLM (Gemma 4 E2B) IS the agent's brain, receiving all state factors and returning a decision. The deterministic fallback uses a weighted selection across all 14 actions (not just the priority queue). Moral dilemmas escalate to Gemma 4 26B A4B with thinking mode. This gives deeper AI integration than originally planned.
+2. **Three models instead of one:** Originally planned single Gemma 2 27B. Now three Gemma 4 models: E2B (~1GB, agent brains), 26B A4B (~16.5GB, moral reasoning), 31B (~20.3GB, governance/policy). Total ~40GB of 198GB VRAM.
+3. **Staggered evaluation:** Agents re-evaluate every 3 ticks (agent_id % 3 offset), not every tick. Reduces LLM calls by 3x while keeping GPU busy.
+4. **Unlust threshold raised:** Need deficit threshold changed from 0.5 to 0.7 (configurable via UNLUST_NEED_THRESHOLD) for more sensitive deprivation detection.
+5. **Death thresholds raised:** Food/water/health death thresholds changed from 0.0 to 0.02 to enable actual deaths from starvation.
+6. **Wealth-class multipliers added:** Salary (0.6/1.0/1.3x), food cost (1.3/1.0/0.8x), rent (£5/£25/£80) by poor/middle/rich class.
+
+### Test scenario results (29 scenarios)
+- 9 deaths across 3 scenarios (famine, drought, low morality)
+- 518 protests with MockAI (vs 0 without)
+- 6-9 action types per scenario (was 3 before tuning)
+- Unlust range 0.202-0.299 (was 0.115-0.176)
+- MockAI ≠ no-AI confirmed
+
+### Remaining work (not ADR-005 scope)
+- VLLMRouter implementation (AI Systems Engineer — spec at simulation/test_reports/vllm-integration-spec.md)
+- Prompt file updates (AI Systems Engineer)
+- Backend integration (Backend Engineer — see docs/cross-team-integration-guide.md)
+- Docker setup for 3 vLLM containers (DevOps)
 
 ---
 

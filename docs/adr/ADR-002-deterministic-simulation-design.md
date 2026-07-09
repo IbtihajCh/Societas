@@ -1,6 +1,6 @@
 # ADR-002: Deterministic Simulation Design
 
-**Status:** Proposed
+**Status:** Accepted (amended by ADR-005)
 
 **Date:** 2026-07-07
 
@@ -77,6 +77,8 @@ within priority levels and for policy translation. However:
 
 The core principle remains: same seed + same config + same LLM responses = identical
 simulation. Without LLM, deterministic fallbacks ensure full reproducibility.
+
+**Implementation verified:** 500 tests confirm determinism. Same seed + same config = identical state_hash (SHA-256). LLM reasoning excluded from hash per design.
 
 ---
 

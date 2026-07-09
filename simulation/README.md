@@ -8,7 +8,7 @@ Core deterministic simulation engine for SOCIETAS. Implements agent-based modeli
 
 ## Status: Implemented (v1.0)
 
-**475 tests passing.** All 6 phases complete. See [implementation-summary.md](../docs/implementation-summary.md) for full details.
+**500 tests passing.** All 6 phases complete (plus P1-P5 tuning + engine integration). See [implementation-summary.md](../docs/implementation-summary.md) for full details.
 
 ## Responsibilities
 
@@ -50,9 +50,9 @@ simulation/
 │   └── policy_fallback.py    # Keyword-based translation
 ├── engine/
 │   ├── config.py             # SimulationConfig
-│   ├── simulation_engine.py  # ISimulationEngine interface
-│   ├── mock_ai_router.py     # Deterministic LLM mock
-│   └── tick_loop.py          # 10-step tick cycle
+│   ├── simulation_engine.py  # ISimulationEngine — tick() delegates to run_tick(), start() initializes agents
+│   ├── mock_ai_router.py     # Deterministic LLM mock (trait-aware decisions)
+│   └── tick_loop.py          # 10-step tick cycle wiring all modules
 ├── events/
 │   └── event_bus.py          # Synchronous event bus
 ├── metrics/
@@ -110,3 +110,17 @@ All values are **tweakable** via constants in `shared/constants/defaults.py` and
 - Death: 3 thresholds, despair mortality rate
 
 No hardcoded values — all from config. See the constants files for the full list.
+
+## Quick Start
+
+```python
+from simulation.engine.simulation_engine import SimulationEngine
+from simulation.engine.config import SimulationConfig
+from simulation.engine.mock_ai_router import MockAIRouter
+
+engine = SimulationEngine(SimulationConfig(population_size=80, seed=42))
+engine.start(ai_router=MockAIRouter(seed=42))
+result = engine.tick()
+```
+
+See [docs/engine-reference.md](../docs/engine-reference.md) for detailed usage from other teams (backend, AI, frontend).

@@ -3,7 +3,7 @@
 **Date:** July 9, 2026
 **Owner:** Simulation Engineer
 **Phase:** Phase 1 — Simulation Core **COMPLETE** (v1.0 + P1-P5 tuning)
-**Status:** Implemented — 492 tests passing, engine wired into SimulationEngine, ready for team integration
+**Status:** Implemented — 500 tests passing, engine wired into SimulationEngine, ready for team integration
 
 ---
 
@@ -15,7 +15,7 @@ plus P1-P5 tuning fixes based on 29-scenario testing. The engine runs end-to-end
 deterministic fallbacks and a mock AI router. `SimulationEngine.tick()` now delegates to
 `run_tick()` from `tick_loop.py` — the backend can drive the simulation directly.
 
-**492 tests pass** (33s full suite). The engine supports 80+ agents with Beta-distributed
+**500 tests pass** (60s full suite). The engine supports 80+ agents with Beta-distributed
 traits, 13 Maslow needs, 5 emotional states, 14 actions, 11 job types, grid-based movement,
 policy effects, wealth-class economics, death pathways, and a 10-step tick loop.
 
@@ -46,8 +46,8 @@ policy effects, wealth-class economics, death pathways, and a 10-step tick loop.
 | 5: LLM Integration | MockAIRouter (trait-aware), policy effects, policy fallback, tick loop wiring | Completed | 52 |
 | 6: Testing | Full integration tests, determinism verification, healthy society checks, anomaly detection | Completed | 27 |
 | P1-P5 | Unlust threshold, fallback variety, death pathways, wealth effects, MockAIRouter variety | Completed | +17 new tests |
-| **Engine Integration** | **SimulationEngine.tick() wired to run_tick(), start()/reset() implemented** | **Completed** | **+~15 tests** |
-| **Total** | | | **492+** |
+| **Engine Integration** | **SimulationEngine.tick() wired to run_tick(), start()/reset() implemented** | **Completed** | **+18 tests (23 total in test_engine.py)** |
+| **Total** | | | **500** |
 
 ---
 
@@ -165,3 +165,4 @@ policy effects, wealth-class economics, death pathways, and a 10-step tick loop.
 | 2026-07-09 | **29 scenario tests run — 9 deaths, 518 protests, 6-9 action types** | Simulation Engineer (AI agent) |
 | 2026-07-09 | **Cross-team integration guide created** | Simulation Engineer (AI agent) |
 | 2026-07-09 | **SimulationEngine.tick() wired to run_tick() — engine ready for backend** | Simulation Engineer (AI agent) |
+| 2026-07-09 | **Final documentation pass — ADRs Accepted, engine reference created, all docs updated to 500 tests** | Simulation Engineer (AI agent) |

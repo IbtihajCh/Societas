@@ -1,6 +1,6 @@
 # ADR-003: Hybrid Decision Fusion
 
-**Status:** Proposed
+**Status:** Accepted (amended by ADR-005)
 
 **Date:** 2026-07-07
 
@@ -87,6 +87,8 @@ Fusion simply operates on a smaller action set (the candidates within a priority
 level, typically 2-3 actions) rather than all 14 actions. This is more efficient
 and more meaningful — Gemma only weighs in when the deterministic engine is genuinely
 uncertain between actions at the same Maslow priority level.
+
+**Implementation evolved:** Fusion now occurs within the E2B hybrid architecture. The LLM receives full agent state and returns a decision directly. Moral dilemmas escalate to 26B A4B with thinking mode. Deterministic fallback uses weighted selection. See ADR-005 Implementation Outcomes.
 
 ---
 
