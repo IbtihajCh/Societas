@@ -76,3 +76,8 @@ scripts/*.log
 *.db
 *.db-shm
 *.db-wal
+
+# Agentic setup — agent-specific files not for the shared repo
+AGENTS.md
+.serena/
+session-ses_*.md
