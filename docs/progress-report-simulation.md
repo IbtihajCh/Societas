@@ -2,22 +2,36 @@
 
 **Date:** July 9, 2026
 **Owner:** Simulation Engineer
-**Phase:** Phase 1 — Simulation Core **COMPLETE**
-**Status:** Implemented — 475 tests passing, 23 source files, 20 test files
+**Phase:** Phase 1 — Simulation Core **COMPLETE** (v1.0 + P1-P5 tuning)
+**Status:** Implemented — 492 tests passing, engine wired into SimulationEngine, ready for team integration
 
 ---
 
 ## Summary
 
-The simulation engine v1.0 is **fully implemented**. All six phases of the implementation
-plan from `docs/SOCIETAS_Simulation_Implementation_Guide.md` are complete. The engine runs
-end-to-end with deterministic fallbacks and a mock AI router. Real Gemma 4 model integration
-(via vLLM) is deferred — the `MockAIRouter` implements the same interface and can be swapped
-for a `VLLMRouter` without code changes.
+The simulation engine v1.0 is **fully implemented and integrated**. All six phases of the
+implementation plan from `docs/SOCIETAS_Simulation_Implementation_Guide.md` are complete,
+plus P1-P5 tuning fixes based on 29-scenario testing. The engine runs end-to-end with
+deterministic fallbacks and a mock AI router. `SimulationEngine.tick()` now delegates to
+`run_tick()` from `tick_loop.py` — the backend can drive the simulation directly.
 
-**475 tests pass** (14.99s full suite). The engine supports 80+ agents with Beta-distributed
+**492 tests pass** (33s full suite). The engine supports 80+ agents with Beta-distributed
 traits, 13 Maslow needs, 5 emotional states, 14 actions, 11 job types, grid-based movement,
-policy effects, and a 10-step tick loop.
+policy effects, wealth-class economics, death pathways, and a 10-step tick loop.
+
+### v1.0 + P1-P5 Changes
+- P3b: Unlust need threshold raised 0.5→0.7 (more sensitive to deprivation)
+- P1: Deterministic fallback expanded with weighted selection (3→7+ action types)
+- P2: Death thresholds 0.0→0.02, job loss mechanic (0.2%/tick)
+- P3: Wealth-class multipliers (salary 0.6/1.0/1.3x, food cost 1.3/1.0/0.8x, rent £5/£25/£80)
+- P5: MockAIRouter trait-aware decisions (personality-driven, not just fallback)
+
+### Test Results (29 scenarios)
+- Deaths: 9 total (famine: 6, drought: 2, low_morality: 1) — was 0 before P2
+- Protests: 518 with MockAI (g1_with_ai) — was 0 before P5
+- Action variety: 6-9 types per scenario — was 3 before P1
+- Unlust range: 0.202-0.299 — was 0.115-0.176 before P3b
+- MockAI ≠ no-AI: g1_with_ai (9 actions, 518 protests) ≠ g2_no_ai (7 actions, 0 protests)
 
 ---
 
@@ -26,11 +40,14 @@ policy effects, and a 10-step tick loop.
 | Phase | Items | Status | Tests |
 |---|---|---|---|
 | 1: Foundation | Schema extensions, constants, RNG, grid system | Completed | 80 |
-| 2: Core Systems | Needs decay (13 needs), Unlust engine, emotion state machine (5 states), death conditions | Completed | 120 |
-| 3: Decision & Actions | E2B hybrid prompts, moral dilemma detection, response parsing, deterministic fallback, 14 actions, Adler comparison, staggered scheduling | Completed | 115 |
-| 4: World & Economy | Economy (11 jobs), world state, grid movement, tick loop (10 steps), metrics, state hash | Completed | 58 |
-| 5: LLM Integration | MockAIRouter, policy effects, policy fallback, tick loop wiring | Completed | 52 |
+| 2: Core Systems | Needs decay (13 needs), Unlust engine, emotion state machine (5 states), death conditions, job loss | Completed | 120 |
+| 3: Decision & Actions | E2B hybrid prompts, moral dilemma detection, response parsing, weighted deterministic fallback, 14 actions, Adler comparison, staggered scheduling | Completed | 115 |
+| 4: World & Economy | Economy (11 jobs, wealth multipliers), world state, grid movement, tick loop (10 steps), metrics, state hash | Completed | 58 |
+| 5: LLM Integration | MockAIRouter (trait-aware), policy effects, policy fallback, tick loop wiring | Completed | 52 |
 | 6: Testing | Full integration tests, determinism verification, healthy society checks, anomaly detection | Completed | 27 |
+| P1-P5 | Unlust threshold, fallback variety, death pathways, wealth effects, MockAIRouter variety | Completed | +17 new tests |
+| **Engine Integration** | **SimulationEngine.tick() wired to run_tick(), start()/reset() implemented** | **Completed** | **+~15 tests** |
+| **Total** | | | **492+** |
 
 ---
 
@@ -101,19 +118,34 @@ policy effects, and a 10-step tick loop.
 4. ~~SimulationEngine.tick() is a placeholder~~ → Resolved: `tick_loop.run_tick()` implements full 10-step cycle
 5. ~~Zero test coverage~~ → Resolved: 475 tests across 20 files
 
-### Remaining (cross-team)
+### Remaining (cross-team — see `docs/cross-team-integration-guide.md`)
 
 6. Backend `stop_simulation` accesses private `_is_running` — **needs backend fix**
-7. DI container loses engine between requests — **needs backend fix**
-8. WebSocket broadcasts not wired into tick lifecycle — **needs backend/subscription**
-9. Dockerfiles don't include `/shared/` — **needs Dockerfile fix**
+7. DI container loses engine between requests — **needs backend fix (call set_engine after start)**
+8. WebSocket broadcasts not wired into tick lifecycle — **needs backend fix**
+9. Dockerfiles don't include `/shared/` — **needs Dockerfile fix (critical)**
 10. Test mock data uses old format — **needs conftest.py update**
+11. `SimulationEngine.start()` must be called after construction — **backend must call start()**
+12. `result.agent_results` → `result.agent_actions` in backend — **field name fix**
 
 ### New
 
-11. The `VLLMRouter` for real Gemma model calls is not yet implemented — `MockAIRouter` fills the gap for testing
-12. Prompt files in `prompts/` need updates to match E2B/26B/31B schemas
-13. `simulation/config/default_config.yaml` and `simulation/engine/config_loader.py` are specified in the implementation guide but not yet created (all values are constants in `defaults.py` for now)
+13. The `VLLMRouter` for real Gemma model calls is not yet implemented — spec at `simulation/test_reports/vllm-integration-spec.md`
+14. Prompt files in `prompts/` need updates to match E2B/26B/31B schemas
+15. Docker Compose needs 3 vLLM containers (E2B/26B/31B) instead of 1
+
+---
+
+## Cross-Team Integration
+
+**Full integration guide:** `docs/cross-team-integration-guide.md`
+
+| Team | Key Tasks | Priority |
+|---|---|---|
+| Backend | Call `engine.start()`, fix `agent_actions` field name, fix DI, wire WebSocket | Critical |
+| AI Systems | Implement `VLLMRouter` (3 Gemma 4 models), update prompt files | High |
+| Frontend | Update DTO types for new agent/world fields, handle WebSocket events | Medium |
+| DevOps | Fix Dockerfiles to include `/shared/`, update docker-compose for 3 vLLM containers | Critical |
 
 ---
 
@@ -129,3 +161,7 @@ policy effects, and a 10-step tick loop.
 | 2026-07-08 | Progress report and simulation README updated | Simulation Engineer (AI agent) |
 | 2026-07-09 | Implementation guide v2.0 — E2B hybrid architecture | Simulation Engineer (AI agent) |
 | 2026-07-09 | **Phase 1-6 implementation complete — 475 tests, 23 source files** | Simulation Engineer (AI agent) |
+| 2026-07-09 | **P1-P5 tuning fixes — death pathways, wealth effects, fallback variety (492 tests)** | Simulation Engineer (AI agent) |
+| 2026-07-09 | **29 scenario tests run — 9 deaths, 518 protests, 6-9 action types** | Simulation Engineer (AI agent) |
+| 2026-07-09 | **Cross-team integration guide created** | Simulation Engineer (AI agent) |
+| 2026-07-09 | **SimulationEngine.tick() wired to run_tick() — engine ready for backend** | Simulation Engineer (AI agent) |
