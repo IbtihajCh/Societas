@@ -1,5 +1,6 @@
 from typing import Optional
 
+from shared.interfaces.i_ai_router import IAIRouter
 from shared.interfaces.i_simulation_engine import ISimulationEngine
 
 from backend.app.repositories.policy_repository import PolicyRepository
@@ -10,6 +11,8 @@ from backend.app.services.policy_service import PolicyService
 from backend.app.services.simulation_service import SimulationService
 
 _engine: Optional[ISimulationEngine] = None
+
+_ai_router: Optional[IAIRouter] = None
 
 
 def get_engine() -> Optional[ISimulationEngine]:
@@ -35,3 +38,12 @@ async def get_agent_service() -> AgentService:
 
 async def get_metrics_service() -> MetricsService:
     return MetricsService(engine=_engine, repository=SimulationRepository())
+
+
+def get_ai_router() -> Optional[IAIRouter]:
+    return _ai_router
+
+
+def set_ai_router(router: IAIRouter) -> None:
+    global _ai_router
+    _ai_router = router

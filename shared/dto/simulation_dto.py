@@ -21,7 +21,6 @@ class SimulationStatusDTO:
         is_running: Whether simulation is running
         speed: Current simulation speed
         population: Current population
-        population: Current population
     """
     
     tick: TickNumber = TickNumber(0)

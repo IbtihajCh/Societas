@@ -42,6 +42,7 @@ class SimulationService:
             seed=request.seed,
         )
         self._engine = SimulationEngine(config=config)
+        self._engine.start()
         return await self.get_status()
 
     async def stop_simulation(self) -> SimulationStatusDTO:
@@ -62,7 +63,7 @@ class SimulationService:
             "population": state.population,
         })
 
-        for action_result in result.agent_results:
+        for action_result in result.agent_actions:
             if action_result is not None:
                 await self._repository.save_tick_record(
                     tick=result.tick,
@@ -102,4 +103,12 @@ class SimulationService:
             innovation_index=state.innovation_index,
             unlust=state.unlust,
             morality=state.morality,
+            food_availability=state.food_availability,
+            water_availability=state.water_availability,
+            crime_rate=state.crime_rate,
+            protest_intensity=state.protest_intensity,
+            unemployment_rate=state.unemployment_rate,
+            tax_rate=state.tax_rate,
+            welfare_enabled=state.welfare_enabled,
+            welfare_amount=state.welfare_amount,
         )
