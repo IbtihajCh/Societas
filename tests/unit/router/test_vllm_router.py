@@ -29,7 +29,7 @@ def router(config: VLLMConfig) -> VLLMRouter:
 
 class TestVLLMRouterAvailable:
     def test_is_available_returns_true_when_server_up(self, router: VLLMRouter) -> None:
-        with patch.object(router._client, "get") as mock_get:
+        with patch.object(router._client_dense, "get") as mock_get:
             mock_get.return_value = MagicMock(status_code=200)
             assert router.is_available() is True
             mock_get.assert_called_once_with(
@@ -37,7 +37,7 @@ class TestVLLMRouterAvailable:
             )
 
     def test_is_available_returns_false_on_error(self, router: VLLMRouter) -> None:
-        with patch.object(router._client, "get") as mock_get:
+        with patch.object(router._client_dense, "get") as mock_get:
             mock_get.side_effect = ConnectionError("no route")
             assert router.is_available() is False
 
@@ -50,7 +50,7 @@ class TestVLLMRouterAgentDecide:
             "choices": [{"text": '{"action":"work","feeling":"productive","reason":"need money"}'}]
         }
 
-        with patch.object(router._client, "post") as mock_post:
+        with patch.object(router._client_e2b, "post") as mock_post:
             mock_post.return_value = fake_response
             result = router.agent_decide("some prompt", MagicMock(), MagicMock())
             data = json.loads(result)
@@ -59,7 +59,7 @@ class TestVLLMRouterAgentDecide:
             assert "reason" in data
 
     def test_agent_decide_fallback_on_error(self, router: VLLMRouter) -> None:
-        with patch.object(router._client, "post") as mock_post:
+        with patch.object(router._client_e2b, "post") as mock_post:
             mock_post.side_effect = ConnectionError("no route")
             result = router.agent_decide("prompt", MagicMock(), MagicMock())
             data = json.loads(result)
@@ -71,7 +71,7 @@ class TestVLLMRouterAgentDecide:
         fake_response.status_code = 200
         fake_response.json.return_value = {"choices": [{"text": "not valid json"}]}
 
-        with patch.object(router._client, "post") as mock_post:
+        with patch.object(router._client_e2b, "post") as mock_post:
             mock_post.return_value = fake_response
             result = router.agent_decide("prompt", MagicMock(), MagicMock())
             data = json.loads(result)
@@ -89,7 +89,7 @@ class TestVLLMRouterAgentDecide:
             ]
         }
 
-        with patch.object(router._client, "post") as mock_post:
+        with patch.object(router._client_e2b, "post") as mock_post:
             mock_post.return_value = fake_response
             results = router.agent_decide_batch(prompts, [MagicMock()] * 3, MagicMock())
             assert len(results) == 3
@@ -111,7 +111,7 @@ class TestVLLMRouterMoralReasoning:
             "choices": [{"text": '{"action":"console","feeling":"empathetic","reason":"moral duty to help"}'}]
         }
 
-        with patch.object(router._client, "post") as mock_post:
+        with patch.object(router._client_moe, "post") as mock_post:
             mock_post.return_value = fake_response
             result = router.moral_reasoning("prompt", MagicMock(), MagicMock())
             data = json.loads(result)
@@ -123,7 +123,7 @@ class TestVLLMRouterMoralReasoning:
         fake_response.status_code = 200
         fake_response.json.return_value = {"choices": [{"text": '{"action":"work","feeling":"ok","reason":"ok"}'}]}
 
-        with patch.object(router._client, "post") as mock_post:
+        with patch.object(router._client_moe, "post") as mock_post:
             mock_post.return_value = fake_response
             router.moral_reasoning("prompt", MagicMock(), MagicMock())
             headers = mock_post.call_args[1]["headers"]
@@ -140,7 +140,7 @@ class TestVLLMRouterMoralReasoning:
             ]
         }
 
-        with patch.object(router._client, "post") as mock_post:
+        with patch.object(router._client_moe, "post") as mock_post:
             mock_post.return_value = fake_response
             results = router.moral_reasoning_batch(prompts, [MagicMock()] * 2, MagicMock())
             assert len(results) == 2
@@ -166,7 +166,7 @@ class TestVLLMRouterGovernance:
             "choices": [{"text": '{"assessment":"stable","recommendation":"none","watch_items":[]}'}]
         }
 
-        with patch.object(router._client, "post") as mock_post:
+        with patch.object(router._client_dense, "post") as mock_post:
             mock_post.return_value = fake_response
             result = router.governance_advisory(self._make_world(), self._make_agents())
             assert isinstance(result, dict)
@@ -175,7 +175,7 @@ class TestVLLMRouterGovernance:
             assert "watch_items" in result
 
     def test_governance_advisory_fallback(self, router: VLLMRouter) -> None:
-        with patch.object(router._client, "post") as mock_post:
+        with patch.object(router._client_dense, "post") as mock_post:
             mock_post.side_effect = ConnectionError("no route")
             result = router.governance_advisory(self._make_world(), self._make_agents())
             assert result["assessment"] == "Unavailable"
@@ -188,8 +188,10 @@ class TestVLLMRouterCallCount:
         fake_ok.status_code = 200
         fake_ok.json.return_value = {"choices": [{"text": '{"action":"work","feeling":"ok","reason":"ok"}'}]}
 
-        with patch.object(router._client, "post") as mock_post:
-            mock_post.return_value = fake_ok
+        with (
+            patch.object(router._client_e2b, "post", return_value=fake_ok),
+            patch.object(router._client_moe, "post", return_value=fake_ok),
+        ):
             assert router.call_count == 0
             router.agent_decide("p1", MagicMock(), MagicMock())
             assert router.call_count == 1

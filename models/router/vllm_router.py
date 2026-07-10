@@ -26,14 +26,26 @@ FALLBACK_GOVERNANCE = {
 class VLLMRouter:
     def __init__(self, config: VLLMConfig) -> None:
         self._config = config
-        self._client = httpx.Client(
-            base_url=config.base_url,
+        url_e2b = config.base_url_e2b or config.base_url
+        url_moe = config.base_url_moe_26b or config.base_url
+        url_dense = config.base_url_dense_31b or config.base_url
+        self._client_e2b = httpx.Client(
+            base_url=url_e2b,
+            timeout=config.timeout_seconds,
+        )
+        self._client_moe = httpx.Client(
+            base_url=url_moe,
+            timeout=config.timeout_seconds,
+        )
+        self._client_dense = httpx.Client(
+            base_url=url_dense,
             timeout=config.timeout_seconds,
         )
         self._call_count = 0
 
     def _call_vllm(
         self,
+        client: httpx.Client,
         prompt: str | list[str],
         api_key: str,
         temperature: float,
@@ -53,7 +65,7 @@ class VLLMRouter:
         last_error: Exception | None = None
         for attempt in range(self._config.max_retries + 1):
             try:
-                resp = self._client.post("/v1/completions", headers=headers, json=payload)
+                resp = client.post("/v1/completions", headers=headers, json=payload)
                 resp.raise_for_status()
                 data = resp.json()
                 choices = data.get("choices", [])
@@ -88,6 +100,7 @@ class VLLMRouter:
     def agent_decide(self, prompt: str, agent: AgentState, world: SimulationState) -> str:
         self._call_count += 1
         results = self._call_vllm(
+            self._client_e2b,
             prompt,
             api_key=self._config.api_key_e2b,
             temperature=self._config.temperature_e2b,
@@ -101,6 +114,7 @@ class VLLMRouter:
     ) -> list[str]:
         self._call_count += len(prompts)
         return self._call_vllm(
+            self._client_e2b,
             prompts,
             api_key=self._config.api_key_e2b,
             temperature=self._config.temperature_e2b,
@@ -111,6 +125,7 @@ class VLLMRouter:
     def moral_reasoning(self, prompt: str, agent: AgentState, world: SimulationState) -> str:
         self._call_count += 1
         results = self._call_vllm(
+            self._client_moe,
             prompt,
             api_key=self._config.api_key_moe_26b,
             temperature=self._config.temperature_moe,
@@ -124,6 +139,7 @@ class VLLMRouter:
     ) -> list[str]:
         self._call_count += len(prompts)
         return self._call_vllm(
+            self._client_moe,
             prompts,
             api_key=self._config.api_key_moe_26b,
             temperature=self._config.temperature_moe,
@@ -134,6 +150,7 @@ class VLLMRouter:
     def governance_advisory(self, world: SimulationState, agents: list[AgentState]) -> dict[str, Any]:
         prompt = self._build_governance_prompt(world, agents)
         results = self._call_vllm(
+            self._client_dense,
             prompt,
             api_key=self._config.api_key_dense_31b,
             temperature=self._config.temperature_dense,
@@ -168,7 +185,7 @@ class VLLMRouter:
     def is_available(self) -> bool:
         try:
             headers = {"Authorization": f"Bearer {self._config.api_key_dense_31b}"}
-            resp = self._client.get("/v1/models", headers=headers)
+            resp = self._client_dense.get("/v1/models", headers=headers)
             return resp.status_code == 200
         except Exception:
             return False

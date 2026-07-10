@@ -45,6 +45,10 @@ class SimulationService:
             seed=request.seed,
         )
         vllm_config = VLLMConfig(
+            base_url=os.getenv("VLLM_BASE_URL", ""),
+            base_url_e2b=os.getenv("VLLM_BASE_URL_E2B", ""),
+            base_url_moe_26b=os.getenv("VLLM_BASE_URL_MOE_26B", ""),
+            base_url_dense_31b=os.getenv("VLLM_BASE_URL_DENSE_31B", ""),
             api_key_e2b=os.getenv("API_KEY_E2B", ""),
             api_key_moe_26b=os.getenv("API_KEY_MOE_26B", ""),
             api_key_dense_31b=os.getenv("API_KEY_DENSE_31B", ""),
