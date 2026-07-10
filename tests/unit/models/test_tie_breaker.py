@@ -27,7 +27,7 @@ class TestTieBreaker:
             state="Normal state",
             options=[
                 DecisionOption(action=ActionType.WORK, label="Work", utility_scores={"wealth": 0.8}),
-                DecisionOption(action=ActionType.SOCIALIZE, label="Socialize", utility_scores={"social": 0.7}),
+                DecisionOption(action=ActionType.BEFRIEND, label="Socialize", utility_scores={"social": 0.7}),
             ],
         )
         response = breaker.resolve(request)
@@ -43,11 +43,11 @@ class TestTieBreaker:
             state="Normal",
             options=[
                 DecisionOption(action=ActionType.WORK, label="Work", utility_scores={}),
-                DecisionOption(action=ActionType.SOCIALIZE, label="Socialize", utility_scores={}),
+                DecisionOption(action=ActionType.BEFRIEND, label="Socialize", utility_scores={}),
             ],
         )
         response = breaker.resolve(request)
-        assert response.action == ActionType.SOCIALIZE
+        assert response.action == ActionType.BEFRIEND
 
     def test_fallback_on_parse_failure(self):
         client = make_mock_client("not valid json")

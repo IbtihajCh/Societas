@@ -7,9 +7,10 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
-      - VLLM_HOST=165.245.130.202
-      - VLLM_PORT=8000
-      - VLLM_API_KEY=not-needed
+      - VLLM_BASE_URL=${VLLM_BASE_URL:-http://165.245.130.202:8000/v1}
+      - API_KEY_E2B=${API_KEY_E2B:-}
+      - API_KEY_MOE_26B=${API_KEY_MOE_26B:-}
+      - API_KEY_DENSE_31B=${API_KEY_DENSE_31B:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     restart: unless-stopped
     networks:

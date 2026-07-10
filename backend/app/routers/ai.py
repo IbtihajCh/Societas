@@ -15,12 +15,7 @@ _ai_router: VLLMRouter | None = None
 def get_ai_router() -> VLLMRouter:
     global _ai_router
     if _ai_router is None:
-        config = VLLMConfig(
-            api_key_e2b="",
-            api_key_moe_26b="",
-            api_key_dense_31b="",
-        )
-        _ai_router = VLLMRouter(config)
+        _ai_router = VLLMRouter(VLLMConfig())
     return _ai_router
 
 
