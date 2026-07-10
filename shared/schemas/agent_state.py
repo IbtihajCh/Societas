@@ -9,6 +9,12 @@ Aligned with Project Guide v1.0 and ADR-005.
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from shared.constants.defaults import (
+    AGE_CHILD_MAX,
+    AGE_YOUNG_ADULT_MAX,
+    AGE_MIDDLE_ADULT_MAX,
+    AGE_ELDERLY_MAX,
+)
 from shared.types.aliases import AgentId, GridCoordinate, NeedValue, TickNumber
 from shared.types.enums import (
     ActionType,
@@ -21,6 +27,24 @@ from shared.types.enums import (
     NeedType,
     WealthClass,
 )
+
+
+def get_age_bracket(age: int) -> str:
+    """Determine the age bracket string for a given age.
+
+    Args:
+        age: The agent's age in ticks.
+
+    Returns:
+        One of ``"child"``, ``"young_adult"``, ``"middle_adult"``, ``"elderly"``.
+    """
+    if age <= AGE_CHILD_MAX:
+        return "child"
+    if age <= AGE_YOUNG_ADULT_MAX:
+        return "young_adult"
+    if age <= AGE_MIDDLE_ADULT_MAX:
+        return "middle_adult"
+    return "elderly"
 
 
 @dataclass
@@ -131,6 +155,9 @@ class AgentResources:
     employed: bool = False
     education: EducationLevel = EducationLevel.PRIMARY
     property: bool = False
+    property_tier: int = 0
+    property_value: float = 0.0
+    rent_cost: float = 0.0
     health: float = 1.0
     wealth: float = 100.0
     debt: float = 0.0
@@ -214,6 +241,12 @@ class AgentState:
     employment_status: EmploymentStatus = EmploymentStatus.UNEMPLOYED
     wealth_class: WealthClass = WealthClass.POOR
     age: int = 25
+    age_bracket: str = "young_adult"
+    """Current age bracket (child, young_adult, middle_adult, elderly)."""
+
+    cause_of_death: str = ""
+    """Cause of death if the agent has died (e.g. ``"old_age"``, ``"food_starvation"``)."""
+
     is_alive: bool = True
     location: str = "default"
     social_connections: List[AgentId] = field(default_factory=list)
@@ -232,7 +265,34 @@ class AgentState:
     grid_y: GridCoordinate = GridCoordinate(0)
     job_type: JobType = JobType.UNEMPLOYED
     spouse: Optional[AgentId] = None
+    siblings: List[AgentId] = field(default_factory=list)
+    sibling_jealousy: float = 0.0
+    sibling_bond: float = 0.5
+    family_id: Optional[str] = None
+    marriage_tick: int = 0
+    partner_preferences: Dict[str, float] = field(default_factory=dict)
     enemies: List[AgentId] = field(default_factory=list)
+    parent_ids: List[AgentId] = field(default_factory=list)
+    children_ids: List[AgentId] = field(default_factory=list)
+    invested_capital: float = 0.0
+    business_value: float = 0.0
+    is_business_owner: bool = False
+    purpose: Optional[str] = None
+    hobby: Optional[str] = None
+    hobby_ticks: int = 0
+    purpose_fulfillment: float = 0.0
+    creativity_unlocked: bool = False
+    self_actualization_drive: float = 0.0
+    support_received: float = 0.0
+    support_given: float = 0.0
     community_id: Optional[str] = None
     last_action: ActionType = ActionType.IDLE
     last_reasoning: str = ""
+    insomnia_severity: float = 0.0
+    """Insomnia severity (0.0 = none, 1.0 = severe)."""
+    energy: float = 1.0
+    """Energy level (replaces raw sleep need for actions)."""
+    last_sleep_tick: int = 0
+    """Last tick when agent slept properly."""
+    ticks_without_sleep: int = 0
+    """Consecutive ticks with sleep < 0.3."""

@@ -109,6 +109,36 @@ export enum PolicyCategory {
   CULTURAL = 'CULTURAL',
 }
 
+<<<<<<< HEAD
+=======
+export enum ActionType {
+  WORK = 'WORK',
+  BUY_FOOD = 'BUY_FOOD',
+  REST = 'REST',
+  SEEK_JOB = 'SEEK_JOB',
+  BEG = 'BEG',
+  BEFRIEND = 'BEFRIEND',
+  CONSOLE = 'CONSOLE',
+  ISOLATE = 'ISOLATE',
+  SHARE = 'SHARE',
+  STEAL = 'STEAL',
+  HARM_OTHER = 'HARM_OTHER',
+  PROTEST = 'PROTEST',
+  COMPLAIN = 'COMPLAIN',
+  COMPLY = 'COMPLY',
+  IDLE = 'IDLE',
+  SUPPORT_FAMILY = 'SUPPORT_FAMILY',
+  TREAT = 'TREAT',
+  COUNSEL = 'COUNSEL',
+  BUY_PROPERTY = 'BUY_PROPERTY',
+  SPREAD_RUMOR = 'SPREAD_RUMOR',
+  FRAUD = 'FRAUD',
+  INVEST = 'INVEST',
+  CAMPAIGN = 'CAMPAIGN',
+  HOBBY = 'HOBBY',
+}
+
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 export enum EmploymentStatus {
   EMPLOYED = 'EMPLOYED',
   UNEMPLOYED = 'UNEMPLOYED',
@@ -117,6 +147,16 @@ export enum EmploymentStatus {
   UNABLE_TO_WORK = 'UNABLE_TO_WORK',
 }
 
+<<<<<<< HEAD
+=======
+export enum WealthClass {
+  POOR = 'POOR',
+  MIDDLE = 'MIDDLE',
+  RICH = 'RICH',
+  BUSINESS_OWNER = 'BUSINESS_OWNER',
+}
+
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 // ---------------------------------------------------------------------------
 // Simulation DTOs (mirror shared/dto/simulation_dto.py)
 // ---------------------------------------------------------------------------
@@ -129,10 +169,10 @@ export interface SimulationStatusDTO {
 }
 
 export interface SimulationStartRequestDTO {
-  population_size?: number;
-  seed?: number | null;
+  population_size: number;
+  seed?: number;
   speed?: number;
-  config?: Record<string, unknown>;
+  enable_ai?: boolean;
 }
 
 export interface SimulationStateResponseDTO {
@@ -153,6 +193,13 @@ export interface SimulationStateResponseDTO {
   tax_rate: number;
   welfare_enabled: boolean;
   welfare_amount: number;
+  duration_ms: number;
+  ai_calls: number;
+  ambiguity_count: number;
+  state_hash: string;
+  action_counts?: Record<string, number>;
+  wealth_stratified?: { poor: number; middle: number; rich: number };
+  llm_log?: Array<{ tick: number; agent_id: string; model_type: string; action: string; reason: string; feeling: string }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -197,6 +244,8 @@ export interface AgentSummaryDTO {
   emotion: string;
   unlust: number;
   job_type: string;
+  grid_x?: number;
+  grid_y?: number;
 }
 
 export interface AgentDetailDTO {

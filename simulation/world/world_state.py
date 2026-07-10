@@ -56,6 +56,22 @@ class WorldStateManager:
             if hasattr(self._state, key):
                 setattr(self._state, key, value)
     
+    def get_active_env_events(self) -> list[dict]:
+        """Get the list of currently active environmental events.
+
+        Returns:
+            List of event dicts with type, severity, duration, etc.
+        """
+        return self._state.active_env_events
+
+    def set_active_env_events(self, events: list[dict]) -> None:
+        """Replace the active environmental events list.
+
+        Args:
+            events: New list of event dicts.
+        """
+        self._state.active_env_events = events
+
     def reset(self) -> None:
         """Reset world state to initial values."""
         self._state = SimulationState(

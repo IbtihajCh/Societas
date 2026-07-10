@@ -112,3 +112,4 @@ class GovernmentPolicy:
     total_cost: float = 0.0
     effectiveness: float = 0.0
     impact_deltas: Dict[WealthClass, ImpactDelta] = field(default_factory=dict)
+    policy_weights: PolicyWeights = field(default_factory=PolicyWeights)

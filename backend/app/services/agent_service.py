@@ -47,6 +47,8 @@ class AgentService:
             emotion=agent.emotions.primary.value if agent.emotions.primary else "normal",
             unlust=agent.unlust,
             job_type=agent.job_type.value if agent.job_type else "unemployed",
+            grid_x=int(agent.grid_x),
+            grid_y=int(agent.grid_y),
         )
 
     def _agent_to_detail(self, agent: AgentState) -> AgentDetailDTO:

@@ -1,6 +1,7 @@
 from backend.app.dependencies.container import (
     get_agent_service,
     get_engine,
+    get_governance_service,
     get_metrics_service,
     get_policy_service,
     get_simulation_service,
@@ -13,5 +14,6 @@ __all__ = [
     "get_simulation_service",
     "get_policy_service",
     "get_agent_service",
+    "get_governance_service",
     "get_metrics_service",
 ]

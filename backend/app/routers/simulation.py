@@ -62,3 +62,22 @@ async def reset_simulation(
     service: SimulationService = Depends(get_simulation_service),
 ):
     return await service.reset_simulation(seed)
+
+
+@router.post("/tick-n")
+async def tick_n_times(request: dict, service: SimulationService = Depends(get_simulation_service)):
+    n = request.get("count", 1)
+    interval_ms = request.get("interval_ms", 0)
+    results = await service.tick_n_times(n)
+    return {"ticks": results, "count": len(results)}
+
+
+@router.post("/auto-run")
+async def auto_run(request: dict, service: SimulationService = Depends(get_simulation_service)):
+    active = request.get("active", False)
+    interval_ms = request.get("interval_ms", 1000)
+    if active:
+        await service.start_auto_run(interval_ms)
+    else:
+        await service.stop_auto_run()
+    return {"auto_run": active, "interval_ms": interval_ms}

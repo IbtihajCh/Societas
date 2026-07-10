@@ -9,6 +9,8 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from shared.schemas.policy import Policy, GovernmentPolicy, PolicyWeights
+from shared.schemas.simulation_state import SimulationState
+from shared.interfaces.i_ai_router import IAIRouter
 
 
 class IPolicyEngine(ABC):
@@ -19,12 +21,23 @@ class IPolicyEngine(ABC):
     """
     
     @abstractmethod
-    def apply_policy(self, policy: Policy) -> None:
+    def apply_policy(
+        self,
+        policy: Policy,
+        ai_router: Optional[IAIRouter] = None,
+        world_state: Optional[SimulationState] = None,
+    ) -> None:
         """
         Apply a policy to the simulation.
         
+        When ai_router is available and the policy has a description, the
+        description is translated into structured PolicyWeights and ImpactDeltas.
+        Falls back to rule-based keyword matching when the AI router is unavailable.
+        
         Args:
             policy: The policy to apply
+            ai_router: Optional AI router for LLM-based policy translation
+            world_state: Optional world state for translation context
         """
         ...
     

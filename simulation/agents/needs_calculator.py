@@ -9,12 +9,25 @@ All randomness uses DeterministicRNG (seeded numpy). No LLM calls.
 """
 
 from shared.constants.defaults import (
+    AGE_MORTALITY_BASE,
+    AGE_MORTALITY_ELDERLY,
+    AGE_PROGRESSION_INTERVAL,
     DESPAIR_MORTALITY_RATE,
+<<<<<<< HEAD
     ECONOMIC_HARDSHIP_DEATH_RATE,
+=======
+    ENV_NEED_DECAY_FOOD_MULTIPLIER,
+    ENV_NEED_DECAY_WATER_MULTIPLIER,
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
     FAMILY_DECAY_RATE,
     FOOD_DEATH_THRESHOLD,
     FOOD_DECAY_RATE,
     HEALTH_DEATH_THRESHOLD,
+    INSOMNIA_DECAY_RATE,
+    INSOMNIA_INCREASE_RATE,
+    INSOMNIA_MAX,
+    INSOMNIA_SAFETY_THRESHOLD,
+    INSOMNIA_STRESS_THRESHOLD,
     JOB_LOSS_RATE,
     JOB_LOSS_ECON_SENSITIVITY,
     REPUTATION_DECAY_RATE,
@@ -23,14 +36,15 @@ from shared.constants.defaults import (
     SCARCITY_BASE,
     SELF_ESTEEM_DECAY_RATE,
     SEXUAL_TENSION_GROWTH_RATE,
+    SLEEP_DEATH_THRESHOLD,
     SLEEP_DECAY_RATE,
-    SLEEP_REPLENISH_RATE,
+    SLEEP_RECOVERY_NATURAL,
     SOCIAL_DECAY_RATE,
     UNLUST_FINANCIAL_DIVISOR,
     WATER_DEATH_THRESHOLD,
     WATER_DECAY_RATE,
 )
-from shared.schemas.agent_state import AgentState
+from shared.schemas.agent_state import AgentState, get_age_bracket
 from shared.schemas.simulation_state import SimulationState
 from shared.types.enums import EmotionType, EmploymentStatus, NeedType, WealthClass
 from shared.utilities.deterministic_rng import DeterministicRNG
@@ -40,6 +54,8 @@ __all__ = [
     "check_death",
     "derive_wealth_class",
     "maybe_lose_job",
+    "progress_age",
+    "update_insomnia",
 ]
 
 
@@ -63,22 +79,37 @@ def decay_needs(
     scarcity = SCARCITY_BASE - world.food_availability
     crime_pressure = world.crime_rate * 0.01
 
+    # Environmental crisis multipliers: when food/water availability is
+    # critically low (< 0.4), decay rates increase by configured multiplier.
+    food_multiplier = (
+        ENV_NEED_DECAY_FOOD_MULTIPLIER
+        if world.food_availability < 0.4
+        else 1.0
+    )
+    water_multiplier = (
+        ENV_NEED_DECAY_WATER_MULTIPLIER
+        if world.water_availability < 0.4
+        else 1.0
+    )
+
     needs = agent.needs
 
     # --- Layer 1: Physiological ---
-    # Food & water decay relative to scarcity
+    # Food & water decay relative to scarcity, multiplied during crisis
     needs.set_level(
         NeedType.FOOD,
-        needs.get_level(NeedType.FOOD) - FOOD_DECAY_RATE * scarcity,
+        needs.get_level(NeedType.FOOD)
+        - FOOD_DECAY_RATE * scarcity * food_multiplier,
     )
     needs.set_level(
         NeedType.WATER,
-        needs.get_level(NeedType.WATER) - WATER_DECAY_RATE * scarcity,
+        needs.get_level(NeedType.WATER)
+        - WATER_DECAY_RATE * scarcity * water_multiplier,
     )
-    # Sleep decays but auto-replenishes partially each tick
+    # Sleep decays with natural recovery each tick
     needs.set_level(
         NeedType.SLEEP,
-        needs.get_level(NeedType.SLEEP) - SLEEP_DECAY_RATE + SLEEP_REPLENISH_RATE,
+        needs.get_level(NeedType.SLEEP) - SLEEP_DECAY_RATE + SLEEP_RECOVERY_NATURAL,
     )
     # Sexual tension builds up over time (not a decay)
     needs.set_level(
@@ -133,7 +164,21 @@ def decay_needs(
     agent.resources.wealth = agent.resources.money
 
 
+<<<<<<< HEAD
 def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState | None = None) -> bool:
+=======
+def progress_age(agent: AgentState) -> None:
+    """Advance the agent's age by one tick and update the age bracket.
+
+    Args:
+        agent: The agent to age (modified in place).
+    """
+    agent.age += AGE_PROGRESSION_INTERVAL
+    agent.age_bracket = get_age_bracket(agent.age)
+
+
+def check_death(agent: AgentState, rng: DeterministicRNG) -> bool:
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
     """Check whether the agent meets any death condition this tick.
 
     Death conditions:
@@ -141,12 +186,23 @@ def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState
     - Water <= ``WATER_DEATH_THRESHOLD`` (dehydration).
     - Health <= ``HEALTH_DEATH_THRESHOLD`` (health failure).
     - Primary emotion is DESPAIR with a per-tick mortality roll.
+<<<<<<< HEAD
     - Economic hardship: unemployed + low money + high inflation (per-tick roll).
 
     Args:
         agent: The agent to evaluate.
         rng: Deterministic RNG for probability rolls.
         world: Current world state (for inflation check).
+=======
+    - Elderly agents face ``AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY`` per-tick
+      mortality.
+
+    On death, sets ``agent.cause_of_death`` to the reason.
+
+    Args:
+        agent: The agent to evaluate (modified in place on death).
+        rng: Deterministic RNG for the despair and age mortality rolls.
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 
     Returns:
         True if the agent should die this tick, False otherwise.
@@ -155,16 +211,30 @@ def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState
         return False
 
     if agent.needs.get_level(NeedType.FOOD) <= FOOD_DEATH_THRESHOLD:
+        agent.cause_of_death = "food_starvation"
         return True
 
     if agent.needs.get_level(NeedType.WATER) <= WATER_DEATH_THRESHOLD:
+        agent.cause_of_death = "water_dehydration"
         return True
 
     if agent.resources.health <= HEALTH_DEATH_THRESHOLD:
+        agent.cause_of_death = "health_failure"
+        return True
+
+    if agent.needs.get_level(NeedType.SLEEP) < SLEEP_DEATH_THRESHOLD and agent.ticks_without_sleep >= 50:
+        agent.cause_of_death = "insomnia_exhaustion"
         return True
 
     if agent.emotions.primary == EmotionType.DESPAIR:
         if rng.random() < DESPAIR_MORTALITY_RATE:
+            agent.cause_of_death = "despair"
+            return True
+
+    if agent.age_bracket == "elderly":
+        mortality_chance = AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY
+        if rng.random() < mortality_chance:
+            agent.cause_of_death = "old_age"
             return True
 
     if world is not None:
@@ -178,6 +248,57 @@ def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState
             return True
 
     return False
+
+
+def update_insomnia(agent: AgentState, world: SimulationState) -> None:
+    """Update insomnia severity and track sleep deprivation.
+
+    - Ticks without sleep are incremented when sleep < 0.3, reset when > 0.5.
+    - Insomnia increases when sleep is low or when stress (unlust) is high
+      combined with low safety.
+    - Insomnia decreases otherwise.
+    - High insomnia feeds back into unlust (sleep deprivation effects).
+
+    Args:
+        agent: The agent to update (modified in place).
+        world: Current world state (used for safety checks).
+    """
+    if not agent.is_alive:
+        return
+
+    sleep_level = agent.needs.get_level(NeedType.SLEEP)
+
+    # Track consecutive ticks without adequate sleep
+    if sleep_level < 0.3:
+        agent.ticks_without_sleep += 1
+    elif sleep_level > 0.5:
+        agent.ticks_without_sleep = 0
+
+    # Determine insomnia change
+    unlust = agent.unlust
+    safety = agent.needs.get_level(NeedType.SAFETY)
+
+    if sleep_level < 0.3:
+        agent.insomnia_severity = min(
+            INSOMNIA_MAX,
+            agent.insomnia_severity + INSOMNIA_INCREASE_RATE,
+        )
+    elif unlust > INSOMNIA_STRESS_THRESHOLD and safety < INSOMNIA_SAFETY_THRESHOLD:
+        agent.insomnia_severity = min(
+            INSOMNIA_MAX,
+            agent.insomnia_severity + INSOMNIA_INCREASE_RATE,
+        )
+    else:
+        agent.insomnia_severity = max(
+            0.0,
+            agent.insomnia_severity - INSOMNIA_DECAY_RATE,
+        )
+
+    # Sleep deprivation feedback effects
+    if agent.insomnia_severity > 0.5:
+        agent.unlust = min(1.0, agent.unlust + 0.01)
+    if agent.insomnia_severity > 0.7:
+        agent.unlust = min(1.0, agent.unlust + 0.02)
 
 
 def derive_wealth_class(money: float) -> WealthClass:

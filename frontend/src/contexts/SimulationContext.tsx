@@ -11,6 +11,7 @@ import {
 import { apiService } from '@/services/api';
 import {
   SimulationStateResponseDTO,
+<<<<<<< HEAD
   MetricPointDTO,
   WebSocketMessage,
 } from '@/types/api';
@@ -32,12 +33,23 @@ interface SimulationContextType {
   state: SimulationStateResponseDTO | null;
   metrics: MetricPointDTO[] | null;
   events: SimulationEvent[];
+=======
+  SimulationStatusDTO,
+  AgentSummaryDTO,
+} from '@/types/api';
+import { useSimulationStore } from '@/store/simulationStore';
+
+interface SimulationContextType {
+  state: SimulationStateResponseDTO | null;
+  agents: AgentSummaryDTO[];
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
   isConnected: boolean;
   isRunning: boolean;
   error: string | null;
   startSimulation: () => Promise<void>;
   stopSimulation: () => Promise<void>;
   advanceTick: () => Promise<void>;
+  refreshAgents: () => Promise<void>;
 }
 
 const MAX_EVENTS = 100;
@@ -52,8 +64,12 @@ interface SimulationProviderProps {
 
 export function SimulationProvider({ children }: SimulationProviderProps) {
   const [state, setState] = useState<SimulationStateResponseDTO | null>(null);
+<<<<<<< HEAD
   const [metrics, setMetrics] = useState<MetricPointDTO[] | null>(null);
   const [events, setEvents] = useState<SimulationEvent[]>([]);
+=======
+  const [agents, setAgents] = useState<AgentSummaryDTO[]>([]);
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
   const [isConnected, setIsConnected] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +84,15 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       id: `evt-${eventCounter.current}`,
     };
     setEvents((prev) => [newEvent, ...prev].slice(0, MAX_EVENTS));
+  }, []);
+
+  const fetchAgents = useCallback(async () => {
+    try {
+      const res = await apiService.getAgents(20, 0);
+      setAgents(res.agents);
+    } catch {
+      // ignore
+    }
   }, []);
 
   useEffect(() => {
@@ -125,20 +150,13 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         setIsConnected(true);
         setError(null);
         setIsRunning(status.is_running);
-
-        const simState = await apiService.getSimulationState();
-        setState(simState);
-
-        const dashData = await apiService.getDashboardData();
-        if (dashData.population) {
-          setMetrics(dashData.population);
-        }
       } catch {
         setIsConnected(false);
       }
     };
 
     fetchStatus();
+    fetchAgents();
 
     const interval = setInterval(async () => {
       try {
@@ -149,6 +167,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       }
     }, 30000);
 
+<<<<<<< HEAD
     return () => {
       unsubStatus();
       unsubMessage();
@@ -173,23 +192,58 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         tick: simState.tick,
         description: 'Simulation started',
       });
+=======
+    return () => clearInterval(interval);
+  }, [fetchAgents]);
+
+  // Poll agents every 2 seconds while simulation is running
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = setInterval(() => {
+      fetchAgents();
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [isRunning, fetchAgents]);
+
+  const startSimulation = useCallback(async () => {
+    try {
+      const status = await apiService.startSimulation({ population_size: 20, seed: 42, enable_ai: true });
+      setIsRunning(status.is_running);
+      setIsConnected(true);
+      if (status.population > 0) {
+        const simState = await apiService.getSimulationState();
+        setState(simState);
+        useSimulationStore.getState().appendTickData(simState);
+      }
+      await fetchAgents();
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to start: ${msg}`);
       console.error('Failed to start simulation:', err);
     }
+<<<<<<< HEAD
   }, [addEvent]);
+=======
+  }, [fetchAgents]);
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 
   const stopSimulation = useCallback(async () => {
     try {
       setError(null);
       const status = await apiService.stopSimulation();
       setIsRunning(status.is_running);
+<<<<<<< HEAD
       addEvent({
         type: 'simulation_stopped',
         tick: state?.tick ?? 0,
         description: 'Simulation stopped',
       });
+=======
+      setState(null);
+      setAgents([]);
+      useSimulationStore.getState().reset();
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to stop: ${msg}`);
@@ -202,29 +256,32 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       setError(null);
       const result = await apiService.advanceTick();
       setState(result);
-      if (result.tick % 10 === 0) {
-        const status = await apiService.getSimulationStatus();
-        setIsRunning(status.is_running);
-      }
+      useSimulationStore.getState().appendTickData(result);
+      await fetchAgents();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to advance tick: ${msg}`);
       console.error('Failed to advance tick:', err);
     }
-  }, []);
+  }, [fetchAgents]);
 
   return (
     <SimulationContext.Provider
       value={{
         state,
+<<<<<<< HEAD
         metrics,
         events,
+=======
+        agents,
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
         isConnected,
         isRunning,
         error,
         startSimulation,
         stopSimulation,
         advanceTick,
+        refreshAgents: fetchAgents,
       }}
     >
       {children}

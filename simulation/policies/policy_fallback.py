@@ -121,6 +121,7 @@ def translate_policy_fallback(
                 weights=PolicyWeights(),
             ),
             impact_deltas={},
+            policy_weights=PolicyWeights(),
         )
 
     weights = best_match["weights"]  # type: ignore[assignment]
@@ -143,4 +144,5 @@ def translate_policy_fallback(
             weights=weights if isinstance(weights, PolicyWeights) else PolicyWeights(),
         ),
         impact_deltas=deltas if isinstance(deltas, dict) else {},
+        policy_weights=weights if isinstance(weights, PolicyWeights) else PolicyWeights(),
     )

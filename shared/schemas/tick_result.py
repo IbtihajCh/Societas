@@ -50,6 +50,8 @@ class TickResult:
     agent_actions: List[AgentActionResult] = field(default_factory=list)
     state_changes: Dict[str, float] = field(default_factory=dict)
     events_generated: List[EventId] = field(default_factory=list)
+    action_counts: Dict[str, int] = field(default_factory=dict)
+    llm_log: List[Dict[str, Any]] = field(default_factory=list)
     ambiguity_count: int = 0
     ai_calls: int = 0
     duration_ms: float = 0.0

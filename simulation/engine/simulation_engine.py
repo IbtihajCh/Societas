@@ -25,8 +25,13 @@ from simulation.policies.policy_engine import PolicyEngine
 from simulation.metrics.metrics_collector import MetricsCollector
 from simulation.events.event_bus import EventBus
 from simulation.scheduler.tick_scheduler import TickScheduler
+<<<<<<< HEAD
 from models.router.vllm_router import VLLMRouter
+=======
+from shared.interfaces.i_ai_router import IAIRouter
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 from simulation.engine.tick_loop import run_tick
+from simulation.engine.save_load_manager import save_simulation, load_simulation
 
 
 class SimulationEngine(ISimulationEngine):
@@ -69,10 +74,20 @@ class SimulationEngine(ISimulationEngine):
         
         # Runtime state (initialized by start())
         self._rng: Optional[DeterministicRNG] = None
+<<<<<<< HEAD
         self._ai_router: Optional[VLLMRouter] = None
+=======
+        self._ai_router: Optional[IAIRouter] = None
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
         self._agents: list[AgentState] = []
+        self._speed_multiplier: float = 1.0
+        self._speed: float = 1.0
     
+<<<<<<< HEAD
     def start(self, ai_router: Optional[VLLMRouter] = None) -> None:
+=======
+    def start(self, ai_router: Optional[IAIRouter] = None) -> None:
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
         """Initialize the simulation with agents and world state.
         
         Must be called before tick(). Creates the initial population,
@@ -88,9 +103,16 @@ class SimulationEngine(ISimulationEngine):
             n_agents=self.config.population_size,
             rng=self._rng,
         )
+        from simulation.world.property_market import assign_initial_housing
+        for agent in self._agents:
+            assign_initial_housing(agent)
         self._is_running = True
     
+<<<<<<< HEAD
     def set_ai_router(self, router: VLLMRouter) -> None:
+=======
+    def set_ai_router(self, router: IAIRouter) -> None:
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
         """Set or replace the AI router for LLM-driven decisions.
         
         Args:
@@ -159,15 +181,19 @@ class SimulationEngine(ISimulationEngine):
         """
         Apply a government policy to the simulation.
         
+        Passes the AI router and current world state to the policy engine
+        so that free-text policy descriptions can be translated into
+        structured PolicyWeights and ImpactDeltas by the LLM.
+        
         Args:
             policy: The policy to apply
-            
-        TODO: Implement policy application
-            - Register policy with policy engine
-            - Calculate policy effects
-            - Publish PolicyEnactedEvent
         """
-        self._policy_engine.apply_policy(policy)
+        world_state = self._world_state.get_state()
+        self._policy_engine.apply_policy(
+            policy,
+            ai_router=self._ai_router,
+            world_state=world_state,
+        )
     
     def revoke_policy(self, policy_id: str) -> None:
         """
@@ -233,6 +259,57 @@ class SimulationEngine(ISimulationEngine):
         """
         return self._current_tick
     
+    def save(self, filepath: str) -> str:
+        """
+        Save the current simulation state to a JSON file.
+
+        Args:
+            filepath: Path to save file
+
+        Returns:
+            save_id string (filename without extension)
+        """
+        return save_simulation(
+            agents=self._agents,
+            world=self._world_state.get_state(),
+            rng=self._rng,
+            tick_number=self._current_tick,
+            filepath=filepath,
+        )
+
+    def load(self, filepath: str) -> None:
+        """
+        Load simulation state from a JSON file.
+
+        Restores agents, world state, RNG, and tick number.
+        Sets is_running to False after loading.
+
+        Args:
+            filepath: Path to save file
+        """
+        agents, world, tick, rng_state = load_simulation(filepath)
+        self._agents = agents
+        self._world_state._state = world
+        self._current_tick = TickNumber(tick)
+        if rng_state:
+            seed = rng_state.pop("_seed", 42)
+            self._rng = DeterministicRNG(seed=seed)
+            self._rng._rng.bit_generator.state = rng_state
+        self._is_running = False
+
+    def get_agent_count(self) -> int:
+        """
+        Get the number of living agents.
+
+        Returns:
+            Count of living agents
+        """
+        return len([a for a in self._agents if a.is_alive])
+
+    def set_speed(self, speed: float) -> None:
+        """Set simulation speed. 0 = paused, >0 = ticks per second."""
+        self._speed = speed
+
     def is_running(self) -> bool:
         """
         Check if the simulation is currently running.

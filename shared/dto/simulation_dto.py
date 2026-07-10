@@ -6,7 +6,7 @@ Data Transfer Objects for simulation-related API communication.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from shared.types.aliases import TickNumber
 
@@ -46,6 +46,7 @@ class SimulationStartRequestDTO:
     seed: Optional[int] = None
     speed: float = 1.0
     config: Dict[str, object] = field(default_factory=dict)
+    enable_ai: bool = False
 
 
 @dataclass
@@ -90,3 +91,11 @@ class SimulationStateResponseDTO:
     tax_rate: float = 0.15
     welfare_enabled: bool = False
     welfare_amount: float = 8.0
+    # Diagnostic metrics
+    duration_ms: float = 0.0
+    ai_calls: int = 0
+    ambiguity_count: int = 0
+    state_hash: str = ""
+    action_counts: Dict[str, int] = field(default_factory=dict)
+    wealth_stratified: Dict[str, float] = field(default_factory=dict)
+    llm_log: List[Dict[str, Any]] = field(default_factory=list)

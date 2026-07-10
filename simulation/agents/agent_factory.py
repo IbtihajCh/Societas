@@ -16,12 +16,16 @@ from shared.schemas.agent_state import (
     AgentResources,
     AgentState,
     AgentTraits,
+    get_age_bracket,
 )
 from shared.constants.defaults import GRID_SIZE
 from shared.constants.simulation_constants import (
     BETA_PARAMS,
+    CREATIVE_MIN_CREATIVITY,
     EDUCATION_BY_WEALTH,
     JOBS_BY_EDUCATION,
+    LEADER_MIN_MORALITY,
+    LEADER_MIN_REPUTATION,
     PROPERTY_OWNERSHIP,
     SALARY_RANGES,
     WEALTH_CLASS_DISTRIBUTION,
@@ -161,6 +165,81 @@ def _get_salary_for_job(job_type: JobType, rng: DeterministicRNG) -> float:
     return annual_salary / 365.0
 
 
+def _generate_persona(age: int, gender: Gender, wealth_class: WealthClass, job_type: JobType, traits: AgentTraits) -> str:
+    """Generate a rule-based persona description from agent attributes."""
+    parts = []
+    if age >= 66:
+        if gender == Gender.MALE:
+            parts.append("An elderly man")
+        else:
+            parts.append("An elderly woman")
+    elif gender == Gender.MALE:
+        if age < 19:
+            parts.append("A young man")
+        elif age < 41:
+            parts.append("A man in early adulthood")
+        else:
+            parts.append("A man in midlife")
+    else:
+        if age < 19:
+            parts.append("A young woman")
+        elif age < 41:
+            parts.append("A woman in early adulthood")
+        else:
+            parts.append("A woman in midlife")
+
+    if job_type != JobType.UNEMPLOYED:
+        parts.append(f"working as a {job_type.value.replace('_', ' ')}")
+    else:
+        parts.append("currently unemployed")
+
+    if wealth_class == WealthClass.POOR:
+        parts.append("with limited financial means")
+    elif wealth_class == WealthClass.MIDDLE:
+        parts.append("with a stable middle-class income")
+    elif wealth_class == WealthClass.RICH:
+        parts.append("enjoying comfortable wealth")
+    elif wealth_class == WealthClass.BUSINESS_OWNER:
+        parts.append("running their own business")
+
+    if traits.creativity > 0.7:
+        parts.append("curious and open to new experiences")
+    elif traits.creativity < 0.3:
+        parts.append("preferring routine and familiarity")
+
+    if traits.ambition > 0.7:
+        parts.append("disciplined and organized")
+    elif traits.ambition < 0.3:
+        parts.append("somewhat easygoing and spontaneous")
+
+    if traits.extraversion > 0.7:
+        parts.append("outgoing and sociable")
+    elif traits.extraversion < 0.3:
+        parts.append("reserved and introspective")
+
+    if traits.morality > 0.7:
+        parts.append("kind and cooperative")
+    elif traits.morality < 0.3:
+        parts.append("competitive and outspoken")
+
+    if traits.resilience < 0.3 or traits.anger_tendency > 0.7:
+        parts.append("prone to worry and stress")
+    elif traits.resilience > 0.7 and traits.anger_tendency < 0.3:
+        parts.append("emotionally resilient")
+
+    if traits.morality > 0.7:
+        parts.append("with a strong moral compass")
+    elif traits.morality < 0.3:
+        parts.append("with flexible ethics")
+
+    if traits.creativity > 0.7:
+        parts.append("and a creative mind")
+    elif traits.creativity < 0.3:
+        parts.append("with a practical mindset")
+
+    return ". ".join(parts) + "."
+
+
 def create_agent(agent_id: int, rng: DeterministicRNG) -> AgentState:
     """Create a complete agent with all v1 parameters.
 
@@ -180,6 +259,10 @@ def create_agent(agent_id: int, rng: DeterministicRNG) -> AgentState:
     if employed:
         job_type = _assign_job_by_education(education, rng)
         base_salary = _get_salary_for_job(job_type, rng)
+        if traits.creativity > CREATIVE_MIN_CREATIVITY and rng.random() < 0.05:
+            creative_jobs = [JobType.ARTIST, JobType.WRITER, JobType.MUSICIAN]
+            job_type = creative_jobs[rng.choice(len(creative_jobs))]
+            base_salary = _get_salary_for_job(job_type, rng)
 
     gender = Gender.MALE if rng.random() < 0.5 else Gender.FEMALE
     cultures = [Culture.A, Culture.B, Culture.C]
@@ -187,8 +270,24 @@ def create_agent(agent_id: int, rng: DeterministicRNG) -> AgentState:
 
     health = rng.uniform(0.7, 1.0)
 
+    # Initial age distribution: 60% young adult (19-40), 30% middle adult (41-65),
+    # 10% elderly (66-100).  Age 18 belongs to the *child* bracket per
+    # AGE_CHILD_MAX, so young adults start at 19.
+    age_roll = rng.random()
+    if age_roll < 0.6:
+        age = int(rng.uniform(19, 41))
+    elif age_roll < 0.9:
+        age = int(rng.uniform(41, 66))
+    else:
+        age = int(rng.uniform(66, 101))
+
+    age_bracket = get_age_bracket(age)
+
+    persona = _generate_persona(age, gender, wealth_class, job_type, traits)
+
     return AgentState(
         id=AgentId(str(agent_id)),
+        persona=persona,
         traits=traits,
         needs=needs,
         emotions=AgentEmotions(happiness_score=0.5),
@@ -203,6 +302,8 @@ def create_agent(agent_id: int, rng: DeterministicRNG) -> AgentState:
         ),
         employment_status=EmploymentStatus.EMPLOYED if employed else EmploymentStatus.UNEMPLOYED,
         wealth_class=wealth_class,
+        age=age,
+        age_bracket=age_bracket,
         gender=gender,
         culture=culture,
         born_tick=0,
@@ -212,10 +313,40 @@ def create_agent(agent_id: int, rng: DeterministicRNG) -> AgentState:
     )
 
 
+def _assign_community_leader(
+    agents: list[AgentState],
+    rng: DeterministicRNG,
+) -> None:
+    """Assign up to one community leader from the initial population.
+
+    An agent qualifies if their reputation need > LEADER_MIN_REPUTATION
+    and their morality > LEADER_MIN_MORALITY.
+
+    Args:
+        agents: List of agents to scan (modified in place).
+        rng: Deterministic RNG instance.
+    """
+    candidates = [
+        a for a in agents
+        if a.is_alive
+        and a.needs.get_level(NeedType.REPUTATION) > LEADER_MIN_REPUTATION
+        and a.traits.morality > LEADER_MIN_MORALITY
+    ]
+    if not candidates:
+        return
+    leader = candidates[0]
+    leader.job_type = JobType.COMMUNITY_LEADER
+    leader.resources.employed = True
+    leader.resources.base_salary = _get_salary_for_job(JobType.COMMUNITY_LEADER, rng)
+
+
 def create_initial_population(
     n_agents: int, rng: DeterministicRNG
 ) -> list[AgentState]:
     """Create the initial population of agents.
+
+    After creation, up to one agent with high reputation and morality
+    is assigned the COMMUNITY_LEADER job.
 
     Args:
         n_agents: Number of agents to create.
@@ -224,4 +355,6 @@ def create_initial_population(
     Returns:
         List of AgentState objects.
     """
-    return [create_agent(i, rng) for i in range(n_agents)]
+    agents = [create_agent(i, rng) for i in range(n_agents)]
+    _assign_community_leader(agents, rng)
+    return agents

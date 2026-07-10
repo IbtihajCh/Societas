@@ -5,6 +5,7 @@ from shared.interfaces.i_simulation_engine import ISimulationEngine
 from backend.app.repositories.policy_repository import PolicyRepository
 from backend.app.repositories.simulation_repository import SimulationRepository
 from backend.app.services.agent_service import AgentService
+from backend.app.services.governance_service import GovernanceService
 from backend.app.services.metrics_service import MetricsService
 from backend.app.services.policy_service import PolicyService
 from backend.app.services.simulation_service import SimulationService
@@ -31,6 +32,10 @@ async def get_policy_service() -> PolicyService:
 
 async def get_agent_service() -> AgentService:
     return AgentService(engine=_engine)
+
+
+async def get_governance_service() -> GovernanceService:
+    return GovernanceService(engine=_engine)
 
 
 async def get_metrics_service() -> MetricsService:

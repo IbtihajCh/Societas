@@ -133,8 +133,26 @@ export const apiService = {
     return response.data;
   },
 
+<<<<<<< HEAD
   revokePolicy: async (policyId: string): Promise<PolicyRevokeResponseDTO> => {
     const response = await apiClient.delete<PolicyRevokeResponseDTO>(
+=======
+  applyGovernance: async (params: {
+    tax_rate?: number;
+    welfare_enabled?: boolean;
+    welfare_amount?: number;
+    food_availability?: number;
+  }): Promise<SimulationStateResponseDTO> => {
+    const response = await apiClient.post<SimulationStateResponseDTO>(
+      '/governance/apply',
+      params,
+    );
+    return response.data;
+  },
+
+  revokePolicy: async (policyId: string): Promise<PolicyResponseDTO> => {
+    const response = await apiClient.delete<PolicyResponseDTO>(
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
       `/policies/${policyId}`,
     );
     return response.data;
@@ -185,5 +203,13 @@ export const apiService = {
       `/agents/${agentId}/history`,
     );
     return response.data;
+  },
+
+  tickMultiple: async (count: number, interval_ms: number = 0): Promise<any> => {
+    return apiClient.post('/simulation/tick-n', { count, interval_ms }).then((r) => r.data);
+  },
+
+  autoRun: async (params: { active: boolean; interval_ms?: number }): Promise<any> => {
+    return apiClient.post('/simulation/auto-run', params).then((r) => r.data);
   },
 };

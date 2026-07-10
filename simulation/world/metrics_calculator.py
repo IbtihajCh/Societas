@@ -95,6 +95,11 @@ def update_world_metrics(
     world.population = alive_count
     world.time_step = TickNumber(int(world.time_step) + 1)
 
+    # Apply environmental regression and clamp (handled in
+    # apply_environmental_tick, but ensure bounds here too).
+    world.food_availability = max(0.0, min(1.0, world.food_availability))
+    world.water_availability = max(0.0, min(1.0, world.water_availability))
+
 
 def compute_wealth_stratified_metrics(
     all_agents: list[AgentState],

@@ -6,7 +6,14 @@ Defines all enumeration types used throughout the simulation.
 Aligned with the Project Guide v1.0 and ADR-005.
 """
 
-from enum import Enum, StrEnum, IntEnum, auto
+import sys
+from enum import Enum, IntEnum, auto
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    class StrEnum(str, Enum):
+        """Backport of Python 3.11's StrEnum for compatibility."""
 
 
 class ActionType(StrEnum):
@@ -23,9 +30,18 @@ class ActionType(StrEnum):
     SHARE = "share"
     STEAL = "steal"
     HARM_OTHER = "harm_other"
+    FRAUD = "fraud"
+    TREAT = "treat"
     PROTEST = "protest"
+    COUNSEL = "counsel"
     COMPLAIN = "complain"
+    CAMPAIGN = "campaign"
     COMPLY = "comply"
+    SPREAD_RUMOR = "spread_rumor"
+    SUPPORT_FAMILY = "support_family"
+    INVEST = "invest"
+    BUY_PROPERTY = "buy_property"
+    HOBBY = "hobby"
     IDLE = "idle"
 
 
@@ -62,11 +78,12 @@ class EmotionType(StrEnum):
 
 
 class WealthClass(StrEnum):
-    """Three wealth classes per Project Guide."""
+    """Wealth classes per Project Guide."""
 
     POOR = "poor"
     MIDDLE = "middle"
     RICH = "rich"
+    BUSINESS_OWNER = "business_owner"
 
 
 class Gender(StrEnum):
@@ -107,6 +124,10 @@ class JobType(StrEnum):
     CONSTRUCTION_WORKER = "construction_worker"
     CLEANER = "cleaner"
     TAXI_DRIVER = "taxi_driver"
+    ARTIST = "artist"
+    WRITER = "writer"
+    MUSICIAN = "musician"
+    COMMUNITY_LEADER = "community_leader"
     UNEMPLOYED = "unemployed"
 
 

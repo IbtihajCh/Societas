@@ -38,6 +38,8 @@ class AgentSummaryDTO:
     emotion: str = "normal"
     unlust: float = 0.0
     job_type: str = "unemployed"
+    grid_x: int = 0
+    grid_y: int = 0
 
 
 @dataclass

@@ -1,7 +1,7 @@
 import asyncio
 import os
 from dataclasses import asdict
-from typing import Optional
+from typing import List, Optional
 
 from shared.dto.simulation_dto import (
     SimulationStartRequestDTO,
@@ -18,6 +18,7 @@ from models.router.vllm_config import VLLMConfig
 from models.router.vllm_router import VLLMRouter
 from simulation.engine.config import SimulationConfig
 from simulation.engine.simulation_engine import SimulationEngine
+from simulation.engine.vllm_router import VLLMRouter
 
 _service_instance: "SimulationService | None" = None
 
@@ -66,7 +67,12 @@ class SimulationService:
         router = VLLMRouter(vllm_config)
         self._historian = AIHistorianService(router)
         self._engine = SimulationEngine(config=config)
+<<<<<<< HEAD
         self._engine.start(ai_router=router)
+=======
+        ai_router = VLLMRouter() if request.enable_ai else None
+        self._engine.start(ai_router=ai_router)
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
         return await self.get_status()
 
     async def stop_simulation(self) -> SimulationStatusDTO:
@@ -87,6 +93,9 @@ class SimulationService:
             raise RuntimeError("Simulation not started")
         result = await asyncio.to_thread(self._engine.tick)
         state = self._engine.get_state()
+
+        dto = self._state_to_dto(state, result)
+
         await self._repository.save_snapshot(result.tick, state)
 
         await ws_manager.broadcast({
@@ -112,26 +121,70 @@ class SimulationService:
                     "action": str(action_result.action),
                 })
 
+<<<<<<< HEAD
         if self._historian is not None:
             self._historian.accumulate(state, result.tick)
 
         return self._state_to_dto(state)
+=======
+        return dto
+>>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 
     async def get_state(self) -> SimulationStateResponseDTO:
         if self._engine is None:
             return SimulationStateResponseDTO()
         state = self._engine.get_state()
-        return self._state_to_dto(state)
+        return self._state_to_dto(state, None)
 
     async def reset_simulation(self, seed: Optional[int] = None) -> SimulationStatusDTO:
         if self._engine is not None:
             self._engine.reset(seed)
         return await self.get_status()
 
+    async def start_auto_run(self, interval_ms: int = 1000):
+        """Start auto-ticking simulation."""
+        if self._engine is None:
+            raise RuntimeError("Simulation not started")
+        self._engine.set_speed(interval_ms)
+
+    async def stop_auto_run(self):
+        """Stop auto-ticking."""
+        if self._engine is not None:
+            self._engine.set_speed(0)
+
+    async def tick_n_times(self, n: int) -> List[SimulationStateResponseDTO]:
+        """Advance N ticks and return states for each."""
+        if self._engine is None or not self._engine.is_running():
+            raise RuntimeError("Simulation not started")
+        results = []
+        for _ in range(n):
+            result = await asyncio.to_thread(self._engine.tick)
+            state = self._engine.get_state()
+            dto = self._state_to_dto(state, result)
+            results.append(dto)
+            await asyncio.sleep(0.01)
+        return results
+
     def get_engine(self) -> Optional[ISimulationEngine]:
         return self._engine
 
-    def _state_to_dto(self, state: SimulationState) -> SimulationStateResponseDTO:
+    def _state_to_dto(self, state: SimulationState, result=None) -> SimulationStateResponseDTO:
+        agents = self._engine.get_agents() if self._engine else []
+        wealth_stratified = {}
+        total_wealth = 0.0
+        for wc in ("poor", "middle", "rich"):
+            w_val = sum(a.resources.money for a in agents if a.is_alive and (a.wealth_class.value if hasattr(a.wealth_class, 'value') else str(a.wealth_class)).lower() == wc)
+            wealth_stratified[wc] = w_val
+            total_wealth += w_val
+
+        action_counts = {}
+        if result and hasattr(result, 'action_counts') and result.action_counts:
+            action_counts = dict(result.action_counts)
+        elif result and hasattr(result, 'agent_actions') and result.agent_actions:
+            for act in result.agent_actions:
+                if act and hasattr(act, 'action'):
+                    action_counts[str(act.action)] = action_counts.get(str(act.action), 0) + 1
+
         return SimulationStateResponseDTO(
             tick=state.time_step,
             population=state.population,
@@ -150,4 +203,11 @@ class SimulationService:
             tax_rate=state.tax_rate,
             welfare_enabled=state.welfare_enabled,
             welfare_amount=state.welfare_amount,
+            duration_ms=result.duration_ms if result else 0.0,
+            ai_calls=result.ai_calls if result else 0,
+            ambiguity_count=result.ambiguity_count if result else 0,
+            state_hash=result.state_hash if result else "",
+            action_counts=action_counts,
+            wealth_stratified=wealth_stratified,
+            llm_log=(result.llm_log[-20:] if result and hasattr(result, 'llm_log') and result.llm_log else []),
         )

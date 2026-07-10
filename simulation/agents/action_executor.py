@@ -1,6 +1,6 @@
 """Action executor — executes all 14 agent actions with deterministic state updates."""
 
-from shared.types.enums import ActionType, EmotionType, NeedType, EmploymentStatus, WealthClass
+from shared.types.enums import ActionType, EmotionType, JobType, NeedType, EmploymentStatus, WealthClass
 from shared.schemas.agent_state import AgentState
 from shared.schemas.simulation_state import SimulationState
 from shared.schemas.tick_result import AgentActionResult
@@ -20,13 +20,23 @@ from shared.constants.defaults import (
     FOOD_COST_MULTIPLIER_POOR,
     FOOD_COST_MULTIPLIER_MIDDLE,
     FOOD_COST_MULTIPLIER_RICH,
+    SLEEP_RECOVERY_REST,
+    RUMOR_DOMINANCE_THRESHOLD,
+    RUMOR_MAGNITUDE_MIN,
+    RUMOR_MAGNITUDE_MAX,
 )
 from shared.constants.simulation_constants import (
-    SALARY_RANGES,
+    DOCTOR_SALARY,
+    HEAL_EFFECTIVENESS,
     JOBS_BY_EDUCATION,
+    SALARY_RANGES,
+    THERAPIST_SALARY,
+    THERAPY_HAPPINESS_BOOST,
 )
 from shared.utilities.deterministic_rng import DeterministicRNG
 from simulation.agents.emotion_engine import emotion_productivity_mod
+from simulation.agents.morality_engine import detect_fraud, process_fraud
+from simulation.agents.political_system import can_campaign, do_campaign
 from simulation.agents.unlust_engine import morality_active
 
 __all__ = ["execute_action", "get_nearby_agents", "compute_nearby_counts", "move_agent"]
@@ -119,6 +129,7 @@ def execute_action(
     world: SimulationState,
     all_agents: list[AgentState],
     rng: DeterministicRNG,
+    tick_number: int = 0,
 ) -> AgentActionResult:
     """Execute a selected action and return the result.
 
@@ -144,7 +155,7 @@ def execute_action(
     elif action == ActionType.BUY_FOOD:
         _do_buy_food(agent, world, result)
     elif action == ActionType.REST:
-        _do_rest(agent, rng, result)
+        _do_rest(agent, rng, result, tick_number)
     elif action == ActionType.SEEK_JOB:
         _do_seek_job(agent, world, rng, result)
     elif action == ActionType.BEG:
@@ -161,12 +172,36 @@ def execute_action(
         _do_steal(agent, all_agents, world, rng, result)
     elif action == ActionType.HARM_OTHER:
         _do_harm_other(agent, all_agents, world, rng, result)
+    elif action == ActionType.FRAUD:
+        _do_fraud(agent, all_agents, rng, world, result)
     elif action == ActionType.PROTEST:
         _do_protest(agent, world, result)
     elif action == ActionType.COMPLAIN:
         _do_complain(agent, all_agents, world, rng, result)
+    elif action == ActionType.SUPPORT_FAMILY:
+        _do_support_family(agent, all_agents, rng, result)
+    elif action == ActionType.TREAT:
+        target = compute_nearby_counts(agent, all_agents)
+        _do_treat(agent, target, all_agents, rng, result)
+    elif action == ActionType.COUNSEL:
+        target = compute_nearby_counts(agent, all_agents)
+        _do_counsel(agent, target, all_agents, rng, result)
+    elif action == ActionType.INVEST:
+        _do_invest(agent, result, rng)
+    elif action == ActionType.BUY_PROPERTY:
+        from simulation.world.property_market import compute_property_values, try_buy_property
+        property_values = compute_property_values(world, all_agents)
+        success = try_buy_property(agent, property_values, rng)
+        result.outcome = "bought_property" if success else "cannot_afford"
+        result.score_delta = {"property_upgrade": 1 if success else 0}
     elif action == ActionType.COMPLY:
         result.outcome = "complied"
+    elif action == ActionType.SPREAD_RUMOR:
+        _do_spread_rumor(agent, all_agents, rng, result, world)
+    elif action == ActionType.CAMPAIGN:
+        _do_campaign(agent, all_agents, rng, result, world)
+    elif action == ActionType.HOBBY:
+        _do_hobby(agent, rng, result)
     else:
         result.outcome = "idle"
 
@@ -229,10 +264,14 @@ def _do_buy_food(agent: AgentState, world: SimulationState, result: AgentActionR
     result.score_delta = {"food": 0.30, "water": 0.20, "money": -food_cost}
 
 
-def _do_rest(agent: AgentState, rng: DeterministicRNG, result: AgentActionResult) -> None:
-    """Rest action: increase sleep, may break angry state."""
+def _do_rest(agent: AgentState, rng: DeterministicRNG, result: AgentActionResult, tick_number: int = 0) -> None:
+    """Rest action: increase sleep, reset sleep tracking, reduce insomnia, may break angry state."""
     sleep = agent.needs.get_level(NeedType.SLEEP)
-    agent.needs.set_level(NeedType.SLEEP, sleep + 0.30)
+    agent.needs.set_level(NeedType.SLEEP, sleep + SLEEP_RECOVERY_REST)
+    agent.last_sleep_tick = tick_number
+    agent.ticks_without_sleep = 0
+    agent.insomnia_severity = max(0.0, agent.insomnia_severity - 0.1)
+    agent.unlust = max(0.0, agent.unlust - 0.05)
 
     if agent.emotions.primary == EmotionType.ANGRY:
         if rng.random() < 0.30:
@@ -240,7 +279,7 @@ def _do_rest(agent: AgentState, rng: DeterministicRNG, result: AgentActionResult
             agent.emotions.emotion_timer = 0
 
     result.outcome = "rested"
-    result.score_delta = {"sleep": 0.30}
+    result.score_delta = {"sleep": SLEEP_RECOVERY_REST}
 
 
 def _do_seek_job(
@@ -318,6 +357,24 @@ def _do_befriend(
         if a.id not in agent.enemies
         and agent.needs.get_level(NeedType.REPUTATION) > 0.25
     ]
+
+    # Marital fidelity mechanic: married agents avoid befriending
+    # their spouse's connections or unmarried targets (unless low morality).
+    if agent.spouse is not None:
+        spouse = next((a for a in all_agents if a.id == agent.spouse), None)
+        spouse_connections: set[str] = set()
+        if spouse is not None:
+            spouse_connections = set(spouse.social_connections)
+
+        filtered: list[AgentState] = []
+        for target in eligible:
+            if target.id in spouse_connections:
+                continue
+            if target.spouse is None and agent.traits.morality >= 0.4:
+                continue
+            filtered.append(target)
+        eligible = filtered
+
     if not eligible:
         result.outcome = "no_eligible_targets"
         return
@@ -542,3 +599,217 @@ def _do_complain(
 
     result.outcome = "complained"
     result.score_delta = {"reputation": 0.02}
+
+
+def _do_heal(agent: AgentState) -> None:
+    """Heal the agent by HEAL_EFFECTIVENESS, clamped to [0.0, 1.0]."""
+    agent.resources.health = min(1.0, agent.resources.health + HEAL_EFFECTIVENESS)
+
+
+def _do_heal_self(agent: AgentState, rng: DeterministicRNG, result: AgentActionResult) -> None:
+    """Doctor or therapist heals self. Same heal effect as treating others, no salary."""
+    if agent.job_type not in (JobType.DOCTOR, JobType.THERAPIST):
+        result.outcome = "not_a_healer"
+        return
+    _do_heal(agent)
+    result.outcome = "healed_self"
+    result.score_delta = {"health": HEAL_EFFECTIVENESS}
+
+
+def _do_treat(
+    agent: AgentState,
+    target: object,
+    all_agents: list[AgentState],
+    rng: DeterministicRNG,
+    result: AgentActionResult,
+) -> None:
+    """Doctor action: heal the sickest nearby agent (health < 0.5). Earn salary per treatment."""
+    if agent.job_type != JobType.DOCTOR:
+        result.outcome = "not_a_doctor"
+        return
+
+    nearby = get_nearby_agents(agent, all_agents)
+    sick = [a for a in nearby if a.resources.health < 0.5 and a.is_alive]
+
+    if not sick:
+        _do_heal_self(agent, rng, result)
+        return
+
+    patient = min(sick, key=lambda a: a.resources.health)
+    old_health = patient.resources.health
+    _do_heal(patient)
+    agent.resources.money += DOCTOR_SALARY
+    agent.resources.wealth = agent.resources.money
+    agent.good_acts += 1
+
+    result.outcome = f"treated {patient.id}"
+    result.score_delta = {
+        "money": DOCTOR_SALARY,
+        "health_given": patient.resources.health - old_health,
+    }
+
+
+def _do_counsel(
+    agent: AgentState,
+    target: object,
+    all_agents: list[AgentState],
+    rng: DeterministicRNG,
+    result: AgentActionResult,
+) -> None:
+    """Therapist action: counsel a nearby agent with high unlust (> 0.4)."""
+    if agent.job_type != JobType.THERAPIST:
+        result.outcome = "not_a_therapist"
+        return
+
+    nearby = get_nearby_agents(agent, all_agents)
+    stressed = [a for a in nearby if a.unlust > 0.4 and a.is_alive]
+
+    if not stressed:
+        result.outcome = "no_clients_nearby"
+        return
+
+    client = max(stressed, key=lambda a: a.unlust)
+    client.unlust = max(0.0, client.unlust - 0.05)
+    client.emotions.happiness_score = min(1.0, client.emotions.happiness_score + THERAPY_HAPPINESS_BOOST)
+
+    agent.resources.money += THERAPIST_SALARY
+    agent.resources.wealth = agent.resources.money
+    agent.good_acts += 1
+
+    result.outcome = f"counseled {client.id}"
+    result.score_delta = {
+        "money": THERAPIST_SALARY,
+        "happiness": THERAPY_HAPPINESS_BOOST,
+    }
+
+
+def _do_spread_rumor(
+    agent: AgentState,
+    all_agents: list[AgentState],
+    rng: DeterministicRNG,
+    result: AgentActionResult,
+    world: SimulationState,
+) -> None:
+    """Spread a rumor about a nearby high-reputation agent to assert dominance.
+
+    Requires dominance_urge > RUMOR_DOMINANCE_THRESHOLD. Selects a nearby
+    agent with elevated reputation or notoriety, creates a tracked rumor that
+    applies periodic reputation damage, and partially satisfies the agent's
+    dominance urge.
+
+    Args:
+        agent: The agent performing the action.
+        all_agents: All agents in the simulation.
+        rng: Deterministic RNG.
+        result: Action result to populate.
+        world: World state (rumors stored in metadata).
+    """
+    if agent.traits.dominance_urge <= RUMOR_DOMINANCE_THRESHOLD:
+        result.outcome = "not_dominant_enough"
+        return
+
+    nearby = get_nearby_agents(agent, all_agents)
+    eligible = [
+        a
+        for a in nearby
+        if a.needs.get_level(NeedType.REPUTATION) > 0.5 or a.notoriety > 0.3
+    ]
+    if not eligible:
+        result.outcome = "no_eligible_target"
+        return
+
+    target = eligible[int(rng.choice(len(eligible)))]
+    magnitude = rng.uniform(RUMOR_MAGNITUDE_MIN, RUMOR_MAGNITUDE_MAX)
+
+    # Satisfy dominance urge and increase notoriety
+    agent.traits.dominance_urge = max(0.0, agent.traits.dominance_urge - 0.05)
+    agent.notoriety = min(1.0, agent.notoriety + 0.02)
+
+    # Register the rumor in world metadata so tick_loop can apply/decay/propagate it
+    rumors = world.metadata.setdefault("active_rumors", {})
+    rumor_id = f"{agent.id}_to_{target.id}"
+    rumors[rumor_id] = {
+        "target_id": target.id,
+        "source_id": agent.id,
+        "magnitude": magnitude,
+        "remaining_ticks": 10,
+        "heard_by": [agent.id],
+        "spread_depth": {agent.id: 0},
+    }
+
+    result.outcome = f"spread_rumor_about_{target.id}"
+    result.score_delta = {"reputation_damage": magnitude, "dominance_urge": -0.05}
+
+
+def _do_fraud(
+    agent: AgentState,
+    all_agents: list[AgentState],
+    rng: DeterministicRNG,
+    world: SimulationState,
+    result: AgentActionResult,
+) -> None:
+    """White-collar fraud action for rich, immoral agents."""
+    if agent.resources.money < 200 or agent.traits.morality > 0.3:
+        result.outcome = "not_eligible_for_fraud"
+        return
+    detected = detect_fraud(agent, world, rng)
+    money_delta = process_fraud(agent, detected, all_agents, rng)
+    outcome = "fraud_detected" if detected else "fraud_successful"
+    result.outcome = outcome
+    result.score_delta = {"money": money_delta}
+
+
+def _do_invest(
+    agent: AgentState,
+    result: AgentActionResult,
+    rng: DeterministicRNG,
+) -> None:
+    """Invest action: deduct money, return with growth."""
+    invest_pct = rng.uniform(0.10, 0.25)
+    invest_amount = min(agent.resources.money * invest_pct, 50.0)
+    agent.resources.money -= invest_amount
+    agent.resources.wealth = agent.resources.money
+    agent.invested_capital += invest_amount
+    multiplier = rng.uniform(1.0, 1.15)
+    return_amount = invest_amount * multiplier
+    agent.resources.money += return_amount
+    agent.resources.wealth = agent.resources.money
+    if agent.wealth_class == WealthClass.BUSINESS_OWNER:
+        growth = rng.uniform(0.0, 0.02)
+        agent.business_value *= (1.0 + growth)
+    result.outcome = f"invested_{invest_amount:.2f}_returned_{return_amount:.2f}"
+    result.score_delta = {"money": return_amount - invest_amount}
+
+
+HOBBY_OPTIONS = ["reading", "gardening", "crafting", "music", "sports"]
+
+
+def _do_hobby(
+    agent: AgentState,
+    rng: DeterministicRNG,
+    result: AgentActionResult,
+) -> None:
+    """Hobby action: reduce unlust, increase happiness."""
+    if agent.hobby is None:
+        agent.hobby = HOBBY_OPTIONS[int(rng.choice(len(HOBBY_OPTIONS)))]
+    agent.unlust = max(0.0, agent.unlust - 0.03)
+    agent.emotions.happiness_score = min(1.0, agent.emotions.happiness_score + 0.04)
+    agent.hobby_ticks += 1
+    result.outcome = f"did_hobby:{agent.hobby}"
+    result.score_delta = {"unlust": -0.03, "happiness": 0.04}
+
+
+def _do_campaign(
+    agent: AgentState,
+    all_agents: list[AgentState],
+    rng: DeterministicRNG,
+    result: AgentActionResult,
+    world: SimulationState,
+) -> None:
+    """Campaign action for political career track."""
+    if not can_campaign(agent):
+        result.outcome = "cannot_campaign"
+        return
+    do_campaign(agent, rng, result)
+    result.outcome = "campaign_done"
+    result.score_delta = {"notoriety": 0.1, "reputation": 0.05}
