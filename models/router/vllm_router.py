@@ -167,7 +167,8 @@ class VLLMRouter:
 
     def is_available(self) -> bool:
         try:
-            resp = self._client.get("/v1/models")
+            headers = {"Authorization": f"Bearer {self._config.api_key_dense_31b}"}
+            resp = self._client.get("/v1/models", headers=headers)
             return resp.status_code == 200
         except Exception:
             return False

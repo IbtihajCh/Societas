@@ -32,7 +32,9 @@ class TestVLLMRouterAvailable:
         with patch.object(router._client, "get") as mock_get:
             mock_get.return_value = MagicMock(status_code=200)
             assert router.is_available() is True
-            mock_get.assert_called_once_with("/v1/models")
+            mock_get.assert_called_once_with(
+                "/v1/models", headers={"Authorization": "Bearer key-dense"}
+            )
 
     def test_is_available_returns_false_on_error(self, router: VLLMRouter) -> None:
         with patch.object(router._client, "get") as mock_get:

@@ -9,9 +9,9 @@ class VLLMConfig:
     api_key_moe_26b: str = field(default_factory=lambda: os.getenv("API_KEY_MOE_26B", ""))
     api_key_dense_31b: str = field(default_factory=lambda: os.getenv("API_KEY_DENSE_31B", ""))
 
-    model_e2b: str = "google/gemma-4-e2b-it-qat"
-    model_moe_26b: str = "google/gemma-4-26b-a4b-it-qat"
-    model_dense_31b: str = "google/gemma-4-31b-it-qat"
+    model_e2b: str = "google/gemma-4-31B-it"
+    model_moe_26b: str = "google/gemma-4-31B-it"
+    model_dense_31b: str = "google/gemma-4-31B-it"
 
     temperature_e2b: float = 0.0
     temperature_moe: float = 0.2
