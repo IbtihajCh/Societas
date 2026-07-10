@@ -16,7 +16,4 @@ the simulation/AI modules. It handles:
 Port: 8000
 """
 
-from backend.app.main import app
-
 __version__ = "0.1.0"
-__all__ = ["app"]
