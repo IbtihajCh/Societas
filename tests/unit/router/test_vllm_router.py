@@ -33,7 +33,7 @@ class TestVLLMRouterAvailable:
             mock_get.return_value = MagicMock(status_code=200)
             assert router.is_available() is True
             mock_get.assert_called_once_with(
-                "/v1/models", headers={"Authorization": "Bearer key-dense"}
+                "/models", headers={"Authorization": "Bearer key-dense"}
             )
 
     def test_is_available_returns_false_on_error(self, router: VLLMRouter) -> None:
@@ -47,7 +47,7 @@ class TestVLLMRouterAgentDecide:
         fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {
-            "choices": [{"text": '{"action":"work","feeling":"productive","reason":"need money"}'}]
+            "choices": [{"message": {"content": '{"action":"work","feeling":"productive","reason":"need money"}'}}]
         }
 
         with patch.object(router._client_e2b, "post") as mock_post:
@@ -69,7 +69,7 @@ class TestVLLMRouterAgentDecide:
     def test_agent_decide_fallback_on_bad_json(self, router: VLLMRouter) -> None:
         fake_response = MagicMock()
         fake_response.status_code = 200
-        fake_response.json.return_value = {"choices": [{"text": "not valid json"}]}
+        fake_response.json.return_value = {"choices": [{"message": {"content": "not valid json"}}]}
 
         with patch.object(router._client_e2b, "post") as mock_post:
             mock_post.return_value = fake_response
@@ -83,9 +83,9 @@ class TestVLLMRouterAgentDecide:
         fake_response.status_code = 200
         fake_response.json.return_value = {
             "choices": [
-                {"text": '{"action":"work","feeling":"ok","reason":"a"}'},
-                {"text": '{"action":"rest","feeling":"tired","reason":"b"}'},
-                {"text": '{"action":"beg","feeling":"sad","reason":"c"}'},
+                {"message": {"content": '{"action":"work","feeling":"ok","reason":"a"}'}},
+                {"message": {"content": '{"action":"rest","feeling":"tired","reason":"b"}'}},
+                {"message": {"content": '{"action":"beg","feeling":"sad","reason":"c"}'}},
             ]
         }
 
@@ -96,11 +96,12 @@ class TestVLLMRouterAgentDecide:
             for r in results:
                 data = json.loads(r)
                 assert "action" in data
-            # Verify the prompt was sent as an array
+            # Verify the batched prompts each go through as individual chat messages
+            assert mock_post.call_count == 3
             call_kwargs = mock_post.call_args[1]
-            assert "prompt" in call_kwargs["json"]
-            assert isinstance(call_kwargs["json"]["prompt"], list)
-            assert len(call_kwargs["json"]["prompt"]) == 3
+            assert "messages" in call_kwargs["json"]
+            assert len(call_kwargs["json"]["messages"]) == 1
+            assert call_kwargs["json"]["messages"][0]["role"] == "user"
 
 
 class TestVLLMRouterMoralReasoning:
@@ -108,7 +109,7 @@ class TestVLLMRouterMoralReasoning:
         fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {
-            "choices": [{"text": '{"action":"console","feeling":"empathetic","reason":"moral duty to help"}'}]
+            "choices": [{"message": {"content": '{"action":"console","feeling":"empathetic","reason":"moral duty to help"}'}}]
         }
 
         with patch.object(router._client_moe, "post") as mock_post:
@@ -121,7 +122,7 @@ class TestVLLMRouterMoralReasoning:
     def test_moral_reasoning_uses_moe_api_key(self, router: VLLMRouter) -> None:
         fake_response = MagicMock()
         fake_response.status_code = 200
-        fake_response.json.return_value = {"choices": [{"text": '{"action":"work","feeling":"ok","reason":"ok"}'}]}
+        fake_response.json.return_value = {"choices": [{"message": {"content": '{"action":"work","feeling":"ok","reason":"ok"}'}}]}
 
         with patch.object(router._client_moe, "post") as mock_post:
             mock_post.return_value = fake_response
@@ -135,8 +136,8 @@ class TestVLLMRouterMoralReasoning:
         fake_response.status_code = 200
         fake_response.json.return_value = {
             "choices": [
-                {"text": '{"action":"share","feeling":"generous","reason":"m1"}'},
-                {"text": '{"action":"comply","feeling":"neutral","reason":"m2"}'},
+                {"message": {"content": '{"action":"share","feeling":"generous","reason":"m1"}'}},
+                {"message": {"content": '{"action":"comply","feeling":"neutral","reason":"m2"}'}},
             ]
         }
 
@@ -163,7 +164,7 @@ class TestVLLMRouterGovernance:
         fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {
-            "choices": [{"text": '{"assessment":"stable","recommendation":"none","watch_items":[]}'}]
+            "choices": [{"message": {"content": '{"assessment":"stable","recommendation":"none","watch_items":[]}'}}]
         }
 
         with patch.object(router._client_dense, "post") as mock_post:
@@ -186,7 +187,7 @@ class TestVLLMRouterCallCount:
     def test_call_count_tracks_calls(self, router: VLLMRouter) -> None:
         fake_ok = MagicMock()
         fake_ok.status_code = 200
-        fake_ok.json.return_value = {"choices": [{"text": '{"action":"work","feeling":"ok","reason":"ok"}'}]}
+        fake_ok.json.return_value = {"choices": [{"message": {"content": '{"action":"work","feeling":"ok","reason":"ok"}'}}]}
 
         with (
             patch.object(router._client_e2b, "post", return_value=fake_ok),

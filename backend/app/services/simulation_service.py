@@ -11,12 +11,15 @@ from shared.dto.simulation_dto import (
 from shared.interfaces.i_simulation_engine import ISimulationEngine
 from shared.schemas.simulation_state import SimulationState
 
+from backend.app.services.ai_historian import AIHistorianService
 from backend.app.websocket.manager import ws_manager
 from backend.app.repositories.simulation_repository import SimulationRepository
 from models.router.vllm_config import VLLMConfig
 from models.router.vllm_router import VLLMRouter
 from simulation.engine.config import SimulationConfig
 from simulation.engine.simulation_engine import SimulationEngine
+
+_service_instance: "SimulationService | None" = None
 
 
 class SimulationService:
@@ -25,8 +28,15 @@ class SimulationService:
         engine: Optional[ISimulationEngine] = None,
         repository: Optional[SimulationRepository] = None,
     ):
+        global _service_instance
+        _service_instance = self
         self._engine = engine
+        self._historian: AIHistorianService | None = None
         self._repository = repository or SimulationRepository()
+
+    @property
+    def historian(self) -> AIHistorianService | None:
+        return self._historian
 
     async def get_status(self) -> SimulationStatusDTO:
         if self._engine is None:
@@ -54,6 +64,7 @@ class SimulationService:
             api_key_dense_31b=os.getenv("API_KEY_DENSE_31B", ""),
         )
         router = VLLMRouter(vllm_config)
+        self._historian = AIHistorianService(router)
         self._engine = SimulationEngine(config=config)
         self._engine.start(ai_router=router)
         return await self.get_status()
@@ -61,6 +72,14 @@ class SimulationService:
     async def stop_simulation(self) -> SimulationStatusDTO:
         if self._engine is not None:
             self._engine.stop()
+        if self._historian is not None and self._historian.has_snapshots():
+            entry = self._historian.generate_summary(self._engine.get_current_tick() if self._engine else 0)
+            if entry is not None:
+                await ws_manager.broadcast({
+                    "type": "chronicle",
+                    "final": True,
+                    "entry": entry,
+                })
         return await self.get_status()
 
     async def advance_tick(self) -> SimulationStateResponseDTO:
@@ -92,6 +111,9 @@ class SimulationService:
                     "agent_id": str(action_result.agent_id),
                     "action": str(action_result.action),
                 })
+
+        if self._historian is not None:
+            self._historian.accumulate(state, result.tick)
 
         return self._state_to_dto(state)
 

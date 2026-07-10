@@ -42,6 +42,7 @@ def mock_engine():
 @pytest.fixture(autouse=True)
 def setup_db():
     import asyncio
+    import logging
     import os
     from backend.app.database.connection import init_db, close_db
     from backend.app.config import get_settings
@@ -49,14 +50,12 @@ def setup_db():
     asyncio.run(init_db())
     yield
     asyncio.run(close_db())
-    if os.path.exists(db_path):
-        os.remove(db_path)
-    wal_path = db_path + "-wal"
-    shm_path = db_path + "-shm"
-    if os.path.exists(wal_path):
-        os.remove(wal_path)
-    if os.path.exists(shm_path):
-        os.remove(shm_path)
+    for path in [db_path, db_path + "-wal", db_path + "-shm"]:
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+        except PermissionError:
+            logging.getLogger("societas.tests").warning("Could not remove %s (locked)", path)
 
 
 @pytest.fixture(autouse=True)

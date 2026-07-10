@@ -22,7 +22,12 @@ def update_world_metrics(
     """Recompute world-level metrics from all living agents.
 
     Updates: crime_rate, protest_intensity, unemployment_rate, unlust (avg),
-    morality (avg), population, time_step.
+    morality (avg), population, time_step, public_order, social_cohesion,
+    economic_health.
+
+    Variables are coupled realistically: unemployment drives crime, crime
+    erodes public order and social cohesion, economic health affects
+    employment, and discontent fuels protest.
 
     Args:
         world: World state to update (modified in place).
@@ -34,18 +39,59 @@ def update_world_metrics(
     if alive_count == 0:
         return
 
+    # ── Agent-based metrics ──────────────────────────────────────────
     total_crimes = sum(a.crimes_committed for a in living)
-    world.crime_rate = min(1.0, total_crimes / (alive_count * 8))
+    agent_crime_rate = min(1.0, total_crimes / (alive_count * 8)) if alive_count else 0.0
 
     total_protests = sum(a.protest_count for a in living)
-    world.protest_intensity = min(1.0, total_protests / (alive_count * 4))
+    agent_protest_rate = min(1.0, total_protests / (alive_count * 4)) if alive_count else 0.0
 
     unemployed = sum(1 for a in living if not a.resources.employed)
-    world.unemployment_rate = unemployed / alive_count
+    world.unemployment_rate = unemployed / alive_count if alive_count else 0.0
 
     world.unlust = sum(a.unlust for a in living) / alive_count
     world.morality = sum(a.traits.morality for a in living) / alive_count
 
+    # ── Socio-economic coupling (realistic variable interaction) ─────
+    economic_pressure = max(0.0, 1.0 - world.economic_health)
+    scarcity = 1.0 - (world.food_availability + world.water_availability) / 2.0
+
+    # ── Dynamic inflation (driven by energy price + economic pressure) ─
+    inflation_increase = world.energy_price * 0.003 + economic_pressure * 0.002
+    inflation_decrease = 0.002
+    world.economy.inflation_rate = max(0.0, min(0.5, world.economy.inflation_rate + inflation_increase - inflation_decrease))
+
+    # ── National debt accumulates when economy is weak ────────────────
+    debt_servicing = world.national_debt * 0.005
+    world.national_debt = max(0.0, world.national_debt + economic_pressure * 0.002 - 0.001)
+
+    # Energy price amplifies economic pressure (Pakistan-relevant)
+    energy_amplifier = 1.0 + world.energy_price * 0.5
+    baseline_crime = 0.02 + 0.12 * world.unemployment_rate + 0.08 * economic_pressure * energy_amplifier + 0.05 * scarcity
+    world.crime_rate = min(1.0, baseline_crime + agent_crime_rate * 0.5)
+
+    # Protest driven by discontent, joblessness, and inflation
+    inflation_pressure = world.economy.inflation_rate * 0.5
+    baseline_protest = world.unlust * 0.25 + world.unemployment_rate * 0.35 + inflation_pressure
+    world.protest_intensity = min(1.0, baseline_protest + agent_protest_rate * 0.5)
+
+    # Crime erodes public order — no recovery (order only decays)
+    decay_order = world.crime_rate * 0.015 + world.protest_intensity * 0.005 + inflation_pressure * 0.01
+    world.public_order = max(0.0, min(1.0, world.public_order - decay_order))
+
+    decay_cohesion = world.crime_rate * 0.01 + world.protest_intensity * 0.008 + inflation_pressure * 0.005
+    world.social_cohesion = max(0.0, min(1.0, world.social_cohesion - decay_cohesion))
+
+    # Economic health: crime, unemployment, inflation, debt all drag
+    econ_decay = (
+        world.crime_rate * 0.005
+        + world.unemployment_rate * 0.005
+        + world.economy.inflation_rate * 0.01
+        + debt_servicing * 0.1
+    )
+    world.economic_health = max(0.01, min(1.0, world.economic_health - econ_decay))
+
+    # ── Population and time ──────────────────────────────────────────
     world.population = alive_count
     world.time_step = TickNumber(int(world.time_step) + 1)
 

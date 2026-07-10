@@ -44,7 +44,7 @@ from simulation.agents.action_executor import (
     compute_nearby_counts,
     move_agent,
 )
-from simulation.world.economy import process_economy_tick
+from simulation.world.economy import apply_debt_interest, process_economy_tick
 from simulation.world.metrics_calculator import (
     update_world_metrics,
     compute_state_hash,
@@ -88,8 +88,9 @@ def run_tick(
     for agent in living_agents:
         decay_needs(agent, world, rng)
 
-    # Step 4: Apply welfare + rent
+    # Step 4: Apply welfare + rent + debt interest
     process_economy_tick(living_agents, world)
+    apply_debt_interest(living_agents, world)
 
     # Step 5: Update emotions
     for agent in living_agents:
@@ -111,7 +112,7 @@ def run_tick(
         dilemma_agents: list[AgentState] = []
 
         for idx, agent in enumerate(living_agents):
-            maybe_lose_job(agent, rng)
+            maybe_lose_job(agent, rng, world)
             if not should_evaluate_this_tick(agent, tick_number):
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
@@ -200,7 +201,7 @@ def run_tick(
         for idx, agent in enumerate(living_agents):
             if action_results[idx] is not None:
                 continue
-            maybe_lose_job(agent, rng)
+            maybe_lose_job(agent, rng, world)
             if not should_evaluate_this_tick(agent, tick_number):
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
@@ -215,7 +216,7 @@ def run_tick(
     else:
         # No AI router — deterministic fallback for all agents
         for idx, agent in enumerate(living_agents):
-            maybe_lose_job(agent, rng)
+            maybe_lose_job(agent, rng, world)
             if not should_evaluate_this_tick(agent, tick_number):
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
@@ -236,7 +237,7 @@ def run_tick(
 
     # Step 8: Death check
     for agent in living_agents:
-        if check_death(agent, rng):
+        if check_death(agent, rng, world):
             agent.is_alive = False
 
     # Step 9: World metrics update

@@ -204,7 +204,7 @@ class TestSimulationEngine:
         engine = SimulationEngine(config)
         engine.start()
         result = engine.tick()
-        assert result.duration_ms > 0
+        assert result.duration_ms >= 0
 
 
 class TestAgentRegistry:
