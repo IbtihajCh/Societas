@@ -208,11 +208,13 @@ def _do_buy_food(agent: AgentState, world: SimulationState, result: AgentActionR
         food_mult = FOOD_COST_MULTIPLIER_MIDDLE
     else:
         food_mult = FOOD_COST_MULTIPLIER_RICH
-    food_cost = BASE_FOOD_COST * scarcity * food_mult
+    inflation_markup = 1.0 + world.economy.inflation_rate * 2.0
+    food_cost = BASE_FOOD_COST * scarcity * food_mult * inflation_markup
 
     if agent.resources.money < food_cost:
+        agent.resources.debt += food_cost * 0.3
         result.outcome = "insufficient_funds"
-        result.score_delta = {"money": 0.0}
+        result.score_delta = {"money": 0.0, "debt": food_cost * 0.3}
         return
 
     agent.resources.money -= food_cost
@@ -244,8 +246,11 @@ def _do_rest(agent: AgentState, rng: DeterministicRNG, result: AgentActionResult
 def _do_seek_job(
     agent: AgentState, world: SimulationState, rng: DeterministicRNG, result: AgentActionResult
 ) -> None:
-    """Seek job action: chance to become employed based on unemployment rate and ambition."""
-    chance = SEEK_JOB_BASE_CHANCE * (1.0 - world.unemployment_rate) * (0.5 + agent.traits.ambition)
+    """Seek job action: chance decreases with unemployment and economic pressure."""
+    economic_pressure = max(0.0, 1.0 - world.economic_health)
+    econ_factor = 1.0 / (1.0 + economic_pressure * 2.0)
+    unemp_factor = max(0.1, 1.0 - world.unemployment_rate * 1.5)
+    chance = SEEK_JOB_BASE_CHANCE * econ_factor * unemp_factor * (0.5 + agent.traits.ambition)
 
     if rng.random() < chance:
         agent.resources.employed = True

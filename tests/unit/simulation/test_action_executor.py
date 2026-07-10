@@ -293,8 +293,9 @@ class TestBuyFood:
         execute_action(agent, ActionType.BUY_FOOD, world, [], rng)
         # scarcity = 2.0 - 1.0 = 1.0
         # food_mult = 1.0 (MIDDLE)
-        # food_cost = 10 * 1.0 * 1.0 = 10
-        assert agent.resources.money == pytest.approx(90.0)
+        # inflation_markup = 1.0 + 0.02*2.0 = 1.04
+        # food_cost = 10 * 1.0 * 1.0 * 1.04 = 10.4
+        assert agent.resources.money == pytest.approx(89.6)
         assert agent.needs.get_level(NeedType.FOOD) == pytest.approx(0.30)
         assert agent.needs.get_level(NeedType.WATER) == pytest.approx(0.20)
 
@@ -314,8 +315,9 @@ class TestBuyFood:
         execute_action(agent, ActionType.BUY_FOOD, world, [], rng)
         # scarcity = 2.0 - 0.5 = 1.5
         # food_mult = 1.0 (MIDDLE)
-        # food_cost = 10 * 1.5 * 1.0 = 15
-        assert agent.resources.money == pytest.approx(85.0)
+        # inflation_markup = 1.0 + 0.02*2.0 = 1.04
+        # food_cost = 10 * 1.5 * 1.0 * 1.04 = 15.6
+        assert agent.resources.money == pytest.approx(84.4)
 
     def test_buy_food_poor_cost(self) -> None:
         """Poor agent pays 1.3x for food (food deserts)."""
@@ -326,10 +328,10 @@ class TestBuyFood:
         execute_action(poor, ActionType.BUY_FOOD, world, [], rng)
         middle_rng = DeterministicRNG(42)
         execute_action(middle, ActionType.BUY_FOOD, world, [], middle_rng)
-        # POOR: food_cost = 10 * 1.0 * 1.3 = 13, money = 87
-        # MIDDLE: food_cost = 10 * 1.0 * 1.0 = 10, money = 90
-        assert poor.resources.money == pytest.approx(87.0)
-        assert middle.resources.money == pytest.approx(90.0)
+        # POOR: food_cost = 10 * 1.0 * 1.3 * 1.04 = 13.52, money = 86.48
+        # MIDDLE: food_cost = 10 * 1.0 * 1.0 * 1.04 = 10.4, money = 89.6
+        assert poor.resources.money == pytest.approx(86.48)
+        assert middle.resources.money == pytest.approx(89.6)
 
     def test_buy_food_rich_cost(self) -> None:
         """Rich agent pays 0.8x for food (cheaper food access)."""
@@ -340,10 +342,10 @@ class TestBuyFood:
         execute_action(rich, ActionType.BUY_FOOD, world, [], rng)
         middle_rng = DeterministicRNG(42)
         execute_action(middle, ActionType.BUY_FOOD, world, [], middle_rng)
-        # RICH: food_cost = 10 * 1.0 * 0.8 = 8, money = 92
-        # MIDDLE: food_cost = 10 * 1.0 * 1.0 = 10, money = 90
-        assert rich.resources.money == pytest.approx(92.0)
-        assert middle.resources.money == pytest.approx(90.0)
+        # RICH: food_cost = 10 * 1.0 * 0.8 * 1.04 = 8.32, money = 91.68
+        # MIDDLE: food_cost = 10 * 1.0 * 1.0 * 1.04 = 10.4, money = 89.6
+        assert rich.resources.money == pytest.approx(91.68)
+        assert middle.resources.money == pytest.approx(89.6)
 
 
 # ===========================================================================

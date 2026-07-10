@@ -51,39 +51,49 @@ class VLLMRouter:
         temperature: float,
         max_tokens: int,
         model: str,
+        extract_json: bool = True,
     ) -> list[str]:
         headers = {"Authorization": f"Bearer {api_key}"}
-        payload: dict[str, Any] = {
-            "model": model,
-            "prompt": prompt,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
         if isinstance(prompt, list):
-            payload["prompt"] = prompt
+            messages_list = [[{"role": "user", "content": p}] for p in prompt]
+            payload_list: list[dict[str, Any]] = [
+                {"model": model, "messages": msgs, "temperature": temperature, "max_tokens": max_tokens}
+                for msgs in messages_list
+            ]
+        else:
+            payload_list = [{"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": temperature, "max_tokens": max_tokens}]
 
         last_error: Exception | None = None
-        for attempt in range(self._config.max_retries + 1):
-            try:
-                resp = client.post("/v1/completions", headers=headers, json=payload)
-                resp.raise_for_status()
-                data = resp.json()
-                choices = data.get("choices", [])
-                texts = []
-                for c in choices:
-                    raw = c.get("text", "")
-                    extracted = self._extract_json(raw)
-                    texts.append(extracted)
-                return texts
-            except Exception as e:
-                last_error = e
-                if attempt < self._config.max_retries:
-                    logger.warning("vLLM call failed (attempt %d): %s", attempt + 1, e)
-                else:
-                    logger.error("vLLM call failed after %d retries: %s", self._config.max_retries + 1, e)
+        text_fallback = "Narrative currently unavailable" if not extract_json else FALLBACK_RESPONSE
+        texts: list[str] = []
+        for payload in payload_list:
+            for attempt in range(self._config.max_retries + 1):
+                try:
+                    resp = client.post("/chat/completions", headers=headers, json=payload)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    choices = data.get("choices", [])
+                    if not choices:
+                        raw = ""
+                    else:
+                        raw = choices[0].get("message", {}).get("content", "")
+                    if extract_json:
+                        texts.append(self._extract_json(raw))
+                    else:
+                        texts.append(raw)
+                    break
+                except Exception as e:
+                    last_error = e
+                    if attempt < self._config.max_retries:
+                        logger.warning("vLLM call failed (attempt %d): %s", attempt + 1, e)
+                    else:
+                        logger.error("vLLM call failed after %d retries: %s", self._config.max_retries + 1, e)
+                        texts.append(text_fallback)
 
-        count = len(prompt) if isinstance(prompt, list) else 1
-        return [FALLBACK_RESPONSE] * count
+        if not texts:
+            count = len(prompt) if isinstance(prompt, list) else 1
+            return [text_fallback] * count
+        return texts
 
     def _extract_json(self, text: str) -> str:
         start = text.find("{")
@@ -185,7 +195,7 @@ class VLLMRouter:
     def is_available(self) -> bool:
         try:
             headers = {"Authorization": f"Bearer {self._config.api_key_dense_31b}"}
-            resp = self._client_dense.get("/v1/models", headers=headers)
+            resp = self._client_dense.get("/models", headers=headers)
             return resp.status_code == 200
         except Exception:
             return False
@@ -198,6 +208,7 @@ class VLLMRouter:
             temperature=0.7,
             max_tokens=256,
             model=self._config.model_dense_31b,
+            extract_json=False,
         )
         return results[0]
 
@@ -209,6 +220,31 @@ class VLLMRouter:
             temperature=0.3,
             max_tokens=256,
             model=self._config.model_moe_26b,
+            extract_json=False,
+        )
+        return results[0]
+
+    def generate_narrative_moe(self, context: str) -> str:
+        results = self._call_vllm(
+            self._client_moe,
+            context,
+            api_key=self._config.api_key_moe_26b,
+            temperature=0.7,
+            max_tokens=512,
+            model=self._config.model_moe_26b,
+            extract_json=False,
+        )
+        return results[0]
+
+    def deep_ethics_assessment(self, context: str) -> str:
+        results = self._call_vllm(
+            self._client_dense,
+            context,
+            api_key=self._config.api_key_dense_31b,
+            temperature=0.4,
+            max_tokens=512,
+            model=self._config.model_dense_31b,
+            extract_json=False,
         )
         return results[0]
 

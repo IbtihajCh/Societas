@@ -1,12 +1,12 @@
-"""Economy system — rent, welfare, and money flow management."""
+"""Economy system — rent, welfare, debt interest, and money flow management."""
 
 from shared.types.enums import EmploymentStatus, WealthClass
 from shared.schemas.agent_state import AgentState
 from shared.schemas.simulation_state import SimulationState
-from shared.constants.defaults import DEFAULT_WELFARE_AMOUNT
+from shared.constants.defaults import DEFAULT_WELFARE_AMOUNT, DEBT_INTEREST_RATE
 from shared.constants.simulation_constants import RENT_COST
 
-__all__ = ["apply_rent", "apply_welfare", "process_economy_tick"]
+__all__ = ["apply_rent", "apply_welfare", "apply_debt_interest", "process_economy_tick"]
 
 
 def apply_rent(agent: AgentState) -> float:
@@ -83,4 +83,34 @@ def process_economy_tick(
         "total_welfare": total_welfare,
         "rent_payers": float(rent_payers),
         "welfare_recipients": float(welfare_recipients),
+    }
+
+
+def apply_debt_interest(
+    agents: list[AgentState], world: SimulationState
+) -> dict[str, float]:
+    """Apply debt interest to all agents and track national debt.
+
+    Args:
+        agents: All living agents.
+        world: World state (national_debt updated in place).
+
+    Returns:
+        Dict with 'total_interest_paid', 'agents_in_debt'.
+    """
+    total_interest = 0.0
+    in_debt = 0
+
+    for agent in agents:
+        if not agent.is_alive:
+            continue
+        if agent.resources.debt > 0:
+            interest = agent.resources.debt * DEBT_INTEREST_RATE
+            agent.resources.debt += interest
+            total_interest += interest
+            in_debt += 1
+
+    return {
+        "total_interest_paid": total_interest,
+        "agents_in_debt": float(in_debt),
     }

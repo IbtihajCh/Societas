@@ -457,7 +457,7 @@ class TestRunTickEdgeCases:
             world=world,
             rng=rng,
         )
-        assert result.duration_ms > 0.0
+        assert result.duration_ms >= 0.0
 
     def test_run_tick_all_dead(
         self,

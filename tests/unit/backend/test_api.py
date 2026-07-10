@@ -6,6 +6,8 @@ from shared.dto.simulation_dto import SimulationStateResponseDTO, SimulationStat
 from shared.types.aliases import TickNumber
 from shared.types.enums import PolicyCategory
 
+from unittest.mock import patch
+
 from backend.app.dependencies import set_engine
 
 
@@ -78,12 +80,8 @@ class TestSimulationEndpoints:
 class TestPolicyEndpoints:
     def test_list_policies_empty(self, client, mock_engine):
         from backend.app.repositories.policy_repository import PolicyRepository
-        repo = PolicyRepository()
-        import asyncio
-        async def load_all():
-            return []
-        repo.load_all = load_all
-        response = client.get("/api/v1/policies/")
+        with patch.object(PolicyRepository, "load_all", return_value=[]):
+            response = client.get("/api/v1/policies/")
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 0

@@ -133,6 +133,7 @@ class AgentResources:
     property: bool = False
     health: float = 1.0
     wealth: float = 100.0
+    debt: float = 0.0
     assets: List[str] = field(default_factory=list)
     skills: List[str] = field(default_factory=list)
 

@@ -10,11 +10,13 @@ All randomness uses DeterministicRNG (seeded numpy). No LLM calls.
 
 from shared.constants.defaults import (
     DESPAIR_MORTALITY_RATE,
+    ECONOMIC_HARDSHIP_DEATH_RATE,
     FAMILY_DECAY_RATE,
     FOOD_DEATH_THRESHOLD,
     FOOD_DECAY_RATE,
     HEALTH_DEATH_THRESHOLD,
     JOB_LOSS_RATE,
+    JOB_LOSS_ECON_SENSITIVITY,
     REPUTATION_DECAY_RATE,
     ROMANTIC_DECAY_RATE,
     SAFETY_DECAY_RATE,
@@ -131,7 +133,7 @@ def decay_needs(
     agent.resources.wealth = agent.resources.money
 
 
-def check_death(agent: AgentState, rng: DeterministicRNG) -> bool:
+def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState | None = None) -> bool:
     """Check whether the agent meets any death condition this tick.
 
     Death conditions:
@@ -139,10 +141,12 @@ def check_death(agent: AgentState, rng: DeterministicRNG) -> bool:
     - Water <= ``WATER_DEATH_THRESHOLD`` (dehydration).
     - Health <= ``HEALTH_DEATH_THRESHOLD`` (health failure).
     - Primary emotion is DESPAIR with a per-tick mortality roll.
+    - Economic hardship: unemployed + low money + high inflation (per-tick roll).
 
     Args:
         agent: The agent to evaluate.
-        rng: Deterministic RNG for the despair mortality roll.
+        rng: Deterministic RNG for probability rolls.
+        world: Current world state (for inflation check).
 
     Returns:
         True if the agent should die this tick, False otherwise.
@@ -161,6 +165,16 @@ def check_death(agent: AgentState, rng: DeterministicRNG) -> bool:
 
     if agent.emotions.primary == EmotionType.DESPAIR:
         if rng.random() < DESPAIR_MORTALITY_RATE:
+            return True
+
+    if world is not None:
+        hardship_risk = (
+            (1.0 - agent.resources.employed)
+            * (1.0 - min(1.0, agent.resources.money / 500.0))
+            * max(0.0, world.economy.inflation_rate) * 10.0
+            * ECONOMIC_HARDSHIP_DEATH_RATE * 2.0
+        )
+        if hardship_risk > 0 and rng.random() < hardship_risk:
             return True
 
     return False
@@ -184,23 +198,27 @@ def derive_wealth_class(money: float) -> WealthClass:
     return WealthClass.RICH
 
 
-def maybe_lose_job(agent: AgentState, rng: DeterministicRNG) -> bool:
+def maybe_lose_job(agent: AgentState, rng: DeterministicRNG, world: SimulationState | None = None) -> bool:
     """Probabilistic job loss. Returns True if agent lost job this tick.
 
-    Rate is ``JOB_LOSS_RATE`` (default 0.002 = 0.2% per tick).
+    Base rate is ``JOB_LOSS_RATE`` (default 0.002 = 0.2% per tick).
+    Scales with economic pressure: higher unemployment + weaker economy = more layoffs.
     Only affects employed agents. On job loss, sets employed=False,
     employment_status=UNEMPLOYED, base_salary=0.0.
 
     Args:
         agent: The agent to evaluate for job loss (modified in place).
         rng: Deterministic RNG for the probability roll.
+        world: Current world state (for economic pressure scaling).
 
     Returns:
         True if the agent lost their job this tick, False otherwise.
     """
     if not agent.resources.employed:
         return False
-    if rng.random() < JOB_LOSS_RATE:
+    economic_pressure = max(0.0, 1.0 - world.economic_health) if world else 0.0
+    effective_rate = JOB_LOSS_RATE * (1.0 + JOB_LOSS_ECON_SENSITIVITY * economic_pressure)
+    if rng.random() < effective_rate:
         agent.resources.employed = False
         agent.employment_status = EmploymentStatus.UNEMPLOYED
         agent.resources.base_salary = 0.0

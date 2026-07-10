@@ -49,7 +49,7 @@ class TestGenerateNarrative:
         fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {
-            "choices": [{"text": "The society entered a period of stability and growth."}]
+            "choices": [{"message": {"content": "The society entered a period of stability and growth."}}]
         }
         with patch.object(router._client_dense, "post") as mock_post:
             mock_post.return_value = fake_response
@@ -61,7 +61,7 @@ class TestGenerateNarrative:
         fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {
-            "choices": [{"text": "A narrative entry."}]
+            "choices": [{"message": {"content": "A narrative entry."}}]
         }
         with patch.object(router._client_dense, "post") as mock_post:
             mock_post.return_value = fake_response
@@ -75,7 +75,7 @@ class TestMoralAssessment:
         fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {
-            "choices": [{"text": "The moral implications are significant."}]
+            "choices": [{"message": {"content": "The moral implications are significant."}}]
         }
         with patch.object(router._client_moe, "post") as mock_post:
             mock_post.return_value = fake_response
@@ -87,7 +87,7 @@ class TestMoralAssessment:
         fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {
-            "choices": [{"text": "Moral assessment text."}]
+            "choices": [{"message": {"content": "Moral assessment text."}}]
         }
         with patch.object(router._client_moe, "post") as mock_post:
             mock_post.return_value = fake_response
@@ -97,17 +97,19 @@ class TestMoralAssessment:
 
 
 class TestAIHistorianService:
-    def test_generate_entry_returns_structured_dict(self, router: VLLMRouter, world: SimulationState) -> None:
+    def test_generate_summary_returns_structured_dict(self, router: VLLMRouter, world: SimulationState) -> None:
         fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {
-            "choices": [{"text": "At tick 100, the society flourished with high cohesion."}]
+            "choices": [{"message": {"content": "At tick 100, the society flourished with high cohesion."}}]
         }
         with patch.object(router._client_dense, "post") as mock_post:
             mock_post.return_value = fake_response
             from backend.app.services.ai_historian import AIHistorianService
             historian = AIHistorianService(router)
-            entry = historian.generate_entry(world, 100)
+            historian.accumulate(world, 50)
+            historian.accumulate(world, 100)
+            entry = historian.generate_summary(100)
             assert isinstance(entry, dict)
             assert "tick" in entry
             assert "narrative" in entry
@@ -118,14 +120,16 @@ class TestAIHistorianService:
         fake_response = MagicMock()
         fake_response.status_code = 200
         fake_response.json.return_value = {
-            "choices": [{"text": "Entry text."}]
+            "choices": [{"message": {"content": "Entry text."}}]
         }
         with patch.object(router._client_dense, "post") as mock_post:
             mock_post.return_value = fake_response
             from backend.app.services.ai_historian import AIHistorianService
             historian = AIHistorianService(router)
-            historian.generate_entry(world, 50)
-            historian.generate_entry(world, 100)
+            historian.accumulate(world, 50)
+            entry1 = historian.generate_summary(50)
+            historian.accumulate(world, 100)
+            entry2 = historian.generate_summary(100)
             history = historian.get_history()
             assert len(history) == 2
             assert history[0]["tick"] == 50
@@ -135,12 +139,12 @@ class TestAIHistorianService:
         fake_dense = MagicMock()
         fake_dense.status_code = 200
         fake_dense.json.return_value = {
-            "choices": [{"text": '{"assessment":"stable","recommendation":"lower taxes","watch_items":["crime"]}'}]
+            "choices": [{"message": {"content": '{"assessment":"stable","recommendation":"lower taxes","watch_items":["crime"]}'}}]
         }
         fake_moe = MagicMock()
         fake_moe.status_code = 200
         fake_moe.json.return_value = {
-            "choices": [{"text": "The ethical concerns around taxation are balanced."}]
+            "choices": [{"message": {"content": "The ethical concerns around taxation are balanced."}}]
         }
         with (
             patch.object(router._client_dense, "post", return_value=fake_dense),

@@ -65,3 +65,6 @@ class SimulationState:
     tax_rate: float = 0.15
     welfare_enabled: bool = False
     welfare_amount: float = 8.0
+    national_debt: float = 0.0
+    remittance_income: float = 0.08
+    energy_price: float = 0.60

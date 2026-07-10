@@ -140,7 +140,11 @@ class TestUpdateWorldMetrics:
 
         update_world_metrics(world, agents)
 
-        assert world.crime_rate == pytest.approx(0.1)
+        # baseline_crime (unemployment=1.0, econ=0.5, scarcity=0.125, energy=0.60)
+        # energy_amplifier = 1.0 + 0.60*0.5 = 1.30
+        # = 0.02 + 0.12*1.0 + 0.08*0.5*1.30 + 0.05*0.125 = 0.19825
+        # crime = min(1.0, 0.19825 + 0.5 * (8/(10*8))) = 0.24825
+        assert world.crime_rate == pytest.approx(0.24825)
 
     def test_crime_rate_capped_at_one(self) -> None:
         """Crime rate is capped at 1.0 even with extreme crime."""
@@ -152,7 +156,8 @@ class TestUpdateWorldMetrics:
 
         update_world_metrics(world, agents)
 
-        assert world.crime_rate == pytest.approx(1.0)
+        # baseline_crime=0.19825 + 0.5 * min(1.0, 1000/(10*8)) = 0.69825
+        assert world.crime_rate == pytest.approx(0.69825)
 
     def test_protest_intensity_formula(self) -> None:
         """10 agents, 4 total protests → 4/(10*4) = 0.1."""
@@ -167,7 +172,10 @@ class TestUpdateWorldMetrics:
 
         update_world_metrics(world, agents)
 
-        assert world.protest_intensity == pytest.approx(0.1)
+        # inflation rises from 0.02 to 0.0208 (energy=0.60, econ=0.5)
+        # baseline_protest = 0.0*0.25 + 1.0*0.35 + 0.0208*0.5 = 0.3604
+        # protest = min(1.0, 0.3604 + 0.5 * (4/(10*4))) = 0.4104
+        assert world.protest_intensity == pytest.approx(0.4104)
 
     def test_unemployment_rate(self) -> None:
         """10 agents, 3 unemployed → 0.3."""

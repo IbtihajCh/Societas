@@ -72,6 +72,14 @@ class SimulationService:
     async def stop_simulation(self) -> SimulationStatusDTO:
         if self._engine is not None:
             self._engine.stop()
+        if self._historian is not None and self._historian.has_snapshots():
+            entry = self._historian.generate_summary(self._engine.get_current_tick() if self._engine else 0)
+            if entry is not None:
+                await ws_manager.broadcast({
+                    "type": "chronicle",
+                    "final": True,
+                    "entry": entry,
+                })
         return await self.get_status()
 
     async def advance_tick(self) -> SimulationStateResponseDTO:
@@ -104,12 +112,8 @@ class SimulationService:
                     "action": str(action_result.action),
                 })
 
-        if result.tick % 10 == 0 and self._historian is not None:
-            entry = self._historian.generate_entry(state, result.tick)
-            await ws_manager.broadcast({
-                "type": "chronicle",
-                "entry": entry,
-            })
+        if self._historian is not None:
+            self._historian.accumulate(state, result.tick)
 
         return self._state_to_dto(state)
 
