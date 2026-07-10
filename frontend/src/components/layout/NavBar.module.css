@@ -1,0 +1,124 @@
+.shell {
+  display: contents;
+}
+
+.sidebar {
+  background-color: var(--color-parchment);
+  border-right: 1px solid var(--color-rule-strong);
+  padding: 26px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.crest {
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid var(--color-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--color-ink);
+}
+
+.brandName {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.brandSub {
+  font-size: 10px;
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.sc {
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.navGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.navLabel {
+  font-size: 10px;
+  color: var(--color-ink-soft);
+  margin-bottom: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.navItem {
+  padding: 8px 4px 8px 12px;
+  font-size: 13px;
+  color: var(--color-ink-soft);
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.navItem:hover {
+  color: var(--color-ink);
+}
+
+.navItemActive {
+  color: var(--color-oxblood);
+  border-left: 2px solid var(--color-oxblood);
+  font-weight: 500;
+}
+
+.sidebarFooter {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-rule);
+}
+
+.footerLabel {
+  font-size: 10px;
+  color: var(--color-ink-soft);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.footerVal {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--color-moss);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.stampDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-moss);
+}
+
+@media (max-width: 1100px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: none;
+  }
+}
