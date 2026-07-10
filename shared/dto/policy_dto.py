@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from shared.types.aliases import PolicyId
-from shared.types.enums import PolicyCategory
+from shared.types.enums import CrisisType, PolicyCategory, PolicyPreset
 
 
 @dataclass
@@ -71,3 +71,28 @@ class PolicyListResponseDTO:
     
     policies: List[PolicyResponseDTO] = field(default_factory=list)
     total: int = 0
+
+
+@dataclass
+class CrisisInjectRequestDTO:
+    crisis_type: CrisisType = CrisisType.NATURAL_DISASTER
+
+
+@dataclass
+class CrisisResultDTO:
+    crisis_type: str
+    description: str
+    changes: Dict[str, float]
+
+
+@dataclass
+class PresetApplyRequestDTO:
+    preset_name: PolicyPreset = PolicyPreset.UNIVERSAL_BASIC_INCOME
+
+
+@dataclass
+class PresetResultDTO:
+    preset_name: str
+    description: str
+    policy_id: str
+    changes: Dict[str, object]

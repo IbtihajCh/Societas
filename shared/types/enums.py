@@ -123,6 +123,23 @@ class PolicyCategory(Enum):
     CULTURAL = auto()
 
 
+class CrisisType(StrEnum):
+    """Predefined crisis types for demo injection."""
+
+    NATURAL_DISASTER = "natural_disaster"
+    ECONOMIC_CRASH = "economic_crash"
+    CRIME_WAVE = "crime_wave"
+    PLAGUE = "plague"
+
+
+class PolicyPreset(StrEnum):
+    """Predefined policy presets for quick application."""
+
+    UNIVERSAL_BASIC_INCOME = "universal_basic_income"
+    POLICE_STATE = "police_state"
+    MARKET_DEREGULATION = "market_deregulation"
+
+
 class CrimeType(Enum):
     """Types of crimes that can occur."""
 

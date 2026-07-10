@@ -1,11 +1,41 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from shared.dto.policy_dto import PolicyCreateRequestDTO, PolicyListResponseDTO, PolicyResponseDTO
+from shared.dto.policy_dto import (
+    CrisisInjectRequestDTO,
+    CrisisResultDTO,
+    PolicyCreateRequestDTO,
+    PolicyListResponseDTO,
+    PolicyResponseDTO,
+    PresetApplyRequestDTO,
+    PresetResultDTO,
+)
 
 from backend.app.dependencies import get_policy_service
 from backend.app.services.policy_service import PolicyService
 
 router = APIRouter()
+
+
+@router.post("/crisis", response_model=CrisisResultDTO, status_code=201)
+async def inject_crisis(
+    request: CrisisInjectRequestDTO,
+    service: PolicyService = Depends(get_policy_service),
+):
+    try:
+        return await service.inject_crisis(request)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/presets", response_model=PresetResultDTO, status_code=201)
+async def apply_preset(
+    request: PresetApplyRequestDTO,
+    service: PolicyService = Depends(get_policy_service),
+):
+    try:
+        return await service.apply_policy_preset(request)
+    except (RuntimeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/", response_model=PolicyListResponseDTO)
