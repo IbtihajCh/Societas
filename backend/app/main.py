@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from backend.app.config import get_settings
 from backend.app.database.connection import close_db, init_db
 from backend.app.middleware.logging import LoggingMiddleware
-from backend.app.routers import agents, health, metrics, policies, simulation
+from backend.app.routers import agents, health, metrics, policies, simulation, ai
 from backend.app.websocket.manager import WebSocketManager, ws_manager
 
 logger = logging.getLogger("societas.api")
@@ -51,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(policies.router, prefix="/api/v1/policies", tags=["policies"])
     app.include_router(metrics.router, prefix="/api/v1/metrics", tags=["metrics"])
     app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
+    app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):

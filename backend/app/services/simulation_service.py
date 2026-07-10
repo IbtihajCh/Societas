@@ -1,4 +1,5 @@
 import asyncio
+import os
 from dataclasses import asdict
 from typing import Optional
 
@@ -12,6 +13,8 @@ from shared.schemas.simulation_state import SimulationState
 
 from backend.app.websocket.manager import ws_manager
 from backend.app.repositories.simulation_repository import SimulationRepository
+from models.router.vllm_config import VLLMConfig
+from models.router.vllm_router import VLLMRouter
 from simulation.engine.config import SimulationConfig
 from simulation.engine.simulation_engine import SimulationEngine
 
@@ -41,8 +44,14 @@ class SimulationService:
             population_size=request.population_size,
             seed=request.seed,
         )
+        vllm_config = VLLMConfig(
+            api_key_e2b=os.getenv("API_KEY_E2B", ""),
+            api_key_moe_26b=os.getenv("API_KEY_MOE_26B", ""),
+            api_key_dense_31b=os.getenv("API_KEY_DENSE_31B", ""),
+        )
+        router = VLLMRouter(vllm_config)
         self._engine = SimulationEngine(config=config)
-        self._engine.start()
+        self._engine.start(ai_router=router)
         return await self.get_status()
 
     async def stop_simulation(self) -> SimulationStatusDTO:
