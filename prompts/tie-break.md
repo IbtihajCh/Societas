@@ -1,10 +1,10 @@
 ---
 type: prompt
 purpose: tie-break
-model: google/gemma-2-9b-it
+model: google/gemma-4-31b-it-qat
 temperature: 0.2
 max_tokens: 196
-version: 1.0.0
+version: 2.0.0
 status: active
 ---
 

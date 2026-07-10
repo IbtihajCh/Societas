@@ -1,9 +1,9 @@
 ---
 type: prompt
 purpose: shared-system-components
-model: google/gemma-2-9b-it
+model: google/gemma-4-31b-it-qat
 temperature: varies
-version: 1.0.0
+version: 2.0.0
 status: active
 ---
 
@@ -58,3 +58,12 @@ Used in: `policy-translation.md`, `tie-break.md`
 ```
 
 Used in: all prompts
+
+## Gemma 4 Chat Template
+
+All prompts are wrapped in Gemma 4's chat template by the VLLMRouter:
+<bos><|start_header_id|>system<|end_header_id|>
+\n{system_prompt}<|eot_id|><|start_header_id|>user<|end_header_id|>
+\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n
+
+The VLLMRouter wraps prompts with this template before sending to vLLM.
