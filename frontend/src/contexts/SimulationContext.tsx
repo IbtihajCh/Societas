@@ -11,8 +11,7 @@ import {
 import { apiService } from '@/services/api';
 import {
   SimulationStateResponseDTO,
-<<<<<<< HEAD
-  MetricPointDTO,
+  AgentSummaryDTO,
   WebSocketMessage,
 } from '@/types/api';
 import {
@@ -21,28 +20,11 @@ import {
   isAgentActed,
   ConnectionStatus,
 } from '@/services/websocket';
-
-export interface SimulationEvent {
-  id: string;
-  type: string;
-  tick: number;
-  description: string;
-}
-
-interface SimulationContextType {
-  state: SimulationStateResponseDTO | null;
-  metrics: MetricPointDTO[] | null;
-  events: SimulationEvent[];
-=======
-  SimulationStatusDTO,
-  AgentSummaryDTO,
-} from '@/types/api';
 import { useSimulationStore } from '@/store/simulationStore';
 
 interface SimulationContextType {
   state: SimulationStateResponseDTO | null;
   agents: AgentSummaryDTO[];
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
   isConnected: boolean;
   isRunning: boolean;
   error: string | null;
@@ -51,8 +33,6 @@ interface SimulationContextType {
   advanceTick: () => Promise<void>;
   refreshAgents: () => Promise<void>;
 }
-
-const MAX_EVENTS = 100;
 
 const SimulationContext = createContext<SimulationContextType | undefined>(
   undefined,
@@ -64,31 +44,18 @@ interface SimulationProviderProps {
 
 export function SimulationProvider({ children }: SimulationProviderProps) {
   const [state, setState] = useState<SimulationStateResponseDTO | null>(null);
-<<<<<<< HEAD
-  const [metrics, setMetrics] = useState<MetricPointDTO[] | null>(null);
-  const [events, setEvents] = useState<SimulationEvent[]>([]);
-=======
   const [agents, setAgents] = useState<AgentSummaryDTO[]>([]);
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
   const [isConnected, setIsConnected] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const wsClientRef = useRef<SimulationWebSocketClient | null>(null);
-  const eventCounter = useRef(0);
-
-  const addEvent = useCallback((event: Omit<SimulationEvent, 'id'>) => {
-    eventCounter.current += 1;
-    const newEvent: SimulationEvent = {
-      ...event,
-      id: `evt-${eventCounter.current}`,
-    };
-    setEvents((prev) => [newEvent, ...prev].slice(0, MAX_EVENTS));
-  }, []);
+  const stateRef = useRef<SimulationStateResponseDTO | null>(null);
+  stateRef.current = state;
 
   const fetchAgents = useCallback(async () => {
     try {
-      const res = await apiService.getAgents(20, 0);
+      const res = await apiService.getAgents(80, 0);
       setAgents(res.agents);
     } catch {
       // ignore
@@ -103,41 +70,36 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       setIsConnected(status === 'connected');
     });
 
-    const unsubMessage = wsClient.onMessage((message: WebSocketMessage) => {
+    const unsubMessage = wsClient.onMessage(async (message: WebSocketMessage) => {
+      const store = useSimulationStore.getState();
       if (isTickCompleted(message)) {
-        setState((prev) => ({
-          ...(prev ?? {
-            tick: 0,
-            population: 0,
-            economic_health: 0.5,
-            social_cohesion: 0.5,
-            environmental_quality: 0.5,
-            public_order: 0.5,
-            innovation_index: 0.5,
-            unlust: 0,
-            morality: 0.5,
-            food_availability: 0.85,
-            water_availability: 0.9,
-            crime_rate: 0.05,
-            protest_intensity: 0,
-            unemployment_rate: 0.1,
-            tax_rate: 0.15,
-            welfare_enabled: false,
-            welfare_amount: 8,
-          }),
+        store.addEvent({
+          id: `ws-tc-${message.tick}`,
           tick: message.tick,
-          population: message.population,
-        }));
-        addEvent({
-          type: 'tick_completed',
-          tick: message.tick,
-          description: `Tick ${message.tick} completed (${message.duration_ms?.toFixed(1)}ms, ${message.ambiguity_count} ambiguous, ${message.ai_calls} AI calls)`,
+          event_type: 'tick_completed',
+          data: {
+            duration_ms: message.duration_ms,
+            population: message.population,
+            ambiguity_count: message.ambiguity_count,
+            ai_calls: message.ai_calls,
+          },
         });
+        try {
+          const simState = await apiService.getSimulationState();
+          setState(simState);
+          store.appendTickData(simState);
+        } catch {
+          // ignore fetch errors on WS push
+        }
       } else if (isAgentActed(message)) {
-        addEvent({
-          type: 'agent_acted',
-          tick: state?.tick ?? 0,
-          description: `Agent ${message.agent_id} → ${message.action}`,
+        store.addEvent({
+          id: `ws-aa-${message.agent_id}-${Date.now()}`,
+          tick: stateRef.current?.tick ?? 0,
+          event_type: 'agent_acted',
+          data: {
+            agent_id: message.agent_id,
+            action: message.action,
+          },
         });
       }
     });
@@ -150,13 +112,18 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         setIsConnected(true);
         setError(null);
         setIsRunning(status.is_running);
+        if (status.population > 0) {
+          const simState = await apiService.getSimulationState();
+          setState(simState);
+          useSimulationStore.getState().appendTickData(simState);
+        }
+        await fetchAgents();
       } catch {
         setIsConnected(false);
       }
     };
 
     fetchStatus();
-    fetchAgents();
 
     const interval = setInterval(async () => {
       try {
@@ -167,36 +134,14 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       }
     }, 30000);
 
-<<<<<<< HEAD
     return () => {
       unsubStatus();
       unsubMessage();
       wsClient.disconnect();
       clearInterval(interval);
     };
-  }, [addEvent, state?.tick]);
-
-  const startSimulation = useCallback(async () => {
-    try {
-      setError(null);
-      const status = await apiService.startSimulation({
-        population_size: 80,
-        seed: 42,
-      });
-      setIsRunning(status.is_running);
-      setIsConnected(true);
-      const simState = await apiService.getSimulationState();
-      setState(simState);
-      addEvent({
-        type: 'simulation_started',
-        tick: simState.tick,
-        description: 'Simulation started',
-      });
-=======
-    return () => clearInterval(interval);
   }, [fetchAgents]);
 
-  // Poll agents every 2 seconds while simulation is running
   useEffect(() => {
     if (!isRunning) return;
     const interval = setInterval(() => {
@@ -207,7 +152,13 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
 
   const startSimulation = useCallback(async () => {
     try {
-      const status = await apiService.startSimulation({ population_size: 20, seed: 42, enable_ai: true });
+      setError(null);
+      useSimulationStore.getState().reset();
+      const status = await apiService.startSimulation({
+        population_size: 80,
+        seed: 42,
+        enable_ai: true,
+      });
       setIsRunning(status.is_running);
       setIsConnected(true);
       if (status.population > 0) {
@@ -216,40 +167,27 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         useSimulationStore.getState().appendTickData(simState);
       }
       await fetchAgents();
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to start: ${msg}`);
       console.error('Failed to start simulation:', err);
     }
-<<<<<<< HEAD
-  }, [addEvent]);
-=======
   }, [fetchAgents]);
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 
   const stopSimulation = useCallback(async () => {
     try {
       setError(null);
       const status = await apiService.stopSimulation();
       setIsRunning(status.is_running);
-<<<<<<< HEAD
-      addEvent({
-        type: 'simulation_stopped',
-        tick: state?.tick ?? 0,
-        description: 'Simulation stopped',
-      });
-=======
       setState(null);
       setAgents([]);
       useSimulationStore.getState().reset();
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to stop: ${msg}`);
       console.error('Failed to stop simulation:', err);
     }
-  }, [addEvent, state?.tick]);
+  }, []);
 
   const advanceTick = useCallback(async () => {
     try {
@@ -269,12 +207,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     <SimulationContext.Provider
       value={{
         state,
-<<<<<<< HEAD
-        metrics,
-        events,
-=======
         agents,
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
         isConnected,
         isRunning,
         error,

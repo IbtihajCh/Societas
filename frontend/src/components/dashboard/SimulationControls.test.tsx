@@ -22,14 +22,14 @@ function setupMocks(overrides: Partial<{
 
   mockUseSimulation.mockReturnValue({
     state: null,
-    metrics: null,
-    events: [],
+    agents: [],
     isConnected: true,
     isRunning: false,
     error: null,
     startSimulation,
     stopSimulation,
     advanceTick,
+    refreshAgents: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   });
 
