@@ -190,6 +190,28 @@ class VLLMRouter:
         except Exception:
             return False
 
+    def generate_narrative(self, context: str) -> str:
+        results = self._call_vllm(
+            self._client_dense,
+            context,
+            api_key=self._config.api_key_dense_31b,
+            temperature=0.7,
+            max_tokens=256,
+            model=self._config.model_dense_31b,
+        )
+        return results[0]
+
+    def moral_assessment(self, question: str) -> str:
+        results = self._call_vllm(
+            self._client_moe,
+            question,
+            api_key=self._config.api_key_moe_26b,
+            temperature=0.3,
+            max_tokens=256,
+            model=self._config.model_moe_26b,
+        )
+        return results[0]
+
     @property
     def call_count(self) -> int:
         return self._call_count
