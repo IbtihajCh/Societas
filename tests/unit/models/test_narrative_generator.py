@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 
 from shared.schemas.news_event import NewsEvent, SpotlightNarration
-from models.router.config import AIConfig
+from models.config import AIConfig
 from models.narration.narrative_generator import NarrativeGenerator
 from models.client.amd_client import AMDClient
 

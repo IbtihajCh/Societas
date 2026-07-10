@@ -20,11 +20,11 @@ All AI calls go through the router, which manages:
 - Batching
 """
 
-from models.router.ai_router import AIRouter
-from models.router.config import AIConfig
+from models.router.vllm_router import VLLMRouter
+from models.config import AIConfig
 
 __version__ = "0.1.0"
 __all__ = [
-    "AIRouter",
+    "VLLMRouter",
     "AIConfig",
 ]

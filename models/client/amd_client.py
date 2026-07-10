@@ -6,7 +6,7 @@ from typing import Optional
 import httpx
 from dotenv import load_dotenv
 
-from models.router.config import AIConfig
+from models.config import AIConfig
 
 logger = logging.getLogger("societas.ai.amd")
 

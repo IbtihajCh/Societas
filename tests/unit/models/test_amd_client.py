@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 import httpx
 
 from models.client.amd_client import AMDClient
-from models.router.config import AIConfig
+from models.config import AIConfig
 
 
 class TestAMDClientInit:

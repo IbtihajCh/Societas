@@ -2,7 +2,7 @@
 from typing import Optional
 
 from shared.schemas.policy import PolicyWeights
-from models.router.config import AIConfig
+from models.config import AIConfig
 from models.client.prompt_loader import PromptLoader
 from models.client.amd_client import AMDClient
 from models.client.response_parser import parse_response, ParseError

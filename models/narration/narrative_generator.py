@@ -4,7 +4,7 @@ from typing import Optional
 
 from shared.schemas.news_event import NewsEvent, SpotlightNarration
 from shared.types.aliases import EventId, TickNumber
-from models.router.config import AIConfig
+from models.config import AIConfig
 from models.client.prompt_loader import PromptLoader
 from models.client.amd_client import AMDClient
 from models.client.response_parser import parse_response, ParseError

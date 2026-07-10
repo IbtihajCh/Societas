@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 from shared.schemas.decision import DecisionRequest, DecisionOption
 from shared.types.enums import ActionType
-from models.router.config import AIConfig
+from models.config import AIConfig
 from models.tie_break.tie_breaker import TieBreaker
 from models.client.amd_client import AMDClient
 

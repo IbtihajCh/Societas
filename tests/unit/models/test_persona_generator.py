@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 
-from models.router.config import AIConfig
+from models.config import AIConfig
 from models.personas.persona_generator import PersonaGenerator
 from models.client.amd_client import AMDClient
 

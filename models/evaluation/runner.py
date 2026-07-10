@@ -1,8 +1,8 @@
 import sys
 import logging
 
-from models.router.ai_router import AIRouter
-from models.router.config import AIConfig
+from models.router.vllm_router import VLLMRouter
+from models.config import AIConfig
 from models.evaluation.evaluate import run_evaluation_suite
 
 logging.basicConfig(
@@ -15,7 +15,7 @@ logger = logging.getLogger("societas.ai.evaluation.runner")
 
 def main() -> int:
     logger.info("=== Evaluation Suite ===")
-    router = AIRouter(AIConfig())
+    router = VLLMRouter(AIConfig())
     results = run_evaluation_suite(router)
 
     passed = 0

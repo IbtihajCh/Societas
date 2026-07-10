@@ -1,7 +1,7 @@
 ﻿import logging
 from typing import Optional
 
-from models.router.config import AIConfig
+from models.config import AIConfig
 from models.client.prompt_loader import PromptLoader
 from models.client.amd_client import AMDClient
 

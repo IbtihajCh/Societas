@@ -3,7 +3,7 @@ from typing import Optional
 
 from shared.schemas.decision import DecisionRequest, DecisionResponse, DecisionOption
 from shared.types.enums import ActionType
-from models.router.config import AIConfig
+from models.config import AIConfig
 from models.client.prompt_loader import PromptLoader
 from models.client.amd_client import AMDClient
 from models.client.response_parser import parse_response, ParseError

@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 from pathlib import Path
 
-from models.router.ai_router import AIRouter
-from models.router.config import AIConfig
+from models.router.vllm_router import VLLMRouter
+from models.config import AIConfig
 from shared.schemas.decision import DecisionRequest, DecisionOption
 from shared.types.enums import ActionType
 
@@ -23,10 +23,10 @@ class EvaluationResult:
     error: str | None = None
 
 
-ScenarioFunc = Callable[[AIRouter], EvaluationResult]
+ScenarioFunc = Callable[[VLLMRouter], EvaluationResult]
 
 
-def evaluate_scenario(router: AIRouter, name: str, fn: ScenarioFunc) -> EvaluationResult:
+def evaluate_scenario(router: VLLMRouter, name: str, fn: ScenarioFunc) -> EvaluationResult:
     logger.info("Evaluating scenario: %s", name)
     start = time.perf_counter()
     try:
@@ -45,7 +45,7 @@ def evaluate_scenario(router: AIRouter, name: str, fn: ScenarioFunc) -> Evaluati
     return result
 
 
-def run_evaluation_suite(router: AIRouter) -> list[EvaluationResult]:
+def run_evaluation_suite(router: VLLMRouter) -> list[EvaluationResult]:
     results = []
     results.append(evaluate_scenario(router, "tie_break_basic", _eval_tie_break_basic))
     results.append(evaluate_scenario(router, "policy_translation_basic", _eval_policy_translation_basic))
@@ -54,7 +54,7 @@ def run_evaluation_suite(router: AIRouter) -> list[EvaluationResult]:
     return results
 
 
-def _eval_tie_break_basic(router: AIRouter) -> EvaluationResult:
+def _eval_tie_break_basic(router: VLLMRouter) -> EvaluationResult:
     request = DecisionRequest(
         agent_id="eval-agent",
         state="Normal conditions, needs partially satisfied.",
@@ -73,7 +73,7 @@ def _eval_tie_break_basic(router: AIRouter) -> EvaluationResult:
     )
 
 
-def _eval_policy_translation_basic(router: AIRouter) -> EvaluationResult:
+def _eval_policy_translation_basic(router: VLLMRouter) -> EvaluationResult:
     weights = router.translate_policy(
         persona="A conservative trader focused on economic growth.",
         goal="Reduce business taxes to stimulate the economy.",
@@ -90,7 +90,7 @@ def _eval_policy_translation_basic(router: AIRouter) -> EvaluationResult:
     )
 
 
-def _eval_persona_generation_basic(router: AIRouter) -> EvaluationResult:
+def _eval_persona_generation_basic(router: VLLMRouter) -> EvaluationResult:
     persona = router.generate_persona({
         "ambition": 0.9, "risk_tolerance": 0.8, "materialism": 0.7,
     })
@@ -101,7 +101,7 @@ def _eval_persona_generation_basic(router: AIRouter) -> EvaluationResult:
     )
 
 
-def _eval_narrative_generation_basic(router: AIRouter) -> EvaluationResult:
+def _eval_narrative_generation_basic(router: VLLMRouter) -> EvaluationResult:
     news = router.generate_news(
         events=[{"type": "policy_passed", "tick": 100, "description": "New tax law enacted"}],
         state_deltas={"economic_health": 0.1, "social_cohesion": -0.05},

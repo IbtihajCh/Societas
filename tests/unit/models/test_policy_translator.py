@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 
 from shared.schemas.policy import PolicyWeights
-from models.router.config import AIConfig
+from models.config import AIConfig
 from models.policy.policy_translator import PolicyTranslator
 from models.client.amd_client import AMDClient
 
