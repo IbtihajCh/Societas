@@ -1,47 +1,28 @@
 import React from 'react';
+import { SimulationEvent } from '@/contexts/SimulationContext';
+import styles from './EventLog.module.css';
 
-/**
- * Event Log Component
- * 
- * Displays a scrollable log of simulation events.
- */
 interface EventLogProps {
-  events?: any[];
+  events: SimulationEvent[];
 }
 
-export default function EventLog({ events = [] }: EventLogProps) {
-  // TODO: Display events in a scrollable list
-  // TODO: Add filtering by event type
-  // TODO: Add auto-scroll to latest event
-  
+export default function EventLog({ events }: EventLogProps) {
   return (
-    <div style={{ 
-      padding: '1rem', 
-      border: '1px solid #eaeaea', 
-      borderRadius: '8px',
-      backgroundColor: '#fafafa',
-      maxHeight: '400px',
-      overflowY: 'auto'
-    }}>
-      <h3>Event Log</h3>
-      
+    <div className={styles.panel}>
+      <h3 className={styles.title}>Event Log</h3>
+
       {events.length === 0 ? (
-        <p style={{ color: '#999' }}>No events yet</p>
+        <p className={styles.empty}>No events yet</p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, marginTop: '1rem' }}>
-          {events.map((event, index) => (
-            <li 
-              key={index}
-              style={{
-                padding: '0.5rem',
-                borderBottom: '1px solid #eaeaea',
-                fontSize: '0.9rem'
-              }}
+        <ul className={styles.list}>
+          {events.map((event) => (
+            <li
+              key={event.id}
+              className={`${styles.eventItem} ${styles[`event${event.type.charAt(0).toUpperCase() + event.type.slice(1)}`] || ''}`}
             >
-              <strong>{event.type}</strong>: {event.description}
-              <div style={{ color: '#999', fontSize: '0.8rem' }}>
-                Tick {event.tick}
-              </div>
+              <span className={styles.eventType}>{event.type}</span>
+              <span className={styles.eventDescription}> — {event.description}</span>
+              <div className={styles.eventTick}>Tick {event.tick}</div>
             </li>
           ))}
         </ul>

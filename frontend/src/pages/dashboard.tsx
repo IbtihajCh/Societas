@@ -1,36 +1,63 @@
-import { useEffect, useState } from 'react';
 import { useSimulation } from '@/hooks/useSimulation';
 import MetricsPanel from '@/components/dashboard/MetricsPanel';
 import SimulationControls from '@/components/dashboard/SimulationControls';
 import EventLog from '@/components/dashboard/EventLog';
+import styles from './dashboard.module.css';
 
-/**
- * Dashboard Page
- * 
- * Main simulation dashboard with real-time metrics and controls.
- */
 export default function Dashboard() {
-  const { state, metrics, isConnected } = useSimulation();
+  const { state, events, isConnected, isRunning, error } = useSimulation();
   const tick = state?.tick ?? 0;
 
+  if (!state && !isConnected) {
+    return (
+      <div className={styles.loading}>
+        <div className={styles.loadingSpinner} />
+        <p>Connecting to simulation backend…</p>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-      <header style={{ marginBottom: '2rem' }}>
-        <h1>SOCIETAS Dashboard</h1>
-        <p>Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
-        <p>Current Tick: {tick}</p>
+    <div className={styles.dashboard}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>SOCIETAS Dashboard</h1>
+        <div className={styles.statusBar}>
+          <span>
+            <span
+              className={`${styles.statusDot} ${isConnected ? styles.statusConnected : styles.statusDisconnected}`}
+            />
+            {isConnected ? 'Connected' : 'Disconnected'}
+          </span>
+          <span className={styles.tickInfo}>
+            Tick: {tick} | {isRunning ? 'Running' : 'Stopped'}
+          </span>
+        </div>
       </header>
+
+      {error && (
+        <div className={styles.errorBanner}>
+          {error}
+        </div>
+      )}
+
+      {!isConnected && state && (
+        <div className={styles.disconnectedBanner}>
+          Backend connection lost — showing last known state. Reconnecting…
+        </div>
+      )}
 
       <SimulationControls />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '2rem' }}>
+      <div className={styles.grid}>
         <MetricsPanel state={state} />
-        <EventLog />
+        <EventLog events={events} />
       </div>
 
-      <div style={{ marginTop: '2rem' }}>
+      <div className={styles.worldState}>
         <h2>World State</h2>
-        <pre>{JSON.stringify(state, null, 2)}</pre>
+        <pre className={styles.worldStateJson}>
+          {JSON.stringify(state, null, 2)}
+        </pre>
       </div>
     </div>
   );

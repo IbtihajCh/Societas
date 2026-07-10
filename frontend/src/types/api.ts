@@ -3,12 +3,100 @@
  *
  * TypeScript types for SOCIETAS API responses.
  * Mirrors the canonical Python DTOs in shared/dto/* (snake_case, as-is).
- * Source of truth: shared/dto/*.py — keep in sync.
+ * Source of truth: shared/dto/*.py and shared/types/enums.py — keep in sync.
+ *
+ * Last synced with: origin/main (commit 07d6be7)
  */
 
 // ---------------------------------------------------------------------------
 // Enums (mirror shared/types/enums.py)
+//
+// StrEnum types (ActionType, WealthClass, EmotionType, NeedType, Gender,
+// Culture, JobType) serialize as their lowercase string values.
+// PolicyCategory and EmploymentStatus use Enum + auto() (integer values),
+// but the frontend sends/receives them by member name string.
 // ---------------------------------------------------------------------------
+
+export enum ActionType {
+  WORK = 'work',
+  BUY_FOOD = 'buy_food',
+  REST = 'rest',
+  SEEK_JOB = 'seek_job',
+  BEG = 'beg',
+  BEFRIEND = 'befriend',
+  CONSOLE = 'console',
+  ISOLATE = 'isolate',
+  SHARE = 'share',
+  STEAL = 'steal',
+  HARM_OTHER = 'harm_other',
+  PROTEST = 'protest',
+  COMPLAIN = 'complain',
+  COMPLY = 'comply',
+  IDLE = 'idle',
+}
+
+export enum NeedType {
+  FOOD = 'food',
+  WATER = 'water',
+  SLEEP = 'sleep',
+  SEXUAL_TENSION = 'sexual_tension',
+  SAFETY = 'safety',
+  FINANCIAL_SECURITY = 'financial_security',
+  SHELTER = 'shelter',
+  SOCIAL_CONNECTION = 'social_connection',
+  FAMILY_BOND = 'family_bond',
+  ROMANTIC_BOND = 'romantic_bond',
+  SELF_ESTEEM = 'self_esteem',
+  REPUTATION = 'reputation',
+  INFERIORITY_GAP = 'inferiority_gap',
+}
+
+export enum EmotionType {
+  HAPPY = 'happy',
+  NORMAL = 'normal',
+  SAD = 'sad',
+  ANGRY = 'angry',
+  DESPAIR = 'despair',
+}
+
+export enum WealthClass {
+  POOR = 'poor',
+  MIDDLE = 'middle',
+  RICH = 'rich',
+}
+
+export enum Gender {
+  MALE = 'male',
+  FEMALE = 'female',
+}
+
+export enum Culture {
+  A = 'A',
+  B = 'B',
+  C = 'C',
+}
+
+export enum EducationLevel {
+  NONE = 0,
+  PRIMARY = 1,
+  SECONDARY = 2,
+  HIGHER = 3,
+}
+
+export enum JobType {
+  ENGINEER = 'engineer',
+  COMPUTER_SCIENTIST = 'computer_scientist',
+  PILOT = 'pilot',
+  DOCTOR = 'doctor',
+  THERAPIST = 'therapist',
+  MECHANIC = 'mechanic',
+  ELECTRICIAN = 'electrician',
+  CONSTRUCTION_PLANNER = 'construction_planner',
+  CONSTRUCTION_WORKER = 'construction_worker',
+  CLEANER = 'cleaner',
+  TAXI_DRIVER = 'taxi_driver',
+  UNEMPLOYED = 'unemployed',
+}
 
 export enum PolicyCategory {
   ECONOMIC = 'ECONOMIC',
@@ -21,36 +109,12 @@ export enum PolicyCategory {
   CULTURAL = 'CULTURAL',
 }
 
-export enum ActionType {
-  WORK = 'WORK',
-  BUY_FOOD = 'BUY_FOOD',
-  REST = 'REST',
-  SEEK_JOB = 'SEEK_JOB',
-  BEG = 'BEG',
-  BEFRIEND = 'BEFRIEND',
-  CONSOLE = 'CONSOLE',
-  ISOLATE = 'ISOLATE',
-  SHARE = 'SHARE',
-  STEAL = 'STEAL',
-  HARM_OTHER = 'HARM_OTHER',
-  PROTEST = 'PROTEST',
-  COMPLAIN = 'COMPLAIN',
-  COMPLY = 'COMPLY',
-  IDLE = 'IDLE',
-}
-
 export enum EmploymentStatus {
   EMPLOYED = 'EMPLOYED',
   UNEMPLOYED = 'UNEMPLOYED',
   STUDENT = 'STUDENT',
   RETIRED = 'RETIRED',
   UNABLE_TO_WORK = 'UNABLE_TO_WORK',
-}
-
-export enum WealthClass {
-  POOR = 'POOR',
-  MIDDLE = 'MIDDLE',
-  RICH = 'RICH',
 }
 
 // ---------------------------------------------------------------------------
@@ -100,6 +164,7 @@ export interface PolicyCreateRequestDTO {
   description: string;
   category: PolicyCategory;
   weights?: Record<string, number>;
+  policy_text?: string | null;
 }
 
 export interface PolicyResponseDTO {
@@ -110,6 +175,7 @@ export interface PolicyResponseDTO {
   weights: Record<string, number>;
   is_active: boolean;
   enactment_tick: number;
+  impact_deltas: Record<string, Record<string, number>>;
 }
 
 export interface PolicyListResponseDTO {
@@ -181,6 +247,17 @@ export interface AgentListResponseDTO {
   page_size: number;
 }
 
+export interface AgentHistoryResponseDTO {
+  agent_id: string;
+  history: AgentHistoryEntry[];
+}
+
+export interface AgentHistoryEntry {
+  tick: number;
+  action: string;
+  details?: Record<string, unknown>;
+}
+
 // ---------------------------------------------------------------------------
 // Metrics DTOs (mirror shared/dto/metrics_dto.py)
 // ---------------------------------------------------------------------------
@@ -196,6 +273,11 @@ export interface MetricsResponseDTO {
   economy: MetricPointDTO[];
   crime: MetricPointDTO[];
   happiness: MetricPointDTO[];
+  unlust: MetricPointDTO[];
+  morality: MetricPointDTO[];
+  protest_intensity: MetricPointDTO[];
+  action_frequencies: Record<string, number>;
+  emotion_distribution: Record<string, number>;
   summary: Record<string, number>;
 }
 
@@ -211,61 +293,39 @@ export interface HealthResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Simulation events (mirror shared/events/simulation_events.py)
-// Used by the WebSocket message handler.
+// Policy revoke response (backend returns {status, policy_id} not PolicyResponseDTO)
 // ---------------------------------------------------------------------------
 
-export type SimulationEventType =
-  | 'tick_started'
+export interface PolicyRevokeResponseDTO {
+  status: string;
+  policy_id: string;
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket events
+//
+// The backend broadcasts messages with a "type" discriminator (not
+// "event_type"). See backend/app/services/simulation_service.py advance_tick().
+// ---------------------------------------------------------------------------
+
+export type WebSocketMessageType =
   | 'tick_completed'
-  | 'agent_acted'
-  | 'agent_created'
-  | 'agent_deceased'
-  | 'policy_enacted'
-  | 'ambiguity_detected';
+  | 'agent_acted';
 
-export interface SimulationEvent {
-  id: string;
+export interface TickCompletedMessage {
+  type: 'tick_completed';
   tick: number;
-  event_type: SimulationEventType;
-  data: Record<string, unknown>;
-}
-
-export interface TickCompletedEvent extends SimulationEvent {
-  event_type: 'tick_completed';
   duration_ms: number;
-  agent_count: number;
+  population: number;
+  state_hash: string;
   ambiguity_count: number;
+  ai_calls: number;
 }
 
-export interface AgentActedEvent extends SimulationEvent {
-  event_type: 'agent_acted';
+export interface AgentActedMessage {
+  type: 'agent_acted';
   agent_id: string;
   action: string;
-  outcome: string;
 }
 
-export interface AgentCreatedEvent extends SimulationEvent {
-  event_type: 'agent_created';
-  agent_id: string;
-  persona: string;
-}
-
-export interface AgentDeceasedEvent extends SimulationEvent {
-  event_type: 'agent_deceased';
-  agent_id: string;
-  cause: string;
-}
-
-export interface PolicyEnactedEvent extends SimulationEvent {
-  event_type: 'policy_enacted';
-  policy_id: string;
-  policy_name: string;
-}
-
-export interface AmbiguityDetectedEvent extends SimulationEvent {
-  event_type: 'ambiguity_detected';
-  agent_id: string;
-  top_score: number;
-  second_score: number;
-}
+export type WebSocketMessage = TickCompletedMessage | AgentActedMessage;
