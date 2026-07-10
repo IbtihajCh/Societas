@@ -50,7 +50,7 @@ from simulation.world.metrics_calculator import (
     compute_state_hash,
 )
 from simulation.policies.policy_effects import apply_all_policies
-from simulation.engine.mock_ai_router import MockAIRouter
+from models.router.vllm_router import VLLMRouter
 
 __all__ = ["run_tick"]
 
@@ -61,7 +61,7 @@ def run_tick(
     world: SimulationState,
     rng: DeterministicRNG,
     policies: list[GovernmentPolicy] | None = None,
-    ai_router: MockAIRouter | None = None,
+    ai_router: VLLMRouter | None = None,
 ) -> TickResult:
     """Execute one complete simulation tick.
 

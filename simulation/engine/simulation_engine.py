@@ -25,7 +25,7 @@ from simulation.policies.policy_engine import PolicyEngine
 from simulation.metrics.metrics_collector import MetricsCollector
 from simulation.events.event_bus import EventBus
 from simulation.scheduler.tick_scheduler import TickScheduler
-from simulation.engine.mock_ai_router import MockAIRouter
+from models.router.vllm_router import VLLMRouter
 from simulation.engine.tick_loop import run_tick
 
 
@@ -69,10 +69,10 @@ class SimulationEngine(ISimulationEngine):
         
         # Runtime state (initialized by start())
         self._rng: Optional[DeterministicRNG] = None
-        self._ai_router: Optional[MockAIRouter] = None
+        self._ai_router: Optional[VLLMRouter] = None
         self._agents: list[AgentState] = []
     
-    def start(self, ai_router: Optional[MockAIRouter] = None) -> None:
+    def start(self, ai_router: Optional[VLLMRouter] = None) -> None:
         """Initialize the simulation with agents and world state.
         
         Must be called before tick(). Creates the initial population,
@@ -90,7 +90,7 @@ class SimulationEngine(ISimulationEngine):
         )
         self._is_running = True
     
-    def set_ai_router(self, router: MockAIRouter) -> None:
+    def set_ai_router(self, router: VLLMRouter) -> None:
         """Set or replace the AI router for LLM-driven decisions.
         
         Args:
