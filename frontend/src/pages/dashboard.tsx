@@ -1,19 +1,10 @@
-<<<<<<< HEAD
-=======
 import { useState, useEffect, useRef } from 'react';
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 import { useSimulation } from '@/hooks/useSimulation';
 import { useSimulationStore } from '@/store/simulationStore';
 import MetricsPanel from '@/components/dashboard/MetricsPanel';
 import DiagnosticsPanel from '@/components/dashboard/DiagnosticsPanel';
 import SimulationControls from '@/components/dashboard/SimulationControls';
 import EventLog from '@/components/dashboard/EventLog';
-<<<<<<< HEAD
-import styles from './dashboard.module.css';
-
-export default function Dashboard() {
-  const { state, events, isConnected, isRunning, error } = useSimulation();
-=======
 import AgentGrid from '@/components/dashboard/AgentGrid';
 import TimeSeriesChart from '@/components/dashboard/TimeSeriesChart';
 import WealthStratifiedChart from '@/components/dashboard/WealthStratifiedChart';
@@ -22,10 +13,10 @@ import ActionDataSummary from '@/components/dashboard/ActionDataSummary';
 import LLMPanel from '@/components/dashboard/LLMPanel';
 
 export default function Dashboard() {
-  const { state, agents, isConnected, isRunning, advanceTick, refreshAgents } = useSimulation();
+  const { state, agents, isConnected, isRunning, error, advanceTick, refreshAgents } =
+    useSimulation();
   const isAutoRunning = useSimulationStore((s) => s.isAutoRunning);
   const setAutoRun = useSimulationStore((s) => s.setAutoRun);
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
   const tick = state?.tick ?? 0;
   const [showHeatmap, setShowHeatmap] = useState(false);
   const autoRunRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -51,67 +42,86 @@ export default function Dashboard() {
 
   if (!state && !isConnected) {
     return (
-      <div className={styles.loading}>
-        <div className={styles.loadingSpinner} />
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '300px',
+          gap: '1rem',
+        }}
+      >
+        <div
+          style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid #e0e0e0',
+            borderTopColor: '#0070f3',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+          }}
+        />
         <p>Connecting to simulation backend…</p>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
   return (
-<<<<<<< HEAD
-    <div className={styles.dashboard}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>SOCIETAS Dashboard</h1>
-        <div className={styles.statusBar}>
-          <span>
-            <span
-              className={`${styles.statusDot} ${isConnected ? styles.statusConnected : styles.statusDisconnected}`}
-            />
-            {isConnected ? 'Connected' : 'Disconnected'}
-          </span>
-          <span className={styles.tickInfo}>
-            Tick: {tick} | {isRunning ? 'Running' : 'Stopped'}
-          </span>
-        </div>
+    <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
+      <header style={{ marginBottom: '2rem' }}>
+        <h1>SOCIETAS — Agent-Based Simulation</h1>
+        <p>
+          <span
+            style={{
+              display: 'inline-block',
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: isConnected ? '#16a34a' : '#dc2626',
+              marginRight: '6px',
+            }}
+          />
+          Status: <strong>{isConnected ? 'Connected' : 'Disconnected'}</strong>
+          {' | '}Tick: <strong>{tick}</strong>
+          {' | '}Population: <strong>{state?.population ?? 0}</strong>
+          {' | '}
+          {isRunning ? 'Running' : 'Stopped'}
+        </p>
       </header>
 
       {error && (
-        <div className={styles.errorBanner}>
+        <div
+          style={{
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            padding: '1rem',
+            marginBottom: '2rem',
+            color: '#dc2626',
+            fontSize: '0.875rem',
+          }}
+        >
           {error}
         </div>
       )}
 
       {!isConnected && state && (
-        <div className={styles.disconnectedBanner}>
+        <div
+          style={{
+            backgroundColor: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: '8px',
+            padding: '1rem',
+            marginBottom: '2rem',
+            color: '#f59e0b',
+            fontSize: '0.875rem',
+          }}
+        >
           Backend connection lost — showing last known state. Reconnecting…
         </div>
       )}
-
-      <SimulationControls />
-
-      <div className={styles.grid}>
-        <MetricsPanel state={state} />
-        <EventLog events={events} />
-      </div>
-
-      <div className={styles.worldState}>
-        <h2>World State</h2>
-        <pre className={styles.worldStateJson}>
-          {JSON.stringify(state, null, 2)}
-        </pre>
-=======
-    <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-      <header style={{ marginBottom: '2rem' }}>
-        <h1>SOCIETAS — Agent-Based Simulation</h1>
-        <p>
-          Status: <strong style={{ color: isConnected ? '#4caf50' : '#f44336' }}>
-            {isConnected ? 'Connected' : 'Disconnected'}
-          </strong>
-          {' | '}Tick: <strong>{tick}</strong>
-          {' | '}Population: <strong>{state?.population ?? 0}</strong>
-        </p>
-      </header>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <SimulationControls />
@@ -132,7 +142,14 @@ export default function Dashboard() {
       </div>
 
       {/* Top row: Metrics + Diagnostics + TimeSeries (left), EventLog + Wealth (right) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '2rem' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '2rem',
+          marginTop: '2rem',
+        }}
+      >
         <div>
           <MetricsPanel state={state} />
           <div style={{ marginTop: '1rem' }}>
@@ -152,7 +169,14 @@ export default function Dashboard() {
 
       {/* Agent Grid */}
       <div style={{ marginTop: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+            marginBottom: '0.5rem',
+          }}
+        >
           <h2 style={{ margin: 0 }}>Agent Grid — 20×20 World</h2>
           <button
             type="button"
@@ -170,7 +194,13 @@ export default function Dashboard() {
             {showHeatmap ? 'Hide Heatmap' : 'Show Heatmap'}
           </button>
         </div>
-        <AgentGrid agents={agents} gridSize={20} showHeatmap={showHeatmap} isRunning={isRunning} onRefresh={refreshAgents} />
+        <AgentGrid
+          agents={agents}
+          gridSize={20}
+          showHeatmap={showHeatmap}
+          isRunning={isRunning}
+          onRefresh={refreshAgents}
+        />
       </div>
 
       {/* Action Frequency Chart */}
@@ -183,30 +213,62 @@ export default function Dashboard() {
         <ActionDataSummary />
       </div>
 
+      {/* LLM Panel */}
+      <div style={{ marginTop: '2rem' }}>
+        <LLMPanel />
+      </div>
+
       {/* Agent Details */}
       <div style={{ marginTop: '2rem' }}>
         <h2>Agent Details</h2>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           {agents.slice(0, 20).map((a) => (
-            <div key={a.id} style={{
-              padding: '0.5rem',
-              border: '1px solid #eaeaea',
-              borderRadius: '6px',
-              fontSize: '0.8rem',
-              width: '180px',
-              backgroundColor: a.is_alive ? '#f9fff9' : '#fff0f0'
-            }}>
+            <div
+              key={a.id}
+              style={{
+                padding: '0.5rem',
+                border: '1px solid #eaeaea',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                width: '180px',
+                backgroundColor: a.is_alive ? '#f9fff9' : '#fff0f0',
+              }}
+            >
               <strong>{a.persona || `Agent ${a.id}`}</strong>
               <div>Emotion: {a.emotion}</div>
               <div>Job: {a.job_type}</div>
-              <div>Unlust: {typeof a.unlust === 'number' ? a.unlust.toFixed(3) : a.unlust}</div>
+              <div>
+                Unlust:{' '}
+                {typeof a.unlust === 'number'
+                  ? a.unlust.toFixed(3)
+                  : a.unlust}
+              </div>
               <div>Class: {a.wealth_class}</div>
-              <div>Pos: ({a.grid_x}, {a.grid_y})</div>
+              <div>
+                Pos: ({a.grid_x}, {a.grid_y})
+              </div>
               <div>{a.is_alive ? '✅ Alive' : '💀 Dead'}</div>
             </div>
           ))}
         </div>
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
+      </div>
+
+      {/* World State */}
+      <div style={{ marginTop: '2rem' }}>
+        <h2>World State</h2>
+        <pre
+          style={{
+            backgroundColor: '#fff',
+            border: '1px solid #eaeaea',
+            borderRadius: '4px',
+            padding: '1rem',
+            overflow: 'auto',
+            fontSize: '0.875rem',
+            maxHeight: '400px',
+          }}
+        >
+          {JSON.stringify(state, null, 2)}
+        </pre>
       </div>
     </div>
   );

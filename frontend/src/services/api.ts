@@ -133,10 +133,6 @@ export const apiService = {
     return response.data;
   },
 
-<<<<<<< HEAD
-  revokePolicy: async (policyId: string): Promise<PolicyRevokeResponseDTO> => {
-    const response = await apiClient.delete<PolicyRevokeResponseDTO>(
-=======
   applyGovernance: async (params: {
     tax_rate?: number;
     welfare_enabled?: boolean;
@@ -150,9 +146,8 @@ export const apiService = {
     return response.data;
   },
 
-  revokePolicy: async (policyId: string): Promise<PolicyResponseDTO> => {
-    const response = await apiClient.delete<PolicyResponseDTO>(
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
+  revokePolicy: async (policyId: string): Promise<PolicyRevokeResponseDTO> => {
+    const response = await apiClient.delete<PolicyRevokeResponseDTO>(
       `/policies/${policyId}`,
     );
     return response.data;

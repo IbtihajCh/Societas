@@ -5,7 +5,7 @@
  * Mirrors the canonical Python DTOs in shared/dto/* (snake_case, as-is).
  * Source of truth: shared/dto/*.py and shared/types/enums.py — keep in sync.
  *
- * Last synced with: origin/main (commit 07d6be7)
+ * Last synced with: origin/main (commit 3dc8ecb)
  */
 
 // ---------------------------------------------------------------------------
@@ -29,9 +29,18 @@ export enum ActionType {
   SHARE = 'share',
   STEAL = 'steal',
   HARM_OTHER = 'harm_other',
+  FRAUD = 'fraud',
+  TREAT = 'treat',
   PROTEST = 'protest',
+  COUNSEL = 'counsel',
   COMPLAIN = 'complain',
+  CAMPAIGN = 'campaign',
   COMPLY = 'comply',
+  SPREAD_RUMOR = 'spread_rumor',
+  SUPPORT_FAMILY = 'support_family',
+  INVEST = 'invest',
+  BUY_PROPERTY = 'buy_property',
+  HOBBY = 'hobby',
   IDLE = 'idle',
 }
 
@@ -63,6 +72,7 @@ export enum WealthClass {
   POOR = 'poor',
   MIDDLE = 'middle',
   RICH = 'rich',
+  BUSINESS_OWNER = 'business_owner',
 }
 
 export enum Gender {
@@ -109,36 +119,6 @@ export enum PolicyCategory {
   CULTURAL = 'CULTURAL',
 }
 
-<<<<<<< HEAD
-=======
-export enum ActionType {
-  WORK = 'WORK',
-  BUY_FOOD = 'BUY_FOOD',
-  REST = 'REST',
-  SEEK_JOB = 'SEEK_JOB',
-  BEG = 'BEG',
-  BEFRIEND = 'BEFRIEND',
-  CONSOLE = 'CONSOLE',
-  ISOLATE = 'ISOLATE',
-  SHARE = 'SHARE',
-  STEAL = 'STEAL',
-  HARM_OTHER = 'HARM_OTHER',
-  PROTEST = 'PROTEST',
-  COMPLAIN = 'COMPLAIN',
-  COMPLY = 'COMPLY',
-  IDLE = 'IDLE',
-  SUPPORT_FAMILY = 'SUPPORT_FAMILY',
-  TREAT = 'TREAT',
-  COUNSEL = 'COUNSEL',
-  BUY_PROPERTY = 'BUY_PROPERTY',
-  SPREAD_RUMOR = 'SPREAD_RUMOR',
-  FRAUD = 'FRAUD',
-  INVEST = 'INVEST',
-  CAMPAIGN = 'CAMPAIGN',
-  HOBBY = 'HOBBY',
-}
-
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 export enum EmploymentStatus {
   EMPLOYED = 'EMPLOYED',
   UNEMPLOYED = 'UNEMPLOYED',
@@ -147,16 +127,6 @@ export enum EmploymentStatus {
   UNABLE_TO_WORK = 'UNABLE_TO_WORK',
 }
 
-<<<<<<< HEAD
-=======
-export enum WealthClass {
-  POOR = 'POOR',
-  MIDDLE = 'MIDDLE',
-  RICH = 'RICH',
-  BUSINESS_OWNER = 'BUSINESS_OWNER',
-}
-
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 // ---------------------------------------------------------------------------
 // Simulation DTOs (mirror shared/dto/simulation_dto.py)
 // ---------------------------------------------------------------------------
@@ -199,7 +169,14 @@ export interface SimulationStateResponseDTO {
   state_hash: string;
   action_counts?: Record<string, number>;
   wealth_stratified?: { poor: number; middle: number; rich: number };
-  llm_log?: Array<{ tick: number; agent_id: string; model_type: string; action: string; reason: string; feeling: string }>;
+  llm_log?: Array<{
+    tick: number;
+    agent_id: string;
+    model_type: string;
+    action: string;
+    reason: string;
+    feeling: string;
+  }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -378,3 +355,15 @@ export interface AgentActedMessage {
 }
 
 export type WebSocketMessage = TickCompletedMessage | AgentActedMessage;
+
+// ---------------------------------------------------------------------------
+// Simulation events (mirror shared/events/simulation_events.py)
+// Used by the Zustand store for event logging.
+// ---------------------------------------------------------------------------
+
+export interface SimulationEvent {
+  id: string;
+  tick: number;
+  event_type: string;
+  data: Record<string, unknown>;
+}
