@@ -25,11 +25,7 @@ from simulation.policies.policy_engine import PolicyEngine
 from simulation.metrics.metrics_collector import MetricsCollector
 from simulation.events.event_bus import EventBus
 from simulation.scheduler.tick_scheduler import TickScheduler
-<<<<<<< HEAD
-from models.router.vllm_router import VLLMRouter
-=======
 from shared.interfaces.i_ai_router import IAIRouter
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 from simulation.engine.tick_loop import run_tick
 from simulation.engine.save_load_manager import save_simulation, load_simulation
 
@@ -74,20 +70,12 @@ class SimulationEngine(ISimulationEngine):
         
         # Runtime state (initialized by start())
         self._rng: Optional[DeterministicRNG] = None
-<<<<<<< HEAD
-        self._ai_router: Optional[VLLMRouter] = None
-=======
         self._ai_router: Optional[IAIRouter] = None
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
         self._agents: list[AgentState] = []
         self._speed_multiplier: float = 1.0
         self._speed: float = 1.0
     
-<<<<<<< HEAD
-    def start(self, ai_router: Optional[VLLMRouter] = None) -> None:
-=======
     def start(self, ai_router: Optional[IAIRouter] = None) -> None:
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
         """Initialize the simulation with agents and world state.
         
         Must be called before tick(). Creates the initial population,
@@ -108,11 +96,7 @@ class SimulationEngine(ISimulationEngine):
             assign_initial_housing(agent)
         self._is_running = True
     
-<<<<<<< HEAD
-    def set_ai_router(self, router: VLLMRouter) -> None:
-=======
     def set_ai_router(self, router: IAIRouter) -> None:
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
         """Set or replace the AI router for LLM-driven decisions.
         
         Args:

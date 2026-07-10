@@ -65,12 +65,9 @@ class SimulationState:
     tax_rate: float = 0.15
     welfare_enabled: bool = False
     welfare_amount: float = 8.0
-<<<<<<< HEAD
     national_debt: float = 0.0
     remittance_income: float = 0.08
     energy_price: float = 0.60
-=======
     job_demand: Dict[str, int] = field(default_factory=dict)
     job_salary_multipliers: Dict[str, float] = field(default_factory=dict)
     active_env_events: List[dict] = field(default_factory=list)
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)

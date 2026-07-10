@@ -33,15 +33,6 @@ from simulation.agents.action_executor import (
     execute_action,
     move_agent,
 )
-<<<<<<< HEAD
-from simulation.world.economy import apply_debt_interest, process_economy_tick
-from simulation.world.metrics_calculator import (
-    update_world_metrics,
-    compute_state_hash,
-)
-from simulation.policies.policy_effects import apply_all_policies
-from models.router.vllm_router import VLLMRouter
-=======
 from simulation.agents.community_system import (
     community_effects,
     update_communities,
@@ -108,7 +99,7 @@ from simulation.events.riot_events import (
     trigger_riot,
 )
 from simulation.policies.policy_effects import apply_all_policies
-from simulation.world.economy import process_economy_tick
+from simulation.world.economy import process_economy_tick, apply_debt_interest
 from simulation.world.property_market import assign_initial_housing, update_property_market
 from simulation.world.environmental_events import (
     apply_environmental_tick,
@@ -118,7 +109,6 @@ from simulation.world.metrics_calculator import (
     compute_state_hash,
     update_world_metrics,
 )
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 
 __all__ = ["run_tick"]
 
@@ -129,11 +119,7 @@ def run_tick(
     world: SimulationState,
     rng: DeterministicRNG,
     policies: list[GovernmentPolicy] | None = None,
-<<<<<<< HEAD
-    ai_router: VLLMRouter | None = None,
-=======
     ai_router: IAIRouter | None = None,
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 ) -> TickResult:
     """Execute one complete simulation tick.
 
@@ -189,11 +175,6 @@ def run_tick(
         decay_needs(agent, world, rng)
         environmental_effects_on_agents(agent, world, rng)
 
-<<<<<<< HEAD
-    # Step 4: Apply welfare + rent + debt interest
-    process_economy_tick(living_agents, world)
-    apply_debt_interest(living_agents, world)
-=======
     # Step 3a: Update insomnia for all living agents
     for agent in living_agents:
         update_insomnia(agent, world)
@@ -203,19 +184,19 @@ def run_tick(
         world, tick_number, rng, world.active_env_events,
     )
     world.active_env_events = remaining_events
-    # Track new env events in the result's events_generated.
     env_event_ids: list[str] = [
         f"env_event:{e['type']}@tick={tick_number}"
         for e in new_env_events
     ]
 
-    # 2.6 Marriage formation for eligible adults (after age progression, before emotions)
+    # 2.6 Marriage formation for eligible adults
     marriage_count = try_form_marriages(living_agents, rng, world)
     if marriage_count > 0:
         env_event_ids.append(f"marriage:tick={tick_number},count={marriage_count}")
 
-    # Step 4: Apply welfare + rent (includes labor market dynamics)
+    # Step 4: Apply welfare + rent + debt interest (includes labor market dynamics)
     process_economy_tick(living_agents, world, rng)
+    apply_debt_interest(living_agents, world)
 
     # Step 4b: Property market
     property_changes = update_property_market(world, living_agents, rng)
@@ -223,7 +204,6 @@ def run_tick(
         env_event_ids.append(f"evictions:{property_changes['evictions']}")
     if property_changes.get("upgrades", 0) > 0:
         env_event_ids.append(f"property_upgrades:{property_changes['upgrades']}")
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 
     # Step 5: Update emotions
     for agent in living_agents:
@@ -298,7 +278,6 @@ def run_tick(
         normal_agents: list[AgentState] = []
         dilemma_agents: list[AgentState] = []
 
-<<<<<<< HEAD
         for idx, agent in enumerate(living_agents):
             maybe_lose_job(agent, rng, world)
             if not should_evaluate_this_tick(agent, tick_number):
@@ -306,38 +285,11 @@ def run_tick(
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
                     action_results.append(result)
                 continue
-=======
-        if not should_evaluate_this_tick(agent, tick_number):
-            # Continue last action
-            if agent.last_action != ActionType.IDLE:
-                result = execute_action(
-                    agent, agent.last_action, world, living_agents, rng, tick_number
-                )
-                action_results.append(result)
-            continue
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 
             nearby_counts = compute_nearby_counts(agent, living_agents)
             if is_moral_dilemma(agent, world):
                 ambiguity_count += 1
                 prompt = build_moral_dilemma_prompt(agent, world, nearby_counts)
-<<<<<<< HEAD
-                dilemma_prompts.append((idx, prompt))
-                dilemma_agents.append(agent)
-            else:
-                prompt = build_agent_prompt(agent, world, nearby_counts)
-                normal_prompts.append((idx, prompt))
-                normal_agents.append(agent)
-=======
-                response = ai_router.moral_reasoning(prompt, agent, world)
-                llm_call_count += 1
-                model_type = "moral_reasoning"
-            else:
-                prompt = build_agent_prompt(agent, world, nearby_counts)
-                response = ai_router.agent_decide(prompt, agent, world)
-                llm_call_count += 1
-                model_type = "agent_decide"
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 
         # Batch call: normal decisions → E2B
         normal_responses: list[str] = []
@@ -445,16 +397,6 @@ def run_tick(
                 ambiguity_count += 1
             action = deterministic_fallback(agent, world, rng)
             metadata = {"source": "deterministic_fallback", "reasoning": "No AI router"}
-<<<<<<< HEAD
-            result = execute_action(agent, action, world, living_agents, rng)
-            result.metadata = metadata
-            action_results.append(result)
-=======
-
-        result = execute_action(agent, action, world, living_agents, rng, tick_number)
-        result.metadata = metadata
-        action_results.append(result)
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 
     action_counts_result = Counter()
     for agent in living_agents:

@@ -13,12 +13,9 @@ from shared.constants.defaults import (
     AGE_MORTALITY_ELDERLY,
     AGE_PROGRESSION_INTERVAL,
     DESPAIR_MORTALITY_RATE,
-<<<<<<< HEAD
     ECONOMIC_HARDSHIP_DEATH_RATE,
-=======
     ENV_NEED_DECAY_FOOD_MULTIPLIER,
     ENV_NEED_DECAY_WATER_MULTIPLIER,
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
     FAMILY_DECAY_RATE,
     FOOD_DEATH_THRESHOLD,
     FOOD_DECAY_RATE,
@@ -164,9 +161,6 @@ def decay_needs(
     agent.resources.wealth = agent.resources.money
 
 
-<<<<<<< HEAD
-def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState | None = None) -> bool:
-=======
 def progress_age(agent: AgentState) -> None:
     """Advance the agent's age by one tick and update the age bracket.
 
@@ -177,8 +171,7 @@ def progress_age(agent: AgentState) -> None:
     agent.age_bracket = get_age_bracket(agent.age)
 
 
-def check_death(agent: AgentState, rng: DeterministicRNG) -> bool:
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
+def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState | None = None) -> bool:
     """Check whether the agent meets any death condition this tick.
 
     Death conditions:
@@ -186,23 +179,16 @@ def check_death(agent: AgentState, rng: DeterministicRNG) -> bool:
     - Water <= ``WATER_DEATH_THRESHOLD`` (dehydration).
     - Health <= ``HEALTH_DEATH_THRESHOLD`` (health failure).
     - Primary emotion is DESPAIR with a per-tick mortality roll.
-<<<<<<< HEAD
-    - Economic hardship: unemployed + low money + high inflation (per-tick roll).
-
-    Args:
-        agent: The agent to evaluate.
-        rng: Deterministic RNG for probability rolls.
-        world: Current world state (for inflation check).
-=======
     - Elderly agents face ``AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY`` per-tick
       mortality.
+    - Economic hardship: unemployed + low money + high inflation (per-tick roll).
 
     On death, sets ``agent.cause_of_death`` to the reason.
 
     Args:
         agent: The agent to evaluate (modified in place on death).
         rng: Deterministic RNG for the despair and age mortality rolls.
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
+        world: Current world state (for inflation check).
 
     Returns:
         True if the agent should die this tick, False otherwise.

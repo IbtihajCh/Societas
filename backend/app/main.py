@@ -13,11 +13,7 @@ from fastapi.responses import JSONResponse
 from backend.app.config import get_settings
 from backend.app.database.connection import close_db, init_db
 from backend.app.middleware.logging import LoggingMiddleware
-<<<<<<< HEAD
-from backend.app.routers import agents, health, metrics, policies, simulation, ai, ai_historian
-=======
-from backend.app.routers import agents, governance, health, metrics, policies, save, simulation
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
+from backend.app.routers import agents, ai, ai_historian, governance, health, metrics, policies, save, simulation
 from backend.app.websocket.manager import WebSocketManager, ws_manager
 
 logger = logging.getLogger("societas.api")
@@ -60,13 +56,10 @@ def create_app() -> FastAPI:
     app.include_router(policies.router, prefix="/api/v1/policies", tags=["policies"])
     app.include_router(metrics.router, prefix="/api/v1/metrics", tags=["metrics"])
     app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
-<<<<<<< HEAD
     app.include_router(ai.router, prefix="/api/v1/ai", tags=["ai"])
     app.include_router(ai_historian.router, prefix="/api/v1/ai", tags=["ai"])
-=======
     app.include_router(governance.router, prefix="/api/v1/governance", tags=["governance"])
     app.include_router(save.router, prefix="/api/v1/saves", tags=["saves"])
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):

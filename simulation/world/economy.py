@@ -2,16 +2,10 @@
 
 from typing import Optional
 
-from shared.constants.defaults import DEFAULT_WELFARE_AMOUNT
+from shared.constants.defaults import DEFAULT_WELFARE_AMOUNT, DEBT_INTEREST_RATE
 from shared.constants.simulation_constants import RENT_COST, SALARY_RANGES
 from shared.schemas.agent_state import AgentState
 from shared.schemas.simulation_state import SimulationState
-<<<<<<< HEAD
-from shared.constants.defaults import DEFAULT_WELFARE_AMOUNT, DEBT_INTEREST_RATE
-from shared.constants.simulation_constants import RENT_COST
-
-__all__ = ["apply_rent", "apply_welfare", "apply_debt_interest", "process_economy_tick"]
-=======
 from shared.types.enums import EmploymentStatus, JobType, WealthClass
 from shared.utilities.deterministic_rng import DeterministicRNG
 from simulation.world.labor_market import (
@@ -21,8 +15,7 @@ from simulation.world.labor_market import (
     update_unemployment_rate,
 )
 
-__all__ = ["apply_rent", "apply_welfare", "apply_tax", "process_economy_tick"]
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
+__all__ = ["apply_rent", "apply_welfare", "apply_tax", "apply_debt_interest", "process_economy_tick"]
 
 
 def apply_rent(agent: AgentState) -> float:

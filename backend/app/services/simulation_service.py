@@ -18,7 +18,6 @@ from models.router.vllm_config import VLLMConfig
 from models.router.vllm_router import VLLMRouter
 from simulation.engine.config import SimulationConfig
 from simulation.engine.simulation_engine import SimulationEngine
-from simulation.engine.vllm_router import VLLMRouter
 
 _service_instance: "SimulationService | None" = None
 
@@ -65,14 +64,10 @@ class SimulationService:
             api_key_dense_31b=os.getenv("API_KEY_DENSE_31B", ""),
         )
         router = VLLMRouter(vllm_config)
-        self._historian = AIHistorianService(router)
+        ai_router = router if request.enable_ai else None
+        self._historian = AIHistorianService(router) if request.enable_ai else None
         self._engine = SimulationEngine(config=config)
-<<<<<<< HEAD
-        self._engine.start(ai_router=router)
-=======
-        ai_router = VLLMRouter() if request.enable_ai else None
         self._engine.start(ai_router=ai_router)
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
         return await self.get_status()
 
     async def stop_simulation(self) -> SimulationStatusDTO:
@@ -121,14 +116,10 @@ class SimulationService:
                     "action": str(action_result.action),
                 })
 
-<<<<<<< HEAD
         if self._historian is not None:
             self._historian.accumulate(state, result.tick)
 
-        return self._state_to_dto(state)
-=======
         return dto
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
 
     async def get_state(self) -> SimulationStateResponseDTO:
         if self._engine is None:
