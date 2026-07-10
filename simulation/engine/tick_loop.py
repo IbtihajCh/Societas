@@ -103,66 +103,132 @@ def run_tick(
     llm_call_count = 0
     ambiguity_count = 0
 
-    for agent in living_agents:
-        # Probabilistic job loss before action selection
-        maybe_lose_job(agent, rng)
+    if ai_router and ai_router.is_available():
+        # Pass 1: Collect prompts for all evaluating agents
+        normal_prompts: list[tuple[int, str]] = []
+        dilemma_prompts: list[tuple[int, str]] = []
+        normal_agents: list[AgentState] = []
+        dilemma_agents: list[AgentState] = []
 
-        if not should_evaluate_this_tick(agent, tick_number):
-            # Continue last action
-            if agent.last_action != ActionType.IDLE:
-                result = execute_action(
-                    agent, agent.last_action, world, living_agents, rng
-                )
-                action_results.append(result)
-            continue
+        for idx, agent in enumerate(living_agents):
+            maybe_lose_job(agent, rng)
+            if not should_evaluate_this_tick(agent, tick_number):
+                if agent.last_action != ActionType.IDLE:
+                    result = execute_action(agent, agent.last_action, world, living_agents, rng)
+                    action_results.append(result)
+                continue
 
-        nearby_counts = compute_nearby_counts(agent, living_agents)
-
-        # Determine action
-        action: ActionType
-        metadata: dict[str, Any] = {}
-
-        if ai_router and ai_router.is_available():
-            # Check for moral dilemma
+            nearby_counts = compute_nearby_counts(agent, living_agents)
             if is_moral_dilemma(agent, world):
                 ambiguity_count += 1
                 prompt = build_moral_dilemma_prompt(agent, world, nearby_counts)
-                response = ai_router.moral_reasoning(prompt, agent, world)
-                llm_call_count += 1
+                dilemma_prompts.append((idx, prompt))
+                dilemma_agents.append(agent)
             else:
                 prompt = build_agent_prompt(agent, world, nearby_counts)
-                response = ai_router.agent_decide(prompt, agent, world)
-                llm_call_count += 1
+                normal_prompts.append((idx, prompt))
+                normal_agents.append(agent)
 
+        # Batch call: normal decisions → E2B
+        normal_responses: list[str] = []
+        if normal_prompts:
+            normal_responses = ai_router.agent_decide_batch(
+                [p for _, p in normal_prompts],
+                normal_agents,
+                world,
+            )
+            llm_call_count += len(normal_prompts)
+
+        # Batch call: moral dilemmas → 26B A4B
+        dilemma_responses: list[str] = []
+        if dilemma_prompts:
+            dilemma_responses = ai_router.moral_reasoning_batch(
+                [p for _, p in dilemma_prompts],
+                dilemma_agents,
+                world,
+            )
+            llm_call_count += len(dilemma_prompts)
+
+        # Pass 2: Execute actions from batched results
+        action_results = [None] * len(living_agents)
+
+        for (idx, _), response in zip(normal_prompts, normal_responses):
+            agent = living_agents[idx]
             parsed = parse_llm_response(response)
             if parsed:
                 validated = validate_action(agent, parsed.get("action", ""), world)
                 if validated:
                     action = validated
                     metadata = {
-                        "source": "mock_ai_router",
+                        "source": "vllm_router",
                         "reasoning": parsed.get("reason", ""),
                         "feeling": parsed.get("feeling", ""),
                     }
                 else:
                     action = deterministic_fallback(agent, world, rng)
-                    metadata = {
-                        "source": "deterministic_fallback",
-                        "reasoning": "Invalid LLM action",
-                    }
+                    metadata = {"source": "deterministic_fallback", "reasoning": "Invalid LLM action"}
             else:
                 action = deterministic_fallback(agent, world, rng)
-                metadata = {
-                    "source": "deterministic_fallback",
-                    "reasoning": "Unparseable LLM response",
-                }
-        else:
+                metadata = {"source": "deterministic_fallback", "reasoning": "Unparseable LLM response"}
+            result = execute_action(agent, action, world, living_agents, rng)
+            result.metadata = metadata
+            action_results[idx] = result
+
+        for (idx, _), response in zip(dilemma_prompts, dilemma_responses):
+            agent = living_agents[idx]
+            parsed = parse_llm_response(response)
+            if parsed:
+                validated = validate_action(agent, parsed.get("action", ""), world)
+                if validated:
+                    action = validated
+                    metadata = {
+                        "source": "vllm_router",
+                        "reasoning": parsed.get("reason", ""),
+                        "feeling": parsed.get("feeling", ""),
+                    }
+                else:
+                    action = deterministic_fallback(agent, world, rng)
+                    metadata = {"source": "deterministic_fallback", "reasoning": "Invalid LLM action"}
+            else:
+                action = deterministic_fallback(agent, world, rng)
+                metadata = {"source": "deterministic_fallback", "reasoning": "Unparseable LLM response"}
+            result = execute_action(agent, action, world, living_agents, rng)
+            result.metadata = metadata
+            action_results[idx] = result
+
+        # Fill in skipped agents (non-evaluating)
+        for idx, agent in enumerate(living_agents):
+            if action_results[idx] is not None:
+                continue
+            maybe_lose_job(agent, rng)
+            if not should_evaluate_this_tick(agent, tick_number):
+                if agent.last_action != ActionType.IDLE:
+                    result = execute_action(agent, agent.last_action, world, living_agents, rng)
+                    action_results[idx] = result
+            else:
+                if agent.last_action != ActionType.IDLE:
+                    result = execute_action(agent, agent.last_action, world, living_agents, rng)
+                    action_results[idx] = result
+
+        action_results = [r for r in action_results if r is not None]
+
+    else:
+        # No AI router — deterministic fallback for all agents
+        for idx, agent in enumerate(living_agents):
+            maybe_lose_job(agent, rng)
+            if not should_evaluate_this_tick(agent, tick_number):
+                if agent.last_action != ActionType.IDLE:
+                    result = execute_action(agent, agent.last_action, world, living_agents, rng)
+                    action_results.append(result)
+                continue
+            nearby_counts = compute_nearby_counts(agent, living_agents)
+            if is_moral_dilemma(agent, world):
+                ambiguity_count += 1
             action = deterministic_fallback(agent, world, rng)
             metadata = {"source": "deterministic_fallback", "reasoning": "No AI router"}
-
-        result = execute_action(agent, action, world, living_agents, rng)
-        result.metadata = metadata
-        action_results.append(result)
+            result = execute_action(agent, action, world, living_agents, rng)
+            result.metadata = metadata
+            action_results.append(result)
 
     # Step 7: Movement
     for agent in living_agents:
