@@ -1,7 +1,7 @@
 # AI System Progress Report
 
 **Date:** 2026-07-10
-**Branch:** `main` (10 commits on top of `07d6be7`)
+**Branch:** `main` (12 commits on top of `07d6be7`)
 **Plan:** `docs/superpowers/plans/2026-07-10-vllmrouter-integration.md`
 **Context:** Swapping `MockAIRouter` duck-type contract for a real `VLLMRouter` connecting to the MI300X server's 3-tier Gemma 4 deployment, then batch-optimizing the tick loop for the 5-minute demo.
 
@@ -83,7 +83,13 @@ The action selection loop was refactored from per-agent sequential LLM calls to 
 
 Both `__init__.py` files were importing `from backend.app.main import app`, creating a circular import when running `python -m backend.app.main`. Removed both imports. Server runs via `uvicorn backend.app.main:app`.
 
-### 9. Configuration
+### 9. Post-Build Fixes
+- **`ai.py`** — `get_ai_router()` was passing empty API key strings, overriding `.env` vars. Now creates `VLLMConfig()` with no overrides.
+- **`test_tie_breaker.py`** — used `ActionType.SOCIALIZE` which doesn't exist in the enum. Changed to `BEFRIEND`.
+- **`docker/docker-compose.yml`** — env vars updated from old `VLLM_HOST/PORT/API_KEY` to `VLLM_BASE_URL` + 3 `API_KEY_*` vars.
+- **`start.bat` / `start.sh`** — quick-start scripts at project root.
+
+### 10. Configuration
 - **`.env`** created with 3 AMD Developer Console API keys
 - **`docker/.env.example`** updated for Gemma 4 / VLLMRouter setup
 
@@ -121,7 +127,7 @@ The 1 failure (`test_engine_tick_returns_metrics` → `duration_ms=0.0`) is a pr
 
 ## Next Steps
 
-1. **Add API keys to deployment environment** (or `.env` already has them for local dev)
-2. **Test connectivity** to `http://165.245.130.202:8000/v1` with the API keys
-3. **Docker-compose deployment** for demo — services connect to the external MI300X server
-4. **Observe batched performance** — tick loop should handle 80+ agents with 1-2 LLM calls per tick instead of 80+
+1. **Add API keys to `.env`** — fill in the 3 AMD Developer Console API keys
+2. **Test connectivity** — verify `http://165.245.130.202:8000/v1` responds
+3. **Docker-compose deploy** — `docker compose -f docker/docker-compose.yml up -d`
+4. **Observe batched performance** — tick loop handles 80+ agents with 1-2 LLM calls per tick
