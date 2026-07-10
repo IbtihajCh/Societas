@@ -232,3 +232,104 @@ Frontend WS types updated to use `"type"` discriminator with simplified payloads
    `POST /api/v1/translate-policy`, `/tie-break`, `/generate-news`,
    `/generate-persona`, `/generate-narration`. Relevant for PR 2+ features
    (news feed, policy translation, agent stories).
+
+---
+
+# Update 2: Rebase onto main with integration + SimulationContext wiring
+
+**Date:** July 10, 2026
+**Branch:** `Frontend` (rebased onto `origin/main`, force-pushed)
+**Status:** Complete ✅
+
+---
+
+## Context
+
+Three new commits landed on `main` since our last sync. The tech lead
+(`IbtihajCh`) pushed integration fixes, **implemented SimulationContext wiring
+(our planned PR2)**, and fixed the Advance Tick button logic. A rebase was
+required to integrate these changes with our lowercase enum fix.
+
+### New commits integrated
+
+| Commit | Description |
+|--------|-------------|
+| `ef9aaf0` | Backend: map all 17 state fields + 35 agent detail fields, add `engine.start()`, fix `agent_results`→`agent_actions`. Docker fixes. Frontend `api.ts` enum sync (UPPERCASE — **conflicts with our lowercase fix**) |
+| `c52a0b2` | Frontend: wire `SimulationContext` to real API calls (start/stop/advanceTick, 30s health polling, initial state fetch). Fix `MetricsPanel` to read from `SimulationStateResponseDTO`. Simplify `dashboard.tsx` |
+| `07d6be7` | Frontend: fix `SimulationControls` Advance Tick button (was inverted). Backend: fix `advance_tick` to check `engine.is_running()` |
+
+---
+
+## Conflict Resolution (3 files)
+
+| File | Conflict | Resolution |
+|------|----------|------------|
+| `src/types/api.ts` | Tech lead used UPPERCASE enum values (`WORK = 'WORK'`); we used lowercase (`WORK = 'work'`) | **Kept our lowercase** — Python `StrEnum` serializes as lowercase, so UPPERCASE would break at runtime. Also updated `TickCompletedMessage` with new backend fields (`duration_ms`, `state_hash`, `ambiguity_count`, `ai_calls`) |
+| `src/contexts/SimulationContext.tsx` | Our version had typed state but still TODO stubs; tech lead's version has real API wiring | **Took tech lead's version** — real `apiService` calls, `useCallback`, 30s health polling, initial state + dashboard data fetch |
+| `src/components/dashboard/MetricsPanel.tsx` | Our version used `metrics` prop; tech lead's uses `state` prop | **Took tech lead's version** — cleaner, passes `state` directly from context |
+
+---
+
+## What we contributed on top of tech lead's work
+
+- **Lowercase enum values** (critical correctness fix — tech lead's UPPERCASE values would fail at runtime)
+- **6 new enums** (`NeedType`, `EmotionType`, `Gender`, `Culture`, `EducationLevel`, `JobType`)
+- **`PolicyRevokeResponseDTO`** + **`AgentHistoryResponseDTO`** types
+- **Expanded WS `TickCompletedMessage`** with `duration_ms`, `state_hash`, `ambiguity_count`, `ai_calls`
+- **Typed `AgentDetail`, `AgentList`, `PolicyList`** components (tech lead didn't touch these)
+- **`api.ts` service fixes** (`revokePolicy` → `PolicyRevokeResponseDTO`, `getAgentHistory` → `AgentHistoryResponseDTO`)
+
+---
+
+## WebSocket Update (revised)
+
+The `tick_completed` broadcast payload was expanded in the latest backend:
+```json
+{
+  "type": "tick_completed",
+  "tick": 5,
+  "duration_ms": 12.3,
+  "population": 1000,
+  "state_hash": "abc123",
+  "ambiguity_count": 3,
+  "ai_calls": 1
+}
+```
+
+Frontend `TickCompletedMessage` type updated to match.
+
+---
+
+## Verification
+
+| Gate | Command | Result |
+|------|---------|--------|
+| Lint | `npm run lint` | ✅ No ESLint warnings or errors |
+| Typecheck | `npm run typecheck` (`tsc --noEmit`) | ✅ Clean |
+| Build | `npm run build` (`next build`) | ✅ Compiled successfully, 6/6 pages generated |
+
+---
+
+## Cross-Team Flags (Updated)
+
+1. ~~WS broadcast not wired~~ **RESOLVED** ✅
+2. ~~`_state_to_dto()` maps only 9/17 fields~~ **RESOLVED** ✅ — tech lead mapped all 17
+3. ~~`_agent_to_detail()` maps only 12/40 fields~~ **RESOLVED** ✅ — tech lead mapped 35 fields
+4. **`contracts/openapi.yaml` still stale** — still needs tech lead action
+5. **New AI endpoints available** — `translate-policy`, `tie-break`, `generate-news`, `generate-persona`, `generate-narration` (for PR 2+)
+6. **Enum casing** — Tech lead's `ef9aaf0` used UPPERCASE enum values; our rebase preserved the correct lowercase values. **Flag for tech lead awareness.**
+
+---
+
+## PR2 Scope Adjustment
+
+Since the tech lead already wired `SimulationContext` to live API calls,
+PR2 scope is now:
+
+- ~~Implement SimulationContext~~ (done by tech lead)
+- **WebSocket client** (`src/services/websocket.ts`) — still needed
+- **WebSocket integration into SimulationContext** — still needed
+- **CSS Modules** foundation — still needed
+- **Loading/error/disconnected states** — still needed
+- **Jest setup + tests** — still needed
+- **Delete orphaned Zustand store** — still needed
