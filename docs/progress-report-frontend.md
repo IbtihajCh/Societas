@@ -333,3 +333,126 @@ PR2 scope is now:
 - **Loading/error/disconnected states** — still needed
 - **Jest setup + tests** — still needed
 - **Delete orphaned Zustand store** — still needed
+
+---
+
+# PR2: Real-Time Data Pipeline
+
+**Date:** July 10, 2026
+**Branch:** `fe/real-time-data-pipeline`
+**Status:** Complete ✅
+
+---
+
+## Objective
+
+Build the real-time data pipeline for the SOCIETAS dashboard: WebSocket client
+with auto-reconnect, SimulationContext integration with live event streaming,
+CSS Modules foundation with design tokens, loading/error/disconnected UX states,
+and Jest test coverage.
+
+---
+
+## Deliverables (16 files)
+
+### WebSocket Client
+
+| File | Description |
+|------|-------------|
+| `src/services/websocket.ts` | **New** — `SimulationWebSocketClient` class: connects to `/ws`, auto-reconnect with exponential backoff (max 10 attempts, 1s→30s delay), `onMessage`/`onStatusChange` callback system, `isTickCompleted`/`isAgentActed` type guards. Uses `NEXT_PUBLIC_WS_URL` env or auto-detects from `window.location`. |
+
+### SimulationContext Integration
+
+| File | Description |
+|------|-------------|
+| `src/contexts/SimulationContext.tsx` | **Updated** — Integrated WS client: connects on mount, handles `tick_completed` (updates state + adds event) and `agent_acted` (adds event). Added `events: SimulationEvent[]` (rolling buffer, max 100), `error: string \| null` state. Actions now set error on failure and emit events on start/stop. Preserved tech lead's REST API wiring (start/stop/advanceTick, 30s health polling, initial state fetch). Exported `SimulationEvent` interface. |
+
+### CSS Modules Foundation
+
+| File | Description |
+|------|-------------|
+| `src/styles/globals.css` | **Updated** — Design tokens via CSS custom properties: color palette (8 colors), spacing scale (5 levels), border radius (3), typography (7 sizes + mono), shadows (3), transitions (2). Button disabled state, responsive media query. |
+| `src/components/dashboard/MetricsPanel.module.css` | **New** — Panel, grid, metric label/value styles. Responsive 1-col on mobile. |
+| `src/components/dashboard/SimulationControls.module.css` | **New** — Panel, button group, 3 button variants (start/stop/advance). |
+| `src/components/dashboard/EventLog.module.css` | **New** — Panel, event list, per-type left-border colors (success/accent/primary/danger). |
+| `src/pages/dashboard.module.css` | **New** — Dashboard layout, header, status dot (connected/disconnected), loading spinner animation, error banner, disconnected banner, world state JSON, responsive grid. |
+
+### Component Conversions (inline styles → CSS Modules)
+
+| File | Change |
+|------|--------|
+| `src/components/dashboard/MetricsPanel.tsx` | Converted to CSS Modules, typed `state` prop |
+| `src/components/dashboard/SimulationControls.tsx` | Converted to CSS Modules |
+| `src/components/dashboard/EventLog.tsx` | Converted to CSS Modules, typed `events` prop as `SimulationEvent[]`, renders type/description/tick per event |
+| `src/pages/dashboard.tsx` | Converted to CSS Modules, added loading state (spinner), error banner, disconnected banner, status dot, events from context, removed unused imports |
+
+### Cleanup
+
+| File | Change |
+|------|--------|
+| `src/store/simulationStore.ts` | **Deleted** — Orphaned Zustand store, unused anywhere |
+| `frontend/package.json` | Removed `zustand` dependency, added `jest-environment-jsdom`, `@types/jest` |
+| `frontend/tsconfig.json` | Added `"types": ["node", "jest"]`, removed stale `@store/*` path alias |
+
+### Tests
+
+| File | Description |
+|------|-------------|
+| `frontend/jest.config.js` | **New** — `next/jest` config, jsdom environment, coverage collection from components/contexts/services/hooks |
+| `frontend/jest.setup.ts` | **New** — `@testing-library/jest-dom` setup |
+| `src/components/dashboard/MetricsPanel.test.tsx` | **New** — 4 tests: renders all labels, formatted values, N/A for null state, N/A for undefined fields |
+| `src/components/dashboard/SimulationControls.test.tsx` | **New** — 6 tests: renders buttons, disabled states for running/stopped, click handlers for all 3 actions |
+| `src/components/dashboard/EventLog.test.tsx` | **New** — 5 tests: empty state, renders all events, descriptions, tick numbers, title |
+| `src/contexts/SimulationContext.test.tsx` | **New** — 5 tests: initial state, start/stop/advance actions, throws outside provider. Mocks `apiService` and `SimulationWebSocketClient`. |
+
+---
+
+## Test Results
+
+**20/20 tests passing** across 4 test suites:
+
+| Test Suite | Tests | Lines Covered |
+|------------|-------|---------------|
+| MetricsPanel | 4 | 100% |
+| SimulationControls | 6 | 82% |
+| EventLog | 5 | 100% |
+| SimulationContext | 5 | 76% |
+
+---
+
+## Verification
+
+| Gate | Command | Result |
+|------|---------|--------|
+| Lint | `npm run lint` | ✅ No ESLint warnings or errors |
+| Typecheck | `npm run typecheck` (`tsc --noEmit`) | ✅ Clean |
+| Build | `npm run build` (`next build`) | ✅ Compiled successfully, 6/6 pages, 1.31 kB CSS extracted |
+| Tests | `npm run test:coverage` | ✅ 20/20 passing, 4 suites |
+
+---
+
+## Key Design Decisions
+
+1. **WebSocket auto-reconnect** — Exponential backoff (1s→30s, max 10 attempts) prevents hammering the backend during outages. `shouldReconnect` flag allows clean shutdown on unmount.
+
+2. **REST polling + WebSocket dual-track** — The tech lead's 30s health polling stays as a connection liveness check. WebSocket handles real-time tick/event updates. If WS drops, REST polling still provides status updates.
+
+3. **Rolling event buffer** — Max 100 events in context, newest first. Prevents memory growth during long simulations while keeping recent history visible.
+
+4. **CSS Modules with design tokens** — All colors, spacing, radii, typography defined as CSS custom properties in `globals.css`. Components consume via `var(--color-*)`. No runtime CSS-in-JS overhead.
+
+5. **Loading state** — Full-page spinner when no state and not connected. Prevents flash of empty dashboard during initial load.
+
+6. **Error state in context** — Actions (`start`/`stop`/`advanceTick`) catch errors and set `error` string. Dashboard shows a red banner. Clearable by next successful action.
+
+---
+
+## Next Steps (PR 3 — Frontend Aesthetics)
+
+- Professional UI polish with animation libraries (framer-motion)
+- Chart components (Recharts) for metrics trends
+- News feed UI (consuming AI `generate-news` endpoint)
+- Policy weights editor + `policy_text` field for LLM translation
+- Agent history timeline view
+- Dark mode support
+- Responsive layout audit

@@ -1,13 +1,10 @@
 import React from 'react';
 import { useSimulation } from '@/hooks/useSimulation';
+import styles from './SimulationControls.module.css';
 
-/**
- * Simulation Controls Component
- * 
- * Provides controls for starting, stopping, and advancing the simulation.
- */
 export default function SimulationControls() {
-  const { startSimulation, stopSimulation, advanceTick, isRunning } = useSimulation();
+  const { startSimulation, stopSimulation, advanceTick, isRunning } =
+    useSimulation();
 
   const handleStart = async () => {
     try {
@@ -34,56 +31,30 @@ export default function SimulationControls() {
   };
 
   return (
-    <div style={{ 
-      padding: '1rem', 
-      border: '1px solid #eaeaea', 
-      borderRadius: '8px',
-      backgroundColor: '#fafafa'
-    }}>
-      <h3>Simulation Controls</h3>
-      
-      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-        <button 
+    <div className={styles.panel}>
+      <h3 className={styles.title}>Simulation Controls</h3>
+
+      <div className={styles.buttonGroup}>
+        <button
           onClick={handleStart}
           disabled={isRunning}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: isRunning ? '#ccc' : '#0070f3',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: isRunning ? 'not-allowed' : 'pointer'
-          }}
+          className={`${styles.button} ${styles.buttonStart}`}
         >
           Start
         </button>
-        
-        <button 
+
+        <button
           onClick={handleStop}
           disabled={!isRunning}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: !isRunning ? '#ccc' : '#f44336',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: !isRunning ? 'not-allowed' : 'pointer'
-          }}
+          className={`${styles.button} ${styles.buttonStop}`}
         >
           Stop
         </button>
-        
-        <button 
+
+        <button
           onClick={handleAdvance}
           disabled={!isRunning}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: !isRunning ? '#ccc' : '#4caf50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: !isRunning ? 'not-allowed' : 'pointer'
-          }}
+          className={`${styles.button} ${styles.buttonAdvance}`}
         >
           Advance Tick
         </button>
