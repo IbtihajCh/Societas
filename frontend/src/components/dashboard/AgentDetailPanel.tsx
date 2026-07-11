@@ -15,17 +15,20 @@ interface AgentDetailPanelProps {
   onClose: () => void;
 }
 
-const ACCENT = '#7c3aed';
-const ACCENT_SOFT = 'rgba(124, 58, 237, 0.18)';
-const MUTED = '#a0a0b0';
-const BORDER = 'rgba(255, 255, 255, 0.08)';
+const INK = 'var(--ink)';
+const INK_SOFT = 'var(--ink-soft)';
+const PARCHMENT_2 = 'var(--parchment-2)';
+const OXBLOOD = 'var(--oxblood)';
+const MOSS = 'var(--moss)';
+const SLATE = 'var(--slate)';
+const OCHRE = 'var(--ochre)';
 
 const EMOTION_COLORS: Record<string, string> = {
-  happy: '#4ade80',
-  normal: '#9ca3af',
-  sad: '#60a5fa',
-  angry: '#f87171',
-  despair: '#c084fc',
+  happy: MOSS,
+  normal: INK_SOFT,
+  sad: SLATE,
+  angry: OXBLOOD,
+  despair: OCHRE,
 };
 
 const emotionEmoji: Record<string, string> = {
@@ -72,7 +75,7 @@ function formatNumber(value: number | undefined): string {
   return value.toFixed(2);
 }
 
-function renderBar(value: number, color = ACCENT) {
+function renderBar(value: number, color = OXBLOOD) {
   const pct = Math.max(0, Math.min(1, value)) * 100;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -80,7 +83,7 @@ function renderBar(value: number, color = ACCENT) {
         style={{
           flex: 1,
           height: 8,
-          backgroundColor: 'rgba(255,255,255,0.08)',
+          backgroundColor: PARCHMENT_2,
           borderRadius: 4,
           overflow: 'hidden',
         }}
@@ -95,7 +98,7 @@ function renderBar(value: number, color = ACCENT) {
           }}
         />
       </div>
-      <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 42, textAlign: 'right' }}>
+      <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 42, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
         {value.toFixed(2)}
       </span>
     </div>
@@ -104,15 +107,16 @@ function renderBar(value: number, color = ACCENT) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ borderTop: `1px solid ${BORDER}`, padding: '1.25rem 0' }}>
+    <div style={{ borderTop: `1px solid var(--rule-strong)`, padding: '1.25rem 0' }}>
       <h3
         style={{
           margin: '0 0 0.75rem 0',
-          fontSize: '0.75rem',
+          fontSize: '0.7rem',
           textTransform: 'uppercase',
           letterSpacing: '0.12em',
-          color: MUTED,
+          color: INK_SOFT,
           fontWeight: 600,
+          fontFamily: 'var(--font-mono)',
         }}
       >
         {title}
@@ -146,15 +150,26 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
 
   if (!agent) {
     return (
-      <div style={{ position: 'fixed', right: 0, top: 0, bottom: 0, width: '380px', zIndex: 1001, background: 'var(--parchment)', borderLeft: '1px solid var(--rule-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{loading ? 'Loading...' : 'Agent not found'}</p>
-      </div>
+      <>
+        <div className={`agent-panel-overlay ${mounted ? 'open' : ''}`} onClick={onClose} />
+        <div className={`agent-panel ${mounted ? 'open' : ''}`} role="dialog" aria-modal="true">
+          <div className="agent-panel-header">
+            <div className="agent-panel-title">Citizen record</div>
+            <button className="agent-panel-close" onClick={onClose} aria-label="Close citizen record">×</button>
+          </div>
+          <div className="agent-panel-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <p style={{ color: INK_SOFT, fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
+              {loading ? 'Loading record…' : 'Citizen not found'}
+            </p>
+          </div>
+        </div>
+      </>
     );
   }
 
   const emotionKey = agent.emotion?.toLowerCase() || 'normal';
   const emotionColor = EMOTION_COLORS[emotionKey] || EMOTION_COLORS.normal;
-  const emoji = emotionEmoji[emotionKey] || '😐';
+  const emoji = emotionEmoji[emotionKey] || '○';
 
   const radarData = needLabels.map(({ key, label }) => ({
     subject: label,
@@ -163,116 +178,32 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
 
   return (
     <>
-      <style>{`
-        @keyframes agent-panel-fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes agent-panel-slide-in {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-      `}</style>
-
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.45)',
-          zIndex: 1000,
-          opacity: mounted ? 1 : 0,
-          transition: 'opacity 0.3s ease',
-          cursor: 'pointer',
-        }}
-      />
-
-      {/* Panel */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: 380,
-          maxWidth: '100vw',
-          backgroundColor: '#1a1a2e',
-          color: '#e0e0e0',
-          zIndex: 1001,
-          display: 'flex',
-          flexDirection: 'column',
-          transform: mounted ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
-          boxShadow: '-12px 0 40px rgba(0,0,0,0.45)',
-          fontFamily:
-            'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        }}
-      >
+      <div className={`agent-panel-overlay ${mounted ? 'open' : ''}`} onClick={onClose} />
+      <div className={`agent-panel ${mounted ? 'open' : ''}`} role="dialog" aria-modal="true">
         {/* Header */}
-        <div
-          style={{
-            position: 'sticky',
-            top: 0,
-            backgroundColor: '#1a1a2e',
-            borderBottom: `1px solid ${BORDER}`,
-            padding: '1.25rem 1.5rem',
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            zIndex: 2,
-          }}
-        >
+        <div className="agent-panel-header">
           <div>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: '1.35rem',
-                fontWeight: 700,
-                fontFamily: 'Georgia, "Palatino Linotype", "Book Antiqua", serif',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              Agent {agent.id}
-            </h2>
-            <p style={{ margin: '0.25rem 0 0 0', color: MUTED, fontSize: '0.85rem' }}>
+            <h2 className="agent-panel-title">Citizen {agent.id}</h2>
+            <p style={{ margin: '0.25rem 0 0 0', color: INK_SOFT, fontSize: '0.85rem' }}>
               {agent.is_alive ? (
-                <span style={{ color: '#4ade80' }}>● Alive</span>
+                <span style={{ color: MOSS }}>● Alive</span>
               ) : (
-                <span style={{ color: '#f87171' }}>● Deceased</span>
-              )}{' '}
-              · ({agent.grid_x}, {agent.grid_y})
+                <span style={{ color: OXBLOOD }}>● Deceased</span>
+              )}
+              {' '}· ({agent.grid_x}, {agent.grid_y})
             </p>
           </div>
           <button
+            className="agent-panel-close"
             onClick={onClose}
-            aria-label="Close agent details"
-            style={{
-              background: 'rgba(255,255,255,0.08)',
-              border: 'none',
-              color: '#e0e0e0',
-              width: 34,
-              height: 34,
-              borderRadius: '50%',
-              cursor: 'pointer',
-              fontSize: '1.1rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background 0.2s',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+            aria-label="Close citizen record"
           >
             ×
           </button>
         </div>
 
         {/* Scrollable content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 1.5rem 2rem' }}>
+        <div className="agent-panel-body">
           {/* Identity */}
           <div style={{ padding: '1.25rem 0' }}>
             <p
@@ -281,10 +212,11 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
                 fontSize: '1rem',
                 lineHeight: 1.55,
                 fontStyle: 'italic',
-                color: '#f0f0f5',
+                color: INK,
+                fontFamily: 'var(--font-display)',
               }}
             >
-              {agent.persona || `Agent ${agent.id}`}
+              {agent.persona || `Citizen ${agent.id}`}
             </p>
             <div
               style={{
@@ -295,33 +227,27 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
                 fontSize: '0.85rem',
               }}
             >
-              <span style={{ backgroundColor: ACCENT_SOFT, padding: '0.25rem 0.6rem', borderRadius: 99 }}>
-                {agent.wealth_class?.replace(/_/g, ' ')}
-              </span>
-              <span style={{ backgroundColor: ACCENT_SOFT, padding: '0.25rem 0.6rem', borderRadius: 99 }}>
-                {agent.job_type?.replace(/_/g, ' ')}
-              </span>
-              <span style={{ backgroundColor: ACCENT_SOFT, padding: '0.25rem 0.6rem', borderRadius: 99 }}>
-                {agent.employment_status?.replace(/_/g, ' ')}
-              </span>
+              <Pill label={agent.wealth_class?.replace(/_/g, ' ')} />
+              <Pill label={agent.job_type?.replace(/_/g, ' ')} />
+              <Pill label={agent.employment_status?.replace(/_/g, ' ')} />
             </div>
           </div>
 
           {/* Emotion & Unlust */}
           <Section title="Mood">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <span style={{ fontSize: '1.5rem' }}>{emoji}</span>
+              <span style={{ fontSize: '1.25rem' }}>{emoji}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>
                   {agent.emotion}
                 </div>
-                <div style={{ fontSize: '0.8rem', color: MUTED }}>Happiness {agent.happiness_score.toFixed(2)}</div>
+                <div style={{ fontSize: '0.8rem', color: INK_SOFT }}>Happiness {agent.happiness_score.toFixed(2)}</div>
               </div>
               <span style={{ color: emotionColor, fontWeight: 700 }}>{agent.happiness_score.toFixed(2)}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ minWidth: 64, fontSize: '0.85rem', color: MUTED }}>Unlust</span>
-              {renderBar(agent.unlust, '#f59e0b')}
+              <span style={{ minWidth: 64, fontSize: '0.85rem', color: INK_SOFT }}>Unlust</span>
+              {renderBar(agent.unlust, OCHRE)}
             </div>
           </Section>
 
@@ -330,15 +256,15 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
             <div style={{ width: '100%', height: 220, marginBottom: '1rem' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={radarData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
-                  <PolarGrid stroke="rgba(255,255,255,0.12)" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: MUTED, fontSize: 10 }} />
+                  <PolarGrid stroke="var(--rule-strong)" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: INK_SOFT, fontSize: 10 }} />
                   <PolarRadiusAxis angle={90} domain={[0, 1]} tick={false} axisLine={false} />
                   <Radar
                     name="Needs"
                     dataKey="value"
-                    stroke={ACCENT}
-                    fill={ACCENT}
-                    fillOpacity={0.35}
+                    stroke={OXBLOOD}
+                    fill={OXBLOOD}
+                    fillOpacity={0.25}
                   />
                 </RadarChart>
               </ResponsiveContainer>
@@ -346,7 +272,7 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
             <div style={{ display: 'grid', gap: 8 }}>
               {needLabels.map(({ key, label }) => (
                 <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ minWidth: 90, fontSize: '0.8rem', color: '#c0c0d0' }}>{label}</span>
+                  <span style={{ minWidth: 90, fontSize: '0.8rem', color: INK }}>{label}</span>
                   {renderBar(agent.needs[key] ?? 0.5)}
                 </div>
               ))}
@@ -358,8 +284,8 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
             <div style={{ display: 'grid', gap: 8 }}>
               {traitLabels.map(({ key, label }) => (
                 <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ minWidth: 110, fontSize: '0.8rem', color: '#c0c0d0' }}>{label}</span>
-                  {renderBar(agent.traits[key] ?? 0.5, '#06b6d4')}
+                  <span style={{ minWidth: 110, fontSize: '0.8rem', color: INK }}>{label}</span>
+                  {renderBar(agent.traits[key] ?? 0.5, SLATE)}
                 </div>
               ))}
             </div>
@@ -368,10 +294,10 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
           {/* Relationships */}
           <Section title="Relationships">
             <div style={{ display: 'grid', gap: 10 }}>
-              <RelationshipRow icon="💍" label="Spouse" value={agent.spouse || 'None'} />
-              <RelationshipRow icon="👶" label="Children" value={agent.children_ids?.length ?? 0} />
-              <RelationshipRow icon="👥" label="Social connections" value={agent.social_connections} />
-              <RelationshipRow icon="🏘️" label="Community" value={agent.community_id ?? 'None'} />
+              <RelationshipRow icon="⚭" label="Spouse" value={agent.spouse || 'None'} />
+              <RelationshipRow icon="▶" label="Children" value={agent.children_ids?.length ?? 0} />
+              <RelationshipRow icon="◯" label="Social connections" value={agent.social_connections} />
+              <RelationshipRow icon="■" label="Community" value={agent.community_id ?? 'None'} />
             </div>
           </Section>
 
@@ -383,20 +309,20 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
                   <div
                     key={idx}
                     style={{
-                      backgroundColor: 'rgba(255,255,255,0.04)',
-                      borderRadius: 8,
+                      backgroundColor: 'var(--cream)',
+                      borderRadius: 4,
                       padding: '0.65rem 0.8rem',
-                      borderLeft: `3px solid ${ACCENT}`,
+                      borderLeft: `3px solid ${OXBLOOD}`,
                     }}
                   >
-                    <div style={{ fontSize: '0.75rem', color: MUTED, marginBottom: 2 }}>
+                    <div style={{ fontSize: '0.75rem', color: INK_SOFT, marginBottom: 2, fontFamily: 'var(--font-mono)' }}>
                       tick {action.tick}
                     </div>
                     <div style={{ fontWeight: 600, fontSize: '0.9rem', textTransform: 'uppercase' }}>
                       {action.action?.replace(/_/g, ' ')}
                     </div>
                     {action.description && (
-                      <div style={{ fontSize: '0.8rem', color: '#b0b0c0', marginTop: 2 }}>
+                      <div style={{ fontSize: '0.8rem', color: INK_SOFT, marginTop: 2 }}>
                         {action.description}
                       </div>
                     )}
@@ -404,14 +330,14 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
                 ))}
               </div>
             ) : (
-              <p style={{ color: MUTED, fontSize: '0.9rem' }}>No recent actions recorded.</p>
+              <p style={{ color: INK_SOFT, fontSize: '0.9rem' }}>No recent actions recorded.</p>
             )}
           </Section>
 
           {/* Last reasoning */}
           {agent.last_reasoning && (
             <Section title="Last Reasoning">
-              <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5, color: '#c8c8d8', fontStyle: 'italic' }}>
+              <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5, color: INK, fontStyle: 'italic' }}>
                 “{agent.last_reasoning}”
               </p>
             </Section>
@@ -436,6 +362,24 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
   );
 }
 
+function Pill({ label }: { label: string | undefined }) {
+  if (!label) return null;
+  return (
+    <span
+      style={{
+        backgroundColor: 'var(--cream)',
+        border: '1px solid var(--rule)',
+        padding: '0.25rem 0.6rem',
+        borderRadius: 99,
+        fontSize: '0.8rem',
+        textTransform: 'capitalize',
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 function RelationshipRow({
   icon,
   label,
@@ -447,8 +391,8 @@ function RelationshipRow({
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ fontSize: '1.1rem' }}>{icon}</span>
-      <span style={{ color: MUTED, minWidth: 130 }}>{label}</span>
+      <span style={{ fontSize: '1.1rem', color: INK_SOFT, width: 24, textAlign: 'center' }}>{icon}</span>
+      <span style={{ color: INK_SOFT, minWidth: 130 }}>{label}</span>
       <span style={{ fontWeight: 600 }}>{value}</span>
     </div>
   );
@@ -456,8 +400,8 @@ function RelationshipRow({
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div style={{ backgroundColor: 'rgba(255,255,255,0.04)', padding: '0.6rem 0.75rem', borderRadius: 8 }}>
-      <div style={{ fontSize: '0.75rem', color: MUTED, marginBottom: 2 }}>{label}</div>
+    <div style={{ backgroundColor: 'var(--cream)', border: '1px solid var(--rule)', padding: '0.6rem 0.75rem', borderRadius: 4 }}>
+      <div style={{ fontSize: '0.75rem', color: INK_SOFT, marginBottom: 2, fontFamily: 'var(--font-mono)' }}>{label}</div>
       <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{value}</div>
     </div>
   );

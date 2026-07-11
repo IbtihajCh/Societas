@@ -1,7 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useSimulation } from '@/hooks/useSimulation';
 import { useSimulationStore } from '@/store/simulationStore';
+import { MetricsHistoryEntry } from '@/store/simulationStore';
 import { apiService } from '@/services/api';
+import { SimulationStateResponseDTO, AgentSummaryDTO, SimulationEvent, WealthClass } from '@/types/api';
 import AgentGrid from '@/components/dashboard/AgentGrid';
 import AgentDetailPanel from '@/components/dashboard/AgentDetailPanel';
 import ExplainPanel from '@/components/dashboard/ExplainPanel';
@@ -39,6 +41,7 @@ export default function Dashboard() {
   const [setupPop, setSetupPop] = useState(30);
   const [setupSeed, setSetupSeed] = useState(42);
   const [setupAI, setSetupAI] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
 
   const tick = state?.tick ?? 0;
@@ -61,9 +64,9 @@ export default function Dashboard() {
   const prevMetrics = useSimulationStore((s) => s.metricsHistory);
   const prev = prevMetrics.length > 1 ? prevMetrics[prevMetrics.length - 2] : null;
 
-  function delta(cur: number | undefined, key: string) {
+  function delta(cur: number | undefined, key: keyof MetricsHistoryEntry) {
     if (cur === undefined || !prev) return null;
-    const p = (prev as any)[key] as number | undefined;
+    const p = prev[key] as number | undefined;
     if (p === undefined) return null;
     const d = cur - p;
     if (Math.abs(d) < 0.001) return { text: 'steady', cls: 'flat' };
@@ -99,75 +102,69 @@ export default function Dashboard() {
 
   const handleGovernance = async () => {
     try {
-      const r: any = await apiService.applyGovernance({
+      const r: SimulationStateResponseDTO = await apiService.applyGovernance({
         tax_rate: govTax / 100, welfare_enabled: govWelfare > 0, welfare_amount: govWelfare,
         food_availability: Math.min(1, 0.85 + govSubsidy / 100),
       });
-      const c = r?.changes || r;
-      setGovMsg(`Applied: tax=${c.tax_rate ?? '?'}, welfare=${c.welfare_enabled ?? '?'}`);
+      setGovMsg(`Applied: tax=${(r.tax_rate * 100).toFixed(0) ?? '?'}%, welfare=${r.welfare_enabled ? 'enabled' : 'disabled'}`);
       setTimeout(() => setGovMsg(''), 3000);
-    } catch (e: any) {
-      setGovMsg('Failed: ' + (e.message || 'error'));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'error';
+      setGovMsg('Failed: ' + msg);
     }
   };
 
   return (
     <div className="shell">
       {!isConnected && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 999,
-          background: 'var(--cream)', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: '1rem',
-        }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 600, color: 'var(--ink)' }}>
-            Societas
+        <div className="setup-screen" style={{ position: 'fixed', inset: 0, zIndex: 999 }}>
+          <div className="setup-hero">
+            <div className="crest">S</div>
+            <div className="setup-title">Societas</div>
+            <p className="setup-subtitle">Connecting to backend…</p>
           </div>
-          <p style={{ color: 'var(--ink-soft)', fontSize: '13px', fontFamily: 'var(--font-mono)' }}>
-            Connecting to backend...
-          </p>
         </div>
       )}
 
       {isConnected && !state && (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', minHeight: '100vh', gap: '1.5rem',
-          background: 'var(--cream)', padding: '2rem',
-        }}>
-          <div className="crest" style={{ width: '64px', height: '64px', fontSize: '28px' }}>S</div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 600 }}>Societas</div>
-          <p style={{ color: 'var(--ink-soft)', fontSize: '13px', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
-            Agent-based civilisation simulation<br />20×20 toroidal grid
-          </p>
-          <div style={{
-            background: 'var(--parchment)', border: '1px solid var(--rule)',
-            borderRadius: '8px', padding: '1.5rem', width: '320px',
-            display: 'flex', flexDirection: 'column', gap: '1rem',
-          }}>
-            <div className="slider-group">
-              <div className="slider-top"><span>Population</span><span>{setupPop}</span></div>
-              <input type="range" min="5" max="200" value={setupPop} onChange={(e) => setSetupPop(Number(e.target.value))} />
+        <div className="setup-screen">
+          <div className="setup-hero">
+            <div className="crest">S</div>
+            <div>
+              <div className="setup-title">Societas</div>
+              <div className="setup-subtitle">World ledger</div>
             </div>
-            <div className="slider-group">
-              <div className="slider-top"><span>Seed</span><span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{setupSeed}</span></div>
-              <input type="range" min="1" max="999" value={setupSeed} onChange={(e) => setSetupSeed(Number(e.target.value))} />
+            <p className="setup-desc">
+              Agent-based civilisation simulation on a 20×20 toroidal grid.
+              Configure the founding population, seed the world, and start recording entries.
+            </p>
+            <div className="setup-card">
+              <div className="slider-group">
+                <div className="slider-top"><span>Population</span><span>{setupPop}</span></div>
+                <input type="range" min="5" max="200" value={setupPop} onChange={(e) => setSetupPop(Number(e.target.value))} />
+              </div>
+              <div className="slider-group">
+                <div className="slider-top"><span>Seed</span><span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{setupSeed}</span></div>
+                <input type="range" min="1" max="999" value={setupSeed} onChange={(e) => setSetupSeed(Number(e.target.value))} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
+                <span style={{ fontSize: '13px', color: 'var(--ink)' }}>AI-driven agents</span>
+                <label className="toggle">
+                  <input type="checkbox" checked={setupAI} onChange={(e) => setSetupAI(e.target.checked)} />
+                  <span className="slider-track"></span>
+                </label>
+              </div>
+              {setupAI && (
+                <p className="setup-ai-note">
+                  E2B · 26b A4B · 31B attending
+                </p>
+              )}
+              <button className={`btn primary ${starting ? 'loading' : ''}`}
+                style={{ padding: '12px 0', fontSize: '14px', width: '100%' }}
+                onClick={startSim} disabled={starting}>
+                {starting ? 'starting' : 'start simulation'}
+              </button>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
-              <span style={{ fontSize: '13px', color: 'var(--ink)' }}>AI-driven agents</span>
-              <label className="toggle">
-                <input type="checkbox" checked={setupAI} onChange={(e) => setSetupAI(e.target.checked)} />
-                <span className="slider-track"></span>
-              </label>
-            </div>
-            {setupAI && (
-              <p style={{ fontSize: '11px', color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', margin: 0 }}>
-                E2B · 26b A4B · 31B attending
-              </p>
-            )}
-            <button className="btn primary" style={{ padding: '12px 0', fontSize: '14px', width: '100%' }}
-              onClick={startSim} disabled={starting}>
-              {starting ? 'starting\u2026' : 'start simulation'}
-            </button>
           </div>
         </div>
       )}
@@ -212,6 +209,32 @@ export default function Dashboard() {
             </div>
           </aside>
 
+          <nav className="mobile-nav">
+            <div className="mobile-brand">
+              <div className="crest">S</div>
+              <div className="brand-name">Societas</div>
+              <button
+                className="mobile-menu-toggle"
+                aria-label="Toggle navigation"
+                aria-expanded={mobileMenuOpen}
+                onClick={() => setMobileMenuOpen((v) => !v)}
+              >
+                {mobileMenuOpen ? '×' : '☰'}
+              </button>
+            </div>
+            <div className={`mobile-menu ${mobileMenuOpen ? 'open' : ''}`}>
+              {NAV_ITEMS.map((item) => (
+                <div
+                  key={item}
+                  className={`nav-item ${nav === item ? 'active' : ''}`}
+                  onClick={() => { setNav(item); setMobileMenuOpen(false); }}
+                >
+                  {item.charAt(0).toUpperCase() + item.slice(1)}
+                </div>
+              ))}
+            </div>
+          </nav>
+
           <main className="main">
             <div className="masthead">
               <div>
@@ -227,8 +250,8 @@ export default function Dashboard() {
                 </span>
                 <button className="btn quiet" onClick={() => apiService.resetSimulation()}>reset</button>
                 <button className="btn" onClick={advanceTick}>tick +1</button>
-                <button className="btn primary" onClick={startSim} disabled={starting}>
-                  {starting ? '…' : isRunning ? 'restart' : 'start'}
+                <button className={`btn primary ${starting ? 'loading' : ''}`} onClick={startSim} disabled={starting}>
+                  {starting ? 'starting' : isRunning ? 'restart' : 'start'}
                 </button>
                 <button className="btn quiet" onClick={() => apiService.stopSimulation()}>stop</button>
               </div>
@@ -371,7 +394,7 @@ export default function Dashboard() {
                           No LLM calls yet. Enable AI mode to see agent reasoning.
                         </p>
                       ) : (
-                        logs.slice(-15).reverse().map((entry: any, i: number) => (
+                        logs.slice(-15).reverse().map((entry, i) => (
                           <div className="llm-row" key={i}>
                             <div className="llm-tick">{entry.tick}</div>
                             <div className={`stamp ${entry.model_type === 'moral_reasoning' ? 'moral' : 'agent'}`}>
@@ -398,8 +421,8 @@ export default function Dashboard() {
                           No events yet. Run the simulation to see world events.
                         </p>
                       ) : (
-                        events.slice(-10).reverse().map((ev: any, i: number) => {
-                          const etype = ev.event_type || ev.type || 'unknown';
+                        events.slice(-10).reverse().map((ev: SimulationEvent, i) => {
+                          const etype = ev.event_type || 'unknown';
                           const color =
                             etype === 'crime' ? 'var(--oxblood)' :
                             etype === 'env_event' ? 'var(--ochre)' :
@@ -440,21 +463,16 @@ export default function Dashboard() {
                   {agents.length === 0 ? (
                     <p style={{ color: 'var(--ink-soft)', fontSize: '13px', padding: '1rem 0' }}>No agents yet.</p>
                   ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
-                      {agents.slice(0, 50).map((a: any) => (
-                        <div key={a.id} style={{
-                          padding: '8px 10px', border: '1px solid var(--rule)', cursor: 'pointer',
-                          fontSize: '12px', borderRadius: '4px',
-                        }} onClick={() => setSelectedAgent(a.id)}>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '11px' }}>
-                            #{a.id}
-                          </div>
-                          <div style={{ color: 'var(--ink-soft)', marginTop: '4px' }}>
+                    <div className="citizen-grid">
+                      {agents.slice(0, 50).map((a: AgentSummaryDTO) => (
+                        <div key={a.id} className="citizen-card" onClick={() => setSelectedAgent(a.id)}>
+                          <div className="id">#{a.id}</div>
+                          <div className="persona">
                             {a.persona?.substring(0, 60) || '—'}
                           </div>
-                          <div style={{ display: 'flex', gap: '8px', marginTop: '4px', fontSize: '10px', color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>
+                          <div className="meta">
                             <span>{a.job_type || '—'}</span>
-                            <span style={{ color: a.wealth_class === 'POOR' ? 'var(--ochre)' : 'var(--moss)' }}>{a.wealth_class}</span>
+                            <span style={{ color: a.wealth_class === WealthClass.POOR ? 'var(--ochre)' : 'var(--moss)' }}>{a.wealth_class}</span>
                           </div>
                         </div>
                       ))}
@@ -510,7 +528,7 @@ export default function Dashboard() {
                       No LLM calls yet.
                     </p>
                   ) : (
-                    logs.slice().reverse().map((entry: any, i: number) => (
+                    logs.slice().reverse().map((entry, i) => (
                       <div className="llm-row" key={i}>
                         <div className="llm-tick">{entry.tick}</div>
                         <div className={`stamp ${entry.model_type === 'moral_reasoning' ? 'moral' : 'agent'}`}>

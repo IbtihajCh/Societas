@@ -33,6 +33,54 @@ interface HeatEntry {
   count: number;
 }
 
+interface AgentTooltipProps {
+  tooltip: TooltipState;
+  emotionColors: Record<string, string>;
+}
+
+function AgentTooltip({ tooltip, emotionColors }: AgentTooltipProps) {
+  const { x, y, agent } = tooltip;
+  const pad = 14;
+  const width = 220;
+  const height = 170;
+
+  let left = x + pad;
+  let top = y + pad;
+  if (typeof window !== 'undefined') {
+    if (left + width > window.innerWidth) left = x - width - pad;
+    if (top + height > window.innerHeight) top = y - height - pad;
+    left = Math.max(8, left);
+    top = Math.max(8, top);
+  }
+
+  return (
+    <div className="agent-tooltip" style={{ left, top }}>
+      <div className="name">
+        {agent.persona || `Agent ${agent.id}`}
+      </div>
+      <div className="grid">
+        <span className="label">ID</span>
+        <span className="value">{agent.id}</span>
+        <span className="label">Emotion</span>
+        <span>
+          <span style={{ color: emotionColors[agent.emotion.toUpperCase()] ?? '#8A7554' }}>●</span>
+          {' '}{agent.emotion}
+        </span>
+        <span className="label">Age</span>
+        <span>{agent.age}</span>
+        <span className="label">Job</span>
+        <span>{agent.job_type?.replace(/_/g, ' ') ?? 'none'}</span>
+        <span className="label">Class</span>
+        <span>{agent.wealth_class?.replace(/_/g, ' ').toLowerCase()}</span>
+        <span className="label">Grid</span>
+        <span className="value">({agent.grid_x ?? '?'}, {agent.grid_y ?? '?'})</span>
+        <span className="label">Unlust</span>
+        <span className="value">{(agent.unlust ?? 0).toFixed(3)}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function AgentGrid({
   agents,
   gridSize = 20,
@@ -310,67 +358,19 @@ export default function AgentGrid({
       {/* Canvas */}
       <div
         ref={containerRef}
-        style={{
-          width: '100%',
-          maxWidth: 640,
-          border: '1px solid var(--rule)',
-          borderRadius: 6,
-          overflow: 'hidden',
-          position: 'relative',
-          cursor: isHoveringAgent ? 'pointer' : 'crosshair',
-        }}
+        className="grid-square"
+        style={{ cursor: isHoveringAgent ? 'pointer' : 'crosshair' }}
       >
         <canvas
           ref={canvasRef}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
-          style={{ width: size || '100%', height: size || 'auto', display: 'block' }}
         />
 
         {/* Tooltip */}
         {tooltip && (
-          <div
-            style={{
-              position: 'fixed',
-              left: tooltip.x + 14,
-              top: tooltip.y + 14,
-              background: '#FCFBEE',
-              border: '1px solid #D1CFBF',
-              color: '#472C06',
-              padding: '10px 14px',
-              borderRadius: 6,
-              fontSize: 12,
-              pointerEvents: 'none',
-              zIndex: 10000,
-              minWidth: 180,
-              boxShadow: '0 2px 12px rgba(71,44,6,0.12)',
-              fontFamily: 'Inter, sans-serif',
-            }}
-          >
-            <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 13, color: '#472C06' }}>
-              {tooltip.agent.persona || `Agent ${tooltip.agent.id}`}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 10px', fontSize: 11 }}>
-              <span style={{ color: '#7A6D5A' }}>ID</span>
-              <span style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{tooltip.agent.id}</span>
-              <span style={{ color: '#7A6D5A' }}>Emotion</span>
-              <span>
-                <span style={{ color: EMOTION_COLORS[tooltip.agent.emotion.toUpperCase()] ?? '#8A7554' }}>●</span>
-                {' '}{tooltip.agent.emotion}
-              </span>
-              <span style={{ color: '#7A6D5A' }}>Age</span>
-              <span>{tooltip.agent.age}</span>
-              <span style={{ color: '#7A6D5A' }}>Job</span>
-              <span>{tooltip.agent.job_type?.replace(/_/g, ' ') ?? 'none'}</span>
-              <span style={{ color: '#7A6D5A' }}>Class</span>
-              <span>{tooltip.agent.wealth_class?.replace(/_/g, ' ').toLowerCase()}</span>
-              <span style={{ color: '#7A6D5A' }}>Grid</span>
-              <span style={{ fontFamily: 'IBM Plex Mono, monospace' }}>({tooltip.agent.grid_x ?? '?'}, {tooltip.agent.grid_y ?? '?'})</span>
-              <span style={{ color: '#7A6D5A' }}>Unlust</span>
-              <span style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{(tooltip.agent.unlust ?? 0).toFixed(3)}</span>
-            </div>
-          </div>
+          <AgentTooltip tooltip={tooltip} emotionColors={EMOTION_COLORS} />
         )}
       </div>
     </div>
