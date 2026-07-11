@@ -33,6 +33,7 @@ from simulation.agents.action_executor import (
     execute_action,
     move_agent,
 )
+from simulation.agents.memory_system import collect_tick_memories
 from simulation.agents.community_system import (
     community_effects,
     update_communities,
@@ -136,6 +137,7 @@ def run_tick(
     """
     start_time = time.time()
     living_agents = [a for a in agents if a.is_alive]
+    living_agents.sort(key=lambda a: a.id)
 
     # Step 1: TickStartedEvent (logged, no event bus for now)
     # Step 2: Apply policy effects & aggregate weights
@@ -242,6 +244,10 @@ def run_tick(
     for agent in living_agents:
         community_effects(agent, living_agents)
 
+    # Step 5b-collect: Collect episodic memories for all agents
+    for agent in living_agents:
+        collect_tick_memories(agent, None, world, tick_number)
+
     # Step 5b.5: Gang system — formation, actions, effects
     gangs = world.metadata.get("gangs", [])
     new_gangs = try_form_gangs(living_agents, rng, tick_number)
@@ -344,6 +350,7 @@ def run_tick(
             result = execute_action(agent, action, world, living_agents, rng)
             result.metadata = metadata
             action_results[idx] = result
+            collect_tick_memories(agent, result, world, tick_number)
 
         for (idx, _), response in zip(dilemma_prompts, dilemma_responses):
             agent = living_agents[idx]
@@ -366,6 +373,7 @@ def run_tick(
             result = execute_action(agent, action, world, living_agents, rng)
             result.metadata = metadata
             action_results[idx] = result
+            collect_tick_memories(agent, result, world, tick_number)
 
         # Fill in skipped agents (non-evaluating)
         for idx, agent in enumerate(living_agents):
@@ -376,10 +384,12 @@ def run_tick(
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
                     action_results[idx] = result
+                    collect_tick_memories(agent, result, world, tick_number)
             else:
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
                     action_results[idx] = result
+                    collect_tick_memories(agent, result, world, tick_number)
 
         action_results = [r for r in action_results if r is not None]
 
@@ -391,12 +401,17 @@ def run_tick(
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
                     action_results.append(result)
+                    collect_tick_memories(agent, result, world, tick_number)
                 continue
             nearby_counts = compute_nearby_counts(agent, living_agents)
             if is_moral_dilemma(agent, world):
                 ambiguity_count += 1
             action = deterministic_fallback(agent, world, rng)
             metadata = {"source": "deterministic_fallback", "reasoning": "No AI router"}
+            result = execute_action(agent, action, world, living_agents, rng, tick_number)
+            collect_tick_memories(agent, result, world, tick_number)
+            result.metadata = metadata
+            action_results.append(result)
 
     action_counts_result = Counter()
     for agent in living_agents:
@@ -438,6 +453,18 @@ def run_tick(
     update_world_metrics(world, agents)
 
     # Step 10: State hash + TickCompletedEvent
+    # Media engine — generate news and apply effects
+    from simulation.events.media_engine import process_media_tick
+    news_articles = process_media_tick(world, tick_number, living_agents, rng)
+    if news_articles:
+        if not hasattr(world, "media_state") or not isinstance(getattr(world, "media_state", None), dict):
+            world.media_state = {"articles": []}
+        world.media_state.setdefault("articles", []).extend(
+            [{"tick": a.tick, "headline": a.headline, "body": a.body, "category": a.category, "is_fake": a.is_fake} for a in news_articles]
+        )
+    env_event_ids.extend(
+        f"news:{a.headline[:40]}" for a in news_articles
+    )
     state_hash = compute_state_hash(world, agents)
     duration_ms = (time.time() - start_time) * 1000.0
 

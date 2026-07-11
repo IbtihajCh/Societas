@@ -683,6 +683,59 @@ def _do_counsel(
     }
 
 
+def _do_support_family(
+    agent: AgentState,
+    all_agents: list[AgentState],
+    rng: DeterministicRNG,
+    result: AgentActionResult,
+) -> None:
+    """Support family action: transfer money to living family members.
+
+    Finds living parents and children of the agent and sends a small
+    financial transfer to each, proportional to the agent's current
+    wealth. Both the agent and each recipient receive a mild unlust
+    relief effect.
+
+    Args:
+        agent: The agent performing the action.
+        all_agents: All agents in the simulation.
+        rng: Deterministic RNG.
+        result: Action result to populate.
+    """
+    from simulation.agents.family_support import get_living_children, get_living_parents
+    from shared.constants.defaults import SUPPORT_FAMILY_UNLUST_RELIEF
+
+    total_sent = 0.0
+    recipients = 0
+
+    parents = get_living_parents(agent, all_agents)
+    children = get_living_children(agent, all_agents)
+
+    for recipient in parents + children:
+        if recipient.id == agent.id or not recipient.is_alive:
+            continue
+        amount = min(agent.resources.money * 0.05, 10.0)
+        if amount <= 0:
+            continue
+
+        agent.resources.money -= amount
+        agent.resources.wealth = agent.resources.money
+        recipient.resources.money += amount
+        recipient.resources.wealth = recipient.resources.money
+
+        agent.unlust = max(0.0, agent.unlust - SUPPORT_FAMILY_UNLUST_RELIEF)
+        recipient.unlust = max(0.0, recipient.unlust - SUPPORT_FAMILY_UNLUST_RELIEF)
+
+        agent.support_given = getattr(agent, "support_given", 0.0) + amount
+        recipient.support_received = getattr(recipient, "support_received", 0.0) + amount
+
+        total_sent += amount
+        recipients += 1
+
+    result.outcome = f"sent £{total_sent:.2f} to {recipients} family member(s)"
+    result.score_delta = {"money": -total_sent, "unlust": -SUPPORT_FAMILY_UNLUST_RELIEF * (recipients + 1)}
+
+
 def _do_spread_rumor(
     agent: AgentState,
     all_agents: list[AgentState],
