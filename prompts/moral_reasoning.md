@@ -30,3 +30,4 @@ Structured prompt with agent state, dilemma context, and available actions.
 - Temperature 0.2 — some variety, maintain coherence
 - Max 256 tokens — thinking + JSON
 - Always use `<|think|>` for chain-of-thought
+- Available actions (full 25-action enum): work, buy_food, rest, seek_job, beg, befriend, console, isolate, share, steal, harm_other, fraud, treat, protest, counsel, complain, campaign, comply, spread_rumor, support_family, invest, buy_property, hobby, idle, family_bond

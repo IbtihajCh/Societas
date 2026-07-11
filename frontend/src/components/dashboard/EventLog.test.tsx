@@ -1,64 +1,87 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import EventLog from './EventLog';
-import { SimulationEvent } from '@/contexts/SimulationContext';
+import { SimulationEvent } from '@/types/api';
+
+jest.mock('../../store/simulationStore', () => ({
+  useSimulationStore: jest.fn(),
+}));
+
+import { useSimulationStore } from '@/store/simulationStore';
+
+const mockUseSimulationStore = useSimulationStore as jest.MockedFunction<
+  typeof useSimulationStore
+>;
 
 const mockEvents: SimulationEvent[] = [
   {
     id: 'evt-1',
-    type: 'tick_completed',
     tick: 5,
-    description: 'Tick 5 completed (12.3ms, 2 ambiguous, 1 AI calls)',
+    event_type: 'tick_completed',
+    data: { duration_ms: 12.3, population: 80, ambiguity_count: 2, ai_calls: 1 },
   },
   {
     id: 'evt-2',
-    type: 'agent_acted',
     tick: 5,
-    description: 'Agent 1 → work',
+    event_type: 'agent_acted',
+    data: { agent_id: '1', action: 'work' },
   },
   {
     id: 'evt-3',
-    type: 'simulation_started',
     tick: 0,
-    description: 'Simulation started',
+    event_type: 'simulation_started',
+    data: {},
   },
 ];
 
+function setupStore(events: SimulationEvent[] = []) {
+  mockUseSimulationStore.mockImplementation((selector: any) => {
+    if (typeof selector === 'function') {
+      const store = {
+        events,
+        clearEvents: jest.fn(),
+      };
+      return selector(store);
+    }
+    return events;
+  });
+}
+
 describe('EventLog', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('shows empty message when no events', () => {
-    render(<EventLog events={[]} />);
-
-    expect(screen.getByText('No events yet')).toBeInTheDocument();
-  });
-
-  it('renders all events', () => {
-    render(<EventLog events={mockEvents} />);
-
-    expect(screen.getByText('tick_completed')).toBeInTheDocument();
-    expect(screen.getByText('agent_acted')).toBeInTheDocument();
-    expect(screen.getByText('simulation_started')).toBeInTheDocument();
-  });
-
-  it('shows event descriptions', () => {
-    render(<EventLog events={mockEvents} />);
+    setupStore([]);
+    render(<EventLog />);
 
     expect(
-      screen.getByText(/Tick 5 completed/),
+      screen.getByText(/No events yet/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Agent 1 → work/)).toBeInTheDocument();
-  });
-
-  it('shows tick numbers for events', () => {
-    render(<EventLog events={mockEvents} />);
-
-    const tick5 = screen.getAllByText('Tick 5');
-    expect(tick5).toHaveLength(2);
-    expect(screen.getByText('Tick 0')).toBeInTheDocument();
   });
 
   it('renders the title', () => {
-    render(<EventLog events={[]} />);
+    setupStore([]);
+    render(<EventLog />);
 
     expect(screen.getByText('Event Log')).toBeInTheDocument();
+  });
+
+  it('renders event types from store events', () => {
+    setupStore(mockEvents);
+    render(React.createElement(EventLog));
+
+    expect(screen.getByText('tick_completed')).toBeInTheDocument();
+    expect(screen.getByText('agent_acted')).toBeInTheDocument();
+  });
+
+  it('renders tick numbers', () => {
+    setupStore(mockEvents);
+    render(<EventLog />);
+
+    const t5 = screen.getAllByText('[T5]');
+    expect(t5).toHaveLength(2);
+    expect(screen.getByText('[T0]')).toBeInTheDocument();
   });
 });

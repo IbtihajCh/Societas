@@ -99,3 +99,4 @@ class SimulationStateResponseDTO:
     action_counts: Dict[str, int] = field(default_factory=dict)
     wealth_stratified: Dict[str, float] = field(default_factory=dict)
     llm_log: List[Dict[str, Any]] = field(default_factory=list)
+    news_articles: List[Dict[str, Any]] = field(default_factory=list)

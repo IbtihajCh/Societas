@@ -8,7 +8,7 @@ jest.mock('../services/api', () => ({
       tick: 0,
       is_running: false,
       speed: 1.0,
-      population: 0,
+      population: 80,
     }),
     getSimulationState: jest.fn().mockResolvedValue({
       tick: 0,
@@ -28,6 +28,10 @@ jest.mock('../services/api', () => ({
       tax_rate: 0.15,
       welfare_enabled: false,
       welfare_amount: 8,
+      duration_ms: 0,
+      ai_calls: 0,
+      ambiguity_count: 0,
+      state_hash: '',
     }),
     getDashboardData: jest.fn().mockResolvedValue({
       current_tick: 0,
@@ -43,6 +47,7 @@ jest.mock('../services/api', () => ({
       summary: {},
     }),
     getHealth: jest.fn().mockResolvedValue({ status: 'healthy' }),
+    getAgents: jest.fn().mockResolvedValue({ agents: [], total: 0, page: 1, page_size: 50 }),
     startSimulation: jest.fn().mockResolvedValue({
       tick: 0,
       is_running: true,
@@ -73,6 +78,10 @@ jest.mock('../services/api', () => ({
       tax_rate: 0.15,
       welfare_enabled: false,
       welfare_amount: 8,
+      duration_ms: 10,
+      ai_calls: 1,
+      ambiguity_count: 0,
+      state_hash: 'xyz',
     }),
   },
 }));
@@ -89,6 +98,22 @@ jest.mock('../services/websocket', () => ({
   isAgentActed: jest.fn().mockReturnValue(false),
 }));
 
+const mockStore = {
+  reset: jest.fn(),
+  appendTickData: jest.fn(),
+  addEvent: jest.fn(),
+  clearEvents: jest.fn(),
+  events: [],
+  isAutoRunning: false,
+  autoRunIntervalMs: 1000,
+};
+
+jest.mock('../store/simulationStore', () => ({
+  useSimulationStore: {
+    getState: jest.fn(() => mockStore),
+  },
+}));
+
 function TestConsumer() {
   const ctx = useSimulationContext();
   return (
@@ -96,7 +121,6 @@ function TestConsumer() {
       <span data-testid="isConnected">{String(ctx.isConnected)}</span>
       <span data-testid="isRunning">{String(ctx.isRunning)}</span>
       <span data-testid="error">{ctx.error ?? 'null'}</span>
-      <span data-testid="events-count">{ctx.events.length}</span>
       <span data-testid="tick">{ctx.state?.tick ?? 'null'}</span>
       <span data-testid="population">{ctx.state?.population ?? 'null'}</span>
       <button onClick={() => ctx.startSimulation()}>test-start</button>
@@ -122,7 +146,6 @@ describe('SimulationContext', () => {
       expect(screen.getByTestId('population').textContent).toBe('80');
     });
 
-    expect(screen.getByTestId('events-count').textContent).toBe('0');
     expect(screen.getByTestId('error').textContent).toBe('null');
   });
 

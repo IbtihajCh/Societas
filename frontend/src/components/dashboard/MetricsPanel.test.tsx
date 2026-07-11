@@ -21,6 +21,10 @@ const mockState: SimulationStateResponseDTO = {
   tax_rate: 0.15,
   welfare_enabled: false,
   welfare_amount: 8.0,
+  duration_ms: 12.3,
+  ai_calls: 1,
+  ambiguity_count: 2,
+  state_hash: 'abc123',
 };
 
 describe('MetricsPanel', () => {

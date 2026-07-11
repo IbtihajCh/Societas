@@ -4,6 +4,7 @@ from typing import Optional
 from shared.dto.agent_dto import (
     AgentDetailDTO,
     AgentListResponseDTO,
+    AgentRecentActionDTO,
     AgentSummaryDTO,
 )
 from shared.interfaces.i_simulation_engine import ISimulationEngine
@@ -72,16 +73,18 @@ class AgentService:
             id=agent.id,
             persona=agent.persona,
             traits=asdict(agent.traits),
-            needs={str(k): float(v) for k, v in agent.needs.levels.items()},
+            needs=self._map_needs(agent.needs.levels),
             emotions={str(k): float(v) for k, v in agent.emotions.intensities.items()},
             resources=asdict(agent.resources),
             employment_status=agent.employment_status,
             wealth_class=agent.wealth_class,
             age=agent.age,
+            age_bracket=agent.age_bracket,
             is_alive=agent.is_alive,
             location=agent.location,
             last_action=agent.last_action.value if agent.last_action else None,
             last_reasoning=agent.last_reasoning or "",
+            recent_actions=self._recent_actions(agent),
             social_connections=len(agent.social_connections),
             gender=agent.gender.value if agent.gender else "male",
             culture=agent.culture.value if agent.culture else "A",
@@ -100,11 +103,73 @@ class AgentService:
             employed=agent.resources.employed,
             education=agent.resources.education,
             property=agent.resources.property,
+            debt=agent.resources.debt,
             health=agent.resources.health,
             job_type=agent.job_type.value if agent.job_type else "unemployed",
             grid_x=int(agent.grid_x),
             grid_y=int(agent.grid_y),
             spouse=agent.spouse,
             enemies=list(agent.enemies) if agent.enemies else [],
+            parent_ids=list(agent.parent_ids) if agent.parent_ids else [],
+            children_ids=list(agent.children_ids) if agent.children_ids else [],
             community_id=agent.community_id,
+            memories=agent.memories[-20:] if agent.memories else [],
         )
+
+    def _map_needs(self, levels: dict) -> dict:
+        """Map internal need keys to the canonical frontend need names."""
+        mapping = {
+            "food": "food",
+            "water": "water",
+            "sleep": "sleep",
+            "safety": "safety",
+            "social_connection": "social",
+            "family_bond": "family",
+            "romantic_bond": "romantic",
+            "self_esteem": "self_esteem",
+            "sexual_tension": "sexual_tension",
+            "reputation": "status",
+        }
+        result = {
+            "creativity": 0.5,
+            "autonomy": 0.5,
+            "purpose": 0.5,
+        }
+        for src, dst in mapping.items():
+            if src in levels:
+                result[dst] = float(levels[src])
+        return result
+
+    def _recent_actions(self, agent: AgentState) -> list:
+        """Build a list of recent actions from the agent's episodic memories."""
+        actions = []
+        for memory in agent.memories[-10:]:
+            action = memory.action or memory.event_type
+            actions.append(
+                AgentRecentActionDTO(
+                    tick=memory.tick,
+                    action=action,
+                    description=memory.description,
+                )
+            )
+        return list(reversed(actions))
+
+
+def _memory_to_dict(mem: object) -> dict:
+    """Convert a Memory dataclass instance to a plain dict for DTO serialisation.
+
+    Args:
+        mem: A Memory instance (or any object with matching attributes).
+
+    Returns:
+        Dictionary with keys: tick, event_type, description, emotional_valence,
+        involved_agents, importance.
+    """
+    return {
+        "tick": getattr(mem, "tick", 0),
+        "event_type": getattr(mem, "event_type", ""),
+        "description": getattr(mem, "description", ""),
+        "emotional_valence": getattr(mem, "emotional_valence", 0.0),
+        "involved_agents": getattr(mem, "involved_agents", []),
+        "importance": getattr(mem, "importance", 0.0),
+    }

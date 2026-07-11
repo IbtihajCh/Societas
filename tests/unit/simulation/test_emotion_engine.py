@@ -182,16 +182,16 @@ class TestEmotionStateMachine:
         assert agent.emotions.emotion_timer == expected_timer
 
     def test_emotion_angry(self) -> None:
-        """unlust=0.65, anger_tendency=0.6 -> ANGRY, timer=3."""
-        agent = _make_agent(unlust=0.65, anger_tendency=0.6)
+        """unlust=0.50, anger_tendency=0.6 -> ANGRY, timer=3 (between ANGRY=0.45 and DESPAIR=0.55)."""
+        agent = _make_agent(unlust=0.50, anger_tendency=0.6)
         update_emotion(agent, DeterministicRNG(42))
         assert agent.emotions.primary == EmotionType.ANGRY
         expected_timer = max(1, int(3 * (1.0 - 0.5 * 0.5)))  # resilience=0.5
         assert agent.emotions.emotion_timer == expected_timer
 
     def test_emotion_angry_low_anger_tendency(self) -> None:
-        """unlust=0.65, anger_tendency=0.3 -> NOT ANGRY (anger_tendency <= 0.4)."""
-        agent = _make_agent(happiness_score=0.5, unlust=0.65, anger_tendency=0.3)
+        """unlust=0.50, anger_tendency=0.3 -> NOT ANGRY (anger_tendency <= 0.4)."""
+        agent = _make_agent(happiness_score=0.5, unlust=0.50, anger_tendency=0.3)
         update_emotion(agent, DeterministicRNG(42))
         # Should fall through to happy/normal check — happiness=0.5 is neither happy nor sad
         assert agent.emotions.primary != EmotionType.ANGRY
@@ -212,8 +212,8 @@ class TestEmotionStateMachine:
         assert agent.emotions.primary == EmotionType.DESPAIR
 
     def test_emotion_priority_angry_over_sad(self) -> None:
-        """unlust=0.65, anger_tendency=0.6, happiness=0.2 -> ANGRY (not SAD)."""
-        agent = _make_agent(unlust=0.65, anger_tendency=0.6, happiness_score=0.2)
+        """unlust=0.50, anger_tendency=0.6, happiness=0.2 -> ANGRY (not SAD, not DESPAIR)."""
+        agent = _make_agent(unlust=0.50, anger_tendency=0.6, happiness_score=0.2)
         update_emotion(agent, DeterministicRNG(42))
         assert agent.emotions.primary == EmotionType.ANGRY
 

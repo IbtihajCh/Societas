@@ -22,8 +22,8 @@ export class SimulationWebSocketClient {
     const wsBaseUrl =
       process.env.NEXT_PUBLIC_WS_URL ||
       (typeof window !== 'undefined'
-        ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
-        : 'ws://localhost:3000');
+        ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8000`
+        : 'ws://localhost:8000');
     this.url = url ?? `${wsBaseUrl}/ws`;
   }
 

@@ -21,7 +21,7 @@ Structured prompt with agent needs, traits, resources, mood, nearby agents, and 
 ## Output Schema
 
 ```json
-{"action":"work|buy_food|rest|seek_job|beg|befriend|console|isolate|share|steal|harm_other|protest|complain|comply|idle","feeling":"one-word feeling","reason":"one sentence explaining choice"}
+{"action":"work|buy_food|rest|seek_job|beg|befriend|console|isolate|share|steal|harm_other|fraud|treat|protest|counsel|complain|campaign|comply|spread_rumor|support_family|invest|buy_property|hobby|idle|family_bond","feeling":"one-word feeling","reason":"one sentence explaining choice"}
 ```
 
 ## Constraints

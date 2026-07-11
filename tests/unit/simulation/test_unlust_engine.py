@@ -133,13 +133,13 @@ def test_morality_active_low_unlust() -> None:
 
 
 def test_morality_active_medium_high_morality() -> None:
-    """unlust=0.65, morality=0.7 -> True (partial, high morality)."""
-    assert morality_active(0.65, 0.7) is True
+    """unlust=0.50, morality=0.7 -> True (zone 2, high morality)."""
+    assert morality_active(0.50, 0.7) is True
 
 
 def test_morality_inactive_medium_low_morality() -> None:
-    """unlust=0.65, morality=0.4 -> False (partial, low morality)."""
-    assert morality_active(0.65, 0.4) is False
+    """unlust=0.50, morality=0.4 -> False (zone 2, low morality)."""
+    assert morality_active(0.50, 0.4) is False
 
 
 def test_morality_inactive_high_unlust() -> None:
@@ -161,8 +161,8 @@ def test_thanatos_active_high_unlust_low_morality() -> None:
 
 
 def test_thanatos_not_active_high_unlust_high_morality() -> None:
-    """unlust=0.7, morality=0.8 -> False (morality active blocks Thanatos)."""
-    assert is_thanatos_active(0.7, 0.8) is False
+    """unlust=0.50, morality=0.8 -> False (zone 2, high morality blocks Thanatos)."""
+    assert is_thanatos_active(0.50, 0.8) is False
 
 
 # --- get_unlust_state tests ----------------------------------------------
@@ -179,8 +179,8 @@ def test_unlust_state_stressed() -> None:
 
 
 def test_unlust_state_driven() -> None:
-    """unlust=0.70 -> 'driven'."""
-    assert get_unlust_state(0.70) == "driven"
+    """unlust=0.50 -> 'driven' (zone between ANGRY=0.45 and DESPAIR=0.55)."""
+    assert get_unlust_state(0.50) == "driven"
 
 
 def test_unlust_state_desperate() -> None:
@@ -198,3 +198,123 @@ def test_determinism() -> None:
     result2 = compute_unlust(agent)
     result3 = compute_unlust(agent)
     assert result1 == result2 == result3
+
+
+# --- boundary tests --------------------------------------------------------
+
+
+class TestMoralityActiveBoundaries:
+    """Boundary tests for morality_active."""
+
+    def test_at_low_gate_boundary(self) -> None:
+        """unlust exactly at UNLUST_MORALITY_GATE (0.58) -> True (strict less than)."""
+        from shared.constants.defaults import UNLUST_MORALITY_GATE
+        assert morality_active(UNLUST_MORALITY_GATE - 0.001, 0.0) is True
+
+    def test_just_above_gate_low_morality(self) -> None:
+        """unlust just above 0.58, morality=0.5 -> False (needs > 0.6)."""
+        from shared.constants.defaults import UNLUST_MORALITY_GATE
+        assert morality_active(UNLUST_MORALITY_GATE + 0.001, 0.5) is False
+
+    def test_zone2_high_morality(self) -> None:
+        """unlust 0.50, morality=0.7 -> True (zone 2, high enough)."""
+        assert morality_active(0.50, 0.7) is True
+
+    def test_zone2_low_morality(self) -> None:
+        """unlust 0.50, morality=0.4 -> False (zone 2, not high enough)."""
+        assert morality_active(0.50, 0.4) is False
+
+    def test_at_despair_boundary_low(self) -> None:
+        """unlust at DESPAIR_UNLUST_THRESHOLD - epsilon -> check partial zone."""
+        from shared.constants.defaults import DESPAIR_UNLUST_THRESHOLD
+        assert morality_active(DESPAIR_UNLUST_THRESHOLD - 0.001, 0.7) is True
+
+    def test_at_despair_boundary_high(self) -> None:
+        """unlust at DESPAIR_UNLUST_THRESHOLD -> bypassed entirely."""
+        from shared.constants.defaults import DESPAIR_UNLUST_THRESHOLD
+        assert morality_active(DESPAIR_UNLUST_THRESHOLD, 1.0) is False
+
+
+class TestThanatosBoundaries:
+    """Boundary tests for is_thanatos_active."""
+
+    def test_below_threshold(self) -> None:
+        """unlust=0.64, morality=0.3 -> False (not above 0.65)."""
+        assert is_thanatos_active(0.64, 0.3) is False
+
+    def test_at_threshold(self) -> None:
+        """unlust=0.65, morality=0.3 -> False (needs strictly greater than 0.65)."""
+        # is_thanatos_active uses `unlust > 0.65`, so exactly 0.65 is not active
+        assert is_thanatos_active(0.65, 0.3) is False
+
+    def test_above_threshold(self) -> None:
+        """unlust=0.66, morality=0.3 -> True (just above 0.65)."""
+        assert is_thanatos_active(0.66, 0.3) is True
+
+    def test_above_threshold_morality_blocks(self) -> None:
+        """unlust=0.50, morality=0.8 -> False (zone 2, morality active blocks Thanatos)."""
+        assert is_thanatos_active(0.50, 0.8) is False
+
+    def test_thanatos_and_morality_inactive_both(self) -> None:
+        """unlust=0.5, morality=0.5 -> False (too low, morality still active)."""
+        assert is_thanatos_active(0.5, 0.5) is False
+
+
+class TestUnlustStateBoundaries:
+    """Boundary tests for get_unlust_state."""
+
+    def test_exactly_content_boundary(self) -> None:
+        """unlust=0.30 -> 'stressed' (not < 0.30, goes to next)."""
+        assert get_unlust_state(0.30) == "stressed"
+
+    def test_just_below_content(self) -> None:
+        """unlust=0.299 -> 'content'."""
+        assert get_unlust_state(0.299) == "content"
+
+    def test_exactly_angry_boundary(self) -> None:
+        """unlust at ANGRY_UNLUST_THRESHOLD (0.58) -> 'driven'."""
+        from shared.constants.defaults import ANGRY_UNLUST_THRESHOLD
+        assert get_unlust_state(ANGRY_UNLUST_THRESHOLD) == "driven"
+
+    def test_just_below_angry(self) -> None:
+        """unlust just below 0.58 -> 'stressed'."""
+        from shared.constants.defaults import ANGRY_UNLUST_THRESHOLD
+        assert get_unlust_state(ANGRY_UNLUST_THRESHOLD - 0.001) == "stressed"
+
+    def test_exactly_despair_boundary(self) -> None:
+        """unlust at DESPAIR_UNLUST_THRESHOLD (0.82) -> 'desperate'."""
+        from shared.constants.defaults import DESPAIR_UNLUST_THRESHOLD
+        assert get_unlust_state(DESPAIR_UNLUST_THRESHOLD) == "desperate"
+
+    def test_below_despair(self) -> None:
+        """unlust just below 0.82 -> 'driven'."""
+        from shared.constants.defaults import DESPAIR_UNLUST_THRESHOLD
+        assert get_unlust_state(DESPAIR_UNLUST_THRESHOLD - 0.001) == "driven"
+
+    def test_zero_unlust(self) -> None:
+        """unlust=0.0 -> 'content'."""
+        assert get_unlust_state(0.0) == "content"
+
+    def test_one_unlust(self) -> None:
+        """unlust=1.0 -> 'desperate'."""
+        assert get_unlust_state(1.0) == "desperate"
+
+
+# --- combined scenario tests ----------------------------------------------
+
+
+class TestCombinedScenarios:
+    """Tests combining unlust with morality in realistic scenarios."""
+
+    def test_high_unlust_no_morality_thanatos(self) -> None:
+        """High unlust + low morality = Thanatos active."""
+        agent = _make_agent(food=0.1, water=0.1, safety=0.1, social=0.1, money=0, morality=0.3)
+        u = compute_unlust(agent)
+        assert is_thanatos_active(u, agent.traits.morality) is True
+
+    def test_low_unlust_full_morality(self) -> None:
+        """Content agent with high morality = morality gate active, no Thanatos."""
+        agent = _make_agent(food=0.7, water=0.7, safety=0.7, social=0.7, money=600, morality=0.8)
+        u = compute_unlust(agent)
+        assert morality_active(u, agent.traits.morality) is True
+        assert is_thanatos_active(u, agent.traits.morality) is False

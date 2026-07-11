@@ -357,11 +357,12 @@ class TestRest:
     """Rest action tests."""
 
     def test_rest_sleep_boost(self) -> None:
-        """Sleep need increases by 0.30 after rest."""
+        """Sleep need increases by SLEEP_RECOVERY_REST after rest."""
+        from shared.constants.defaults import SLEEP_RECOVERY_REST
         agent = _make_agent(sleep=0.0)
         rng = DeterministicRNG(42)
         result = execute_action(agent, ActionType.REST, _make_world(), [], rng)
-        assert agent.needs.get_level(NeedType.SLEEP) == pytest.approx(0.30)
+        assert agent.needs.get_level(NeedType.SLEEP) == pytest.approx(SLEEP_RECOVERY_REST)
         assert result.outcome == "rested"
 
     def test_rest_breaks_angry(self) -> None:

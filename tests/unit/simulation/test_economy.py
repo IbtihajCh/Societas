@@ -196,4 +196,6 @@ class TestProcessEconomyTick:
             "total_welfare",
             "rent_payers",
             "welfare_recipients",
+            "total_tax",
+            "tax_payers",
         }
