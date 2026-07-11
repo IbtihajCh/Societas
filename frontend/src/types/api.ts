@@ -11,10 +11,7 @@
 // ---------------------------------------------------------------------------
 // Enums (mirror shared/types/enums.py)
 //
-// StrEnum types (ActionType, WealthClass, EmotionType, NeedType, Gender,
-// Culture, JobType) serialize as their lowercase string values.
-// PolicyCategory and EmploymentStatus use Enum + auto() (integer values),
-// but the frontend sends/receives them by member name string.
+// All enum types are StrEnum and serialize as their lowercase string values.
 // ---------------------------------------------------------------------------
 
 export enum ActionType {
@@ -109,22 +106,22 @@ export enum JobType {
 }
 
 export enum PolicyCategory {
-  ECONOMIC = 'ECONOMIC',
-  SOCIAL = 'SOCIAL',
-  ENVIRONMENTAL = 'ENVIRONMENTAL',
-  PUBLIC_ORDER = 'PUBLIC_ORDER',
-  EDUCATION = 'EDUCATION',
-  HEALTHCARE = 'HEALTHCARE',
-  INFRASTRUCTURE = 'INFRASTRUCTURE',
-  CULTURAL = 'CULTURAL',
+  ECONOMIC = 'economic',
+  SOCIAL = 'social',
+  ENVIRONMENTAL = 'environmental',
+  PUBLIC_ORDER = 'public_order',
+  EDUCATION = 'education',
+  HEALTHCARE = 'healthcare',
+  INFRASTRUCTURE = 'infrastructure',
+  CULTURAL = 'cultural',
 }
 
 export enum EmploymentStatus {
-  EMPLOYED = 'EMPLOYED',
-  UNEMPLOYED = 'UNEMPLOYED',
-  STUDENT = 'STUDENT',
-  RETIRED = 'RETIRED',
-  UNABLE_TO_WORK = 'UNABLE_TO_WORK',
+  UNEMPLOYED = 'unemployed',
+  EMPLOYED = 'employed',
+  SELF_EMPLOYED = 'self_employed',
+  STUDENT = 'student',
+  RETIRED = 'retired',
 }
 
 // ---------------------------------------------------------------------------

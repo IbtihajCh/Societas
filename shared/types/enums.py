@@ -131,17 +131,17 @@ class JobType(StrEnum):
     UNEMPLOYED = "unemployed"
 
 
-class PolicyCategory(Enum):
+class PolicyCategory(StrEnum):
     """Categories of government policies."""
 
-    ECONOMIC = auto()
-    SOCIAL = auto()
-    ENVIRONMENTAL = auto()
-    PUBLIC_ORDER = auto()
-    EDUCATION = auto()
-    HEALTHCARE = auto()
-    INFRASTRUCTURE = auto()
-    CULTURAL = auto()
+    ECONOMIC = "economic"
+    SOCIAL = "social"
+    ENVIRONMENTAL = "environmental"
+    PUBLIC_ORDER = "public_order"
+    EDUCATION = "education"
+    HEALTHCARE = "healthcare"
+    INFRASTRUCTURE = "infrastructure"
+    CULTURAL = "cultural"
 
 
 class CrisisType(StrEnum):
@@ -173,11 +173,11 @@ class CrimeType(Enum):
     CORRUPTION = auto()
 
 
-class EmploymentStatus(Enum):
+class EmploymentStatus(StrEnum):
     """Employment status of agents."""
 
-    EMPLOYED = auto()
-    UNEMPLOYED = auto()
-    STUDENT = auto()
-    RETIRED = auto()
-    UNABLE_TO_WORK = auto()
+    UNEMPLOYED = "unemployed"
+    EMPLOYED = "employed"
+    SELF_EMPLOYED = "self_employed"
+    STUDENT = "student"
+    RETIRED = "retired"

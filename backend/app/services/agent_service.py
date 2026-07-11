@@ -52,7 +52,23 @@ class AgentService:
         )
 
     def _agent_to_detail(self, agent: AgentState) -> AgentDetailDTO:
+        recent_actions = []
+        if hasattr(agent, 'memories') and agent.memories:
+            for m in list(agent.memories)[-10:]:
+                if isinstance(m, dict):
+                    recent_actions.append({
+                        "tick": m.get("tick", 0),
+                        "action": str(m.get("action", "")),
+                        "description": str(m.get("description", "")),
+                    })
+                else:
+                    recent_actions.append({
+                        "tick": m.tick if hasattr(m, 'tick') else 0,
+                        "action": m.action if hasattr(m, 'action') else "",
+                        "description": m.description if hasattr(m, 'description') else "",
+                    })
         return AgentDetailDTO(
+            recent_actions=recent_actions,
             id=agent.id,
             persona=agent.persona,
             traits=asdict(agent.traits),
