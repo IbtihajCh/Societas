@@ -10,19 +10,21 @@
 
 .buttonGroup {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .button {
   font-family: var(--font-body);
-  font-size: 12.5px;
-  font-weight: 500;
-  padding: 8px 15px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 14px;
   border: 1px solid var(--color-ink);
   background: transparent;
   color: var(--color-ink);
   cursor: pointer;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  transition: all var(--transition-fast);
 }
 
 .button:hover:not(:disabled) {
@@ -36,13 +38,18 @@
 }
 
 .buttonStart:hover:not(:disabled) {
-  background: #661d18;
+  background: #5a1813;
+  box-shadow: 0 0 0 1px var(--color-gold);
 }
 
 .buttonStop {
   background: transparent;
   border-color: var(--color-oxblood);
   color: var(--color-oxblood);
+}
+
+.buttonStop:hover:not(:disabled) {
+  background: var(--color-oxblood-tint);
 }
 
 .buttonAdvance {
@@ -53,4 +60,5 @@
 
 .buttonAdvance:hover:not(:disabled) {
   background: #44561a;
+  box-shadow: 0 0 0 1px var(--color-gold);
 }

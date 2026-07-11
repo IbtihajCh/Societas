@@ -11,13 +11,16 @@ import WealthStratifiedChart from '@/components/dashboard/WealthStratifiedChart'
 import ActionFrequencyChart from '@/components/dashboard/ActionFrequencyChart';
 import ActionDataSummary from '@/components/dashboard/ActionDataSummary';
 import LLMPanel from '@/components/dashboard/LLMPanel';
+import Sparkline from '@/components/dashboard/Sparkline';
+import WorldGauge from '@/components/dashboard/WorldGauge';
 import styles from './dashboard.module.css';
 
 export default function Dashboard() {
-  const { state, agents, isConnected, isRunning, error, advanceTick, refreshAgents } =
+  const { state, agents, isConnected, isRunning, error, connectionFailed, retry, advanceTick, refreshAgents } =
     useSimulation();
   const isAutoRunning = useSimulationStore((s) => s.isAutoRunning);
   const setAutoRun = useSimulationStore((s) => s.setAutoRun);
+  const metricsHistory = useSimulationStore((s) => s.metricsHistory);
   const tick = state?.tick ?? 0;
   const [showHeatmap, setShowHeatmap] = useState(false);
   const autoRunRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -41,22 +44,54 @@ export default function Dashboard() {
     };
   }, [isAutoRunning, advanceTick]);
 
-  if (!state && !isConnected) {
+  // ── Connection failed ──
+  if (connectionFailed && !isConnected) {
     return (
       <div className={styles.loading}>
-        <div className={styles.loadingSpinner} />
-        <p>Connecting to simulation backend…</p>
+        <div className={styles.loadCrest}>✦</div>
+        <h2 className={styles.loadingTitle}>Imperial Registry Unreachable</h2>
+        <p className={styles.loadingDesc}>
+          {error
+            ? `Error: ${error}`
+            : 'Cannot connect to the world simulation engine.'}
+        </p>
+        <p className={styles.loadingHint}>
+          Ensure the backend is running at <code>localhost:8000</code>
+        </p>
+        <button onClick={retry} className={`${styles.btn} ${styles.btnPrimary}`}>
+          Retry Connection
+        </button>
       </div>
     );
   }
 
+  // ── Loading initial connection ──
+  if (!state && !isConnected) {
+    return (
+      <div className={styles.loading}>
+        <div className={styles.loadingSpinner} />
+        <p className={styles.loadingText}>Connecting to Imperial Registry…</p>
+      </div>
+    );
+  }
+
+  const econHist = metricsHistory.map((m) => m.economic_health);
+  const cohesionHist = metricsHistory.map((m) => m.social_cohesion);
+  const crimeHist = metricsHistory.map((m) => m.crime_rate);
+  const unempHist = metricsHistory.map((m) => m.unemployment_rate);
+
   return (
-    <div>
+    <div className={styles.worldMonitor}>
+      {/* ── Imperial Masthead ── */}
       <div className={styles.masthead}>
-        <div>
-          <h1 className={styles.mastheadTitle}>World Overview</h1>
-          <div className={styles.dateline}>
-            {state?.population ?? 0} citizens on record — seed no. 42
+        <div className={styles.mastheadLeft}>
+          <span className={styles.mastheadSigil}>✦</span>
+          <div>
+            <h1 className={styles.mastheadTitle}>World Monitor</h1>
+            <div className={styles.dateline}>
+              {state?.population ?? 0} citizens on record — seed no. 42
+              {tick > 0 && `  ·  cycle ${tick.toLocaleString()}`}
+            </div>
           </div>
         </div>
         <div className={styles.controls}>
@@ -65,22 +100,41 @@ export default function Dashboard() {
             onClick={() => setAutoRun(!isAutoRunning)}
             className={`${styles.btn} ${styles.btnQuiet}`}
           >
-            {isAutoRunning ? 'Stop Auto' : 'Auto-Run'}
+            {isAutoRunning ? '◼ Stop Auto' : '▶ Auto-Run'}
           </button>
         </div>
       </div>
 
-      <div className={styles.subhead}>
-        <span className={styles.entry}>
+      {/* ── Status Bar ── */}
+      <div className={styles.statusBar}>
+        <span className={styles.statusEntry}>
           <span
             className={`${styles.statusDot} ${
               isConnected ? styles.statusConnected : styles.statusDisconnected
             }`}
           />
           {isConnected ? 'Connected' : 'Disconnected'}
-          {' | '}Entry no. <b>{tick.toLocaleString()}</b>
-          {' | '}{isRunning ? 'Running' : 'Stopped'}
         </span>
+        <span className={styles.statusDivider}>·</span>
+        <span className={styles.statusEntry}>
+          Entry no. <b>{tick.toLocaleString()}</b>
+        </span>
+        <span className={styles.statusDivider}>·</span>
+        <span className={styles.statusEntry}>{isRunning ? 'Running' : 'Stopped'}</span>
+        {state && state.ai_calls > 0 && (
+          <>
+            <span className={styles.statusDivider}>·</span>
+            <span className={styles.statusEntry}>AI calls: {state.ai_calls}</span>
+          </>
+        )}
+        {isRunning && (
+          <>
+            <span className={styles.statusDivider}>·</span>
+            <span className={styles.statusAutoBtn} onClick={() => setAutoRun(!isAutoRunning)}>
+              {isAutoRunning ? 'Auto-running' : 'Manual'}
+            </span>
+          </>
+        )}
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -91,48 +145,116 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stat strip */}
-      <div className={styles.statStrip}>
-        <div className={styles.stat}>
-          <div className={`${styles.statLabel} ${styles.sc}`}>Population</div>
-          <div className={styles.statValue}>{state?.population ?? '—'}</div>
-        </div>
-        <div className={styles.stat}>
-          <div className={`${styles.statLabel} ${styles.sc}`}>Economic Health</div>
-          <div className={styles.statValue}>
-            {state ? state.economic_health.toFixed(2) : '—'}
+      {/* ── Imperial Stat Card Row ── */}
+      <div className={styles.statCards}>
+        <div className={styles.statCard}>
+          <div className={styles.statCardHeader}>
+            <span className={styles.statIcon}>◈</span>
+            <span className={styles.statCardLabel}>Population</span>
+          </div>
+          <div className={styles.statCardValue}>{state?.population ?? '—'}</div>
+          <div className={styles.statCardSpark}>
+            <Sparkline data={metricsHistory.map((m) => m.population)} width={90} height={22} colorVar="--color-ink" />
           </div>
         </div>
-        <div className={styles.stat}>
-          <div className={`${styles.statLabel} ${styles.sc}`}>Unemployment</div>
-          <div className={styles.statValue} style={{ color: 'var(--color-ochre)' }}>
+        <div className={styles.statCard}>
+          <div className={styles.statCardHeader}>
+            <span className={styles.statIcon}>◆</span>
+            <span className={styles.statCardLabel}>Economic Health</span>
+          </div>
+          <div className={styles.statCardValue}>{state ? state.economic_health.toFixed(2) : '—'}</div>
+          <div className={styles.statCardSpark}>
+            <Sparkline data={econHist} width={90} height={22} colorVar="--color-moss" />
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statCardHeader}>
+            <span className={styles.statIcon} style={{ color: 'var(--color-ochre)' }}>●</span>
+            <span className={styles.statCardLabel}>Unemployment</span>
+          </div>
+          <div className={styles.statCardValue} style={{ color: 'var(--color-ochre)' }}>
             {state ? `${(state.unemployment_rate * 100).toFixed(0)}%` : '—'}
           </div>
+          <div className={styles.statCardSpark}>
+            <Sparkline data={unempHist} width={90} height={22} colorVar="--color-ochre" />
+          </div>
         </div>
-        <div className={styles.stat}>
-          <div className={`${styles.statLabel} ${styles.sc}`}>Crime Rate</div>
-          <div className={styles.statValue} style={{ color: 'var(--color-oxblood)' }}>
+        <div className={styles.statCard}>
+          <div className={styles.statCardHeader}>
+            <span className={styles.statIcon} style={{ color: 'var(--color-oxblood)' }}>▲</span>
+            <span className={styles.statCardLabel}>Crime Rate</span>
+          </div>
+          <div className={styles.statCardValue} style={{ color: 'var(--color-oxblood)' }}>
             {state ? `${(state.crime_rate * 100).toFixed(1)}%` : '—'}
           </div>
-        </div>
-        <div className={styles.stat}>
-          <div className={`${styles.statLabel} ${styles.sc}`}>Cohesion</div>
-          <div className={styles.statValue}>
-            {state ? state.social_cohesion.toFixed(2) : '—'}
+          <div className={styles.statCardSpark}>
+            <Sparkline data={crimeHist} width={90} height={22} colorVar="--color-oxblood" />
           </div>
         </div>
-        <div className={styles.stat}>
-          <div className={`${styles.statLabel} ${styles.sc}`}>Morality Avg</div>
-          <div className={styles.statValue}>
-            {state ? state.morality.toFixed(2) : '—'}
+        <div className={styles.statCard}>
+          <div className={styles.statCardHeader}>
+            <span className={styles.statIcon} style={{ color: 'var(--color-slate)' }}>◆</span>
+            <span className={styles.statCardLabel}>Cohesion</span>
           </div>
+          <div className={styles.statCardValue}>{state ? state.social_cohesion.toFixed(2) : '—'}</div>
+          <div className={styles.statCardSpark}>
+            <Sparkline data={cohesionHist} width={90} height={22} colorVar="--color-slate" />
+          </div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statCardHeader}>
+            <span className={styles.statIcon} style={{ color: 'var(--color-moss)' }}>❖</span>
+            <span className={styles.statCardLabel}>Morality</span>
+          </div>
+          <div className={styles.statCardValue}>{state ? state.morality.toFixed(2) : '—'}</div>
         </div>
       </div>
 
-      {/* Main 2-col layout */}
+      {/* ── Gauges Row ── */}
+      {state && (
+        <div className={styles.gaugeRow}>
+          <div className={styles.gaugePanel}>
+            <span className={styles.gaugePanelLabel}>World Indices</span>
+            <div className={styles.gauges}>
+              <WorldGauge value={state.economic_health} label="Economy" colorVar="--color-moss" />
+              <WorldGauge value={state.social_cohesion} label="Cohesion" colorVar="--color-slate" />
+              <WorldGauge value={state.morality} label="Morality" colorVar="--color-moss" />
+              <WorldGauge value={state.food_availability} label="Food" colorVar="--color-ochre" />
+              <WorldGauge value={state.water_availability} label="Water" colorVar="--color-slate" />
+              <WorldGauge value={1 - state.crime_rate} label="Order" colorVar="--color-oxblood" displayValue={`${(state.crime_rate * 100).toFixed(0)}%`} />
+              <WorldGauge value={1 - state.unemployment_rate} label="Employ" displayValue={`${(state.unemployment_rate * 100).toFixed(0)}%`} colorVar="--color-ochre" />
+              <WorldGauge value={state.environmental_quality} label="Environ" colorVar="--color-moss" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Map + Chron. (left) & Chronicle Log (right) ── */}
       <div className={styles.layout}>
         {/* Left column */}
         <div className={styles.stack}>
+          {/* ── Citizen Grid — World Map ── */}
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Citizen Grid — 20×20 World Map</h2>
+              <button
+                type="button"
+                onClick={() => setShowHeatmap((prev) => !prev)}
+                className={`${styles.btn} ${styles.btnQuiet}`}
+              >
+                {showHeatmap ? 'Hide Heatmap' : 'Show Heatmap'}
+              </button>
+            </div>
+            <AgentGrid
+              agents={agents}
+              gridSize={20}
+              showHeatmap={showHeatmap}
+              isRunning={isRunning}
+              onRefresh={refreshAgents}
+            />
+          </div>
+
+          {/* ── Metrics + Time Series ── */}
           <MetricsPanel state={state} />
           <DiagnosticsPanel state={state} />
           <TimeSeriesChart />
@@ -145,41 +267,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Agent Grid */}
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Citizen Grid — 20×20 World</h2>
-          <button
-            type="button"
-            onClick={() => setShowHeatmap((prev) => !prev)}
-            className={`${styles.btn} ${styles.btnQuiet}`}
-          >
-            {showHeatmap ? 'Hide Heatmap' : 'Show Heatmap'}
-          </button>
-        </div>
-        <AgentGrid
-          agents={agents}
-          gridSize={20}
-          showHeatmap={showHeatmap}
-          isRunning={isRunning}
-          onRefresh={refreshAgents}
-        />
-      </div>
-
-      {/* Action Frequency + Summary */}
-      <div className={styles.section}>
-        <ActionFrequencyChart />
-      </div>
-      <div className={styles.section}>
-        <ActionDataSummary />
-      </div>
-
-      {/* LLM Panel */}
-      <div className={styles.section}>
-        <LLMPanel />
-      </div>
-
-      {/* Agent Details */}
+      {/* ── Citizens Detail ── */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Citizens</h2>
         <div className={styles.agentGrid}>
@@ -188,7 +276,7 @@ export default function Dashboard() {
               key={a.id}
               className={styles.agentCard}
               style={{
-                backgroundColor: a.is_alive ? 'var(--color-cream)' : '#fff0f0',
+                backgroundColor: a.is_alive ? 'var(--color-cream)' : '#f0e0e0',
               }}
             >
               <strong>{a.persona || `Citizen #${a.id}`}</strong>
@@ -209,9 +297,22 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* World State */}
+      {/* ── Charts ── */}
       <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>World State</h2>
+        <ActionFrequencyChart />
+      </div>
+      <div className={styles.section}>
+        <ActionDataSummary />
+      </div>
+
+      {/* ── LLM Panel ── */}
+      <div className={styles.section}>
+        <LLMPanel />
+      </div>
+
+      {/* ── World State JSON ── */}
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>World State — Raw Ledger</h2>
         <pre className={styles.worldStateJson}>
           {JSON.stringify(state, null, 2)}
         </pre>

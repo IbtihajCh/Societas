@@ -28,6 +28,8 @@ interface SimulationContextType {
   isConnected: boolean;
   isRunning: boolean;
   error: string | null;
+  connectionFailed: boolean;
+  retry: () => void;
   startSimulation: () => Promise<void>;
   stopSimulation: () => Promise<void>;
   advanceTick: () => Promise<void>;
@@ -48,6 +50,8 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connectionFailed, setConnectionFailed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   const wsClientRef = useRef<SimulationWebSocketClient | null>(null);
   const stateRef = useRef<SimulationStateResponseDTO | null>(null);
@@ -110,6 +114,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       try {
         const status = await apiService.getSimulationStatus();
         setIsConnected(true);
+        setConnectionFailed(false);
         setError(null);
         setIsRunning(status.is_running);
         if (status.population > 0) {
@@ -118,8 +123,11 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
           useSimulationStore.getState().appendTickData(simState);
         }
         await fetchAgents();
-      } catch {
+      } catch (err) {
         setIsConnected(false);
+        setConnectionFailed(true);
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        setError(msg);
       }
     };
 
@@ -129,6 +137,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       try {
         await apiService.getHealth();
         setIsConnected(true);
+        setConnectionFailed(false);
       } catch {
         setIsConnected(false);
       }
@@ -140,7 +149,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       wsClient.disconnect();
       clearInterval(interval);
     };
-  }, [fetchAgents]);
+  }, [fetchAgents, retryCount]);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -203,6 +212,12 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     }
   }, [fetchAgents]);
 
+  const retry = useCallback(() => {
+    setError(null);
+    setConnectionFailed(false);
+    setRetryCount((c) => c + 1);
+  }, []);
+
   return (
     <SimulationContext.Provider
       value={{
@@ -211,6 +226,8 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         isConnected,
         isRunning,
         error,
+        connectionFailed,
+        retry,
         startSimulation,
         stopSimulation,
         advanceTick,

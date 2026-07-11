@@ -9,26 +9,26 @@ const EventLog: React.FC = () => {
   return (
     <div className={styles.panel}>
       <div className={styles.headerRow}>
-        <h3 className={styles.title}>Event Log</h3>
+        <h3 className={styles.title}>Chronicle</h3>
         <button onClick={clearEvents} className={styles.clearBtn}>
           Clear
         </button>
       </div>
       <div className={styles.scrollArea}>
         {events.length === 0 ? (
-          <p className={styles.empty}>No events yet. Run the simulation to see events.</p>
+          <p className={styles.empty}>No chronicle entries yet. Run the simulation to record events.</p>
         ) : (
-          events.slice(-50)
+          events.slice(-80)
             .reverse()
             .map((ev, i) => (
               <div key={i} className={styles.eventRow}>
                 <span className={styles.eventTick}>[T{ev.tick}]</span>
-                <span className={styles.eventType}>{ev.event_type}</span>
+                <span className={styles.eventType}>{ev.event_type.replace(/_/g, ' ')}</span>
                 <span className={styles.eventDesc}>
                   {ev.event_type === 'agent_acted' && ev.data?.action
                     ? `Agent ${String(ev.data?.agent_id ?? '').slice(0, 8)}: ${ev.data.action}`
                     : ev.event_type === 'tick_completed'
-                    ? `Tick ${ev.tick} complete (${ev.data?.duration_ms ?? 0}ms)`
+                    ? `Cycle ${ev.tick} complete (${ev.data?.duration_ms ?? 0}ms)`
                     : JSON.stringify(ev.data ?? {}).slice(0, 60)}
                 </span>
               </div>

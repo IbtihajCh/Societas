@@ -12,15 +12,17 @@ interface AgentGridProps {
 }
 
 const EMOTION_COLORS: Record<string, string> = {
-  HAPPY: '#4CAF50',
-  NORMAL: '#9E9E9E',
-  SAD: '#2196F3',
-  ANGRY: '#F44336',
-  DESPAIR: '#9C27B0',
+  HAPPY: '#54661f',
+  NORMAL: '#8a7554',
+  SAD: '#33415a',
+  ANGRY: '#6b1f1a',
+  DESPAIR: '#4a2e08',
 };
 
-const DEAD_COLOR = '#E0E0E0';
-const DEAD_STROKE = '#BDBDBD';
+const PANEL_BG = '#f0e8d0';
+const GRID_LINE = '#d4c8a8';
+const DEAD_STROKE = '#b5a684';
+const HOVER_COLOR = '#b8911e';
 
 interface TooltipState {
   x: number;
@@ -118,11 +120,11 @@ export default function AgentGrid({
     const cx = cell / 2;
 
     // Background
-    ctx.fillStyle = '#f8f9fa';
+    ctx.fillStyle = PANEL_BG;
     ctx.fillRect(0, 0, size, size);
 
     // Faint grid lines
-    ctx.strokeStyle = '#e9ecef';
+    ctx.strokeStyle = GRID_LINE;
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 0; i <= gridSize; i++) {
@@ -180,7 +182,7 @@ export default function AgentGrid({
     // Living agents (filled circles per emotion)
     for (const [emotion, group] of Object.entries(byEmotion)) {
       ctx.fillStyle = EMOTION_COLORS[emotion] ?? '#9E9E9E';
-      ctx.strokeStyle = '#fff';
+      ctx.strokeStyle = '#faf7ea';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       for (const a of group) {
@@ -199,7 +201,7 @@ export default function AgentGrid({
     if (hoveredRef.current) {
       const pos = positions[hoveredRef.current];
       if (pos) {
-        ctx.strokeStyle = '#FFD700';
+        ctx.strokeStyle = HOVER_COLOR;
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.arc(pos.x * cell, pos.y * cell, dotR + 3, 0, Math.PI * 2);
@@ -261,7 +263,7 @@ export default function AgentGrid({
   return (
     <div>
       {/* Legend */}
-      <div style={{ marginBottom: '0.5rem', display: 'flex', gap: '1rem', fontSize: '0.8rem', flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: '0.75rem', display: 'flex', gap: '1rem', fontSize: '0.78rem', flexWrap: 'wrap', fontFamily: 'var(--font-mono, monospace)', color: 'var(--color-ink-soft, #8a7554)' }}>
         {Object.entries(EMOTION_COLORS).map(([e, c]) => (
           <span key={e}><span style={{ color: c }}>●</span> {e.charAt(0) + e.slice(1).toLowerCase()}</span>
         ))}
@@ -274,11 +276,11 @@ export default function AgentGrid({
         style={{
           width: '100%',
           maxWidth: 640,
-          border: '2px solid #333',
-          borderRadius: 8,
+          border: '1px solid var(--color-imperial, #4a2e08)',
           overflow: 'hidden',
           position: 'relative',
           cursor: 'crosshair',
+          boxShadow: '2px 2px 0 rgba(58, 42, 16, 0.2)',
         }}
       >
         <canvas
@@ -295,37 +297,38 @@ export default function AgentGrid({
               position: 'fixed',
               left: tooltip.x + 14,
               top: tooltip.y + 14,
-              background: 'rgba(0,0,0,0.88)',
-              color: '#fff',
-              padding: '8px 12px',
-              borderRadius: 8,
-              fontSize: 13,
+              background: 'rgba(58, 42, 16, 0.94)',
+              color: '#faf7ea',
+              padding: '10px 14px',
+              fontSize: 12,
+              fontFamily: 'var(--font-mono), monospace',
               pointerEvents: 'none',
               zIndex: 10000,
-              minWidth: 160,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              minWidth: 170,
+              boxShadow: '2px 2px 0 rgba(184, 145, 30, 0.3)',
+              borderLeft: '2px solid #b8911e',
             }}
           >
-            <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 13, color: '#b8911e', fontFamily: 'var(--font-display), serif' }}>
               {tooltip.agent.persona || `Agent ${tooltip.agent.id}`}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 8px', fontSize: 12 }}>
-              <span style={{ color: '#aaa' }}>ID</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 10px', fontSize: 11 }}>
+              <span style={{ color: '#b5a684' }}>ID</span>
               <span>{tooltip.agent.id}</span>
-              <span style={{ color: '#aaa' }}>Emotion</span>
+              <span style={{ color: '#b5a684' }}>Mood</span>
               <span>
                 <span style={{ color: EMOTION_COLORS[tooltip.agent.emotion.toUpperCase()] ?? '#9E9E9E' }}>●</span>
                 {' '}{tooltip.agent.emotion}
               </span>
-              <span style={{ color: '#aaa' }}>Age</span>
+              <span style={{ color: '#b5a684' }}>Age</span>
               <span>{tooltip.agent.age}</span>
-              <span style={{ color: '#aaa' }}>Job</span>
+              <span style={{ color: '#b5a684' }}>Job</span>
               <span>{tooltip.agent.job_type?.replace(/_/g, ' ') ?? 'none'}</span>
-              <span style={{ color: '#aaa' }}>Class</span>
+              <span style={{ color: '#b5a684' }}>Class</span>
               <span>{tooltip.agent.wealth_class?.replace(/_/g, ' ').toLowerCase()}</span>
-              <span style={{ color: '#aaa' }}>Grid</span>
+              <span style={{ color: '#b5a684' }}>Grid</span>
               <span>({tooltip.agent.grid_x ?? '?'}, {tooltip.agent.grid_y ?? '?'})</span>
-              <span style={{ color: '#aaa' }}>Unlust</span>
+              <span style={{ color: '#b5a684' }}>Unlust</span>
               <span>{(tooltip.agent.unlust ?? 0).toFixed(3)}</span>
             </div>
           </div>

@@ -1,6 +1,18 @@
 .panel {
   border: 1px solid var(--color-rule-strong);
   background: var(--color-parchment);
+  position: relative;
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-gold), transparent 50%, var(--color-gold));
+  opacity: 0.35;
 }
 
 .headerRow {
@@ -8,7 +20,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 14px 20px;
-  border-bottom: 1px solid var(--color-ink);
+  border-bottom: 1px solid var(--color-imperial);
 }
 
 .title {
@@ -16,25 +28,29 @@
   font-size: 15px;
   font-weight: 600;
   margin: 0;
+  color: var(--color-imperial);
+  letter-spacing: -0.01em;
 }
 
 .clearBtn {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-ink-soft);
   background: none;
   border: 1px solid var(--color-rule);
-  padding: 3px 8px;
+  padding: 3px 10px;
   cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .clearBtn:hover {
-  color: var(--color-ink);
-  border-color: var(--color-ink);
+  color: var(--color-oxblood);
+  border-color: var(--color-oxblood);
 }
 
 .scrollArea {
-  max-height: 300px;
+  max-height: 340px;
   overflow-y: auto;
   padding: 14px 20px 18px;
 }
@@ -43,14 +59,17 @@
   color: var(--color-ink-soft);
   font-size: 13px;
   font-style: italic;
+  text-align: center;
+  padding: 20px 0;
 }
 
 .eventRow {
   display: flex;
   gap: 10px;
   font-size: 12px;
-  padding: 9px 0;
+  padding: 8px 0;
   border-bottom: 1px dotted var(--color-rule);
+  align-items: baseline;
 }
 
 .eventRow:last-child {
@@ -59,15 +78,19 @@
 
 .eventTick {
   font-family: var(--font-mono);
-  color: var(--color-ink-soft);
+  color: var(--color-gold);
+  font-weight: 600;
   flex-shrink: 0;
+  font-size: 11px;
 }
 
 .eventType {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  color: var(--color-slate);
+  color: color-mix(in srgb, var(--color-slate) 70%, var(--color-ink-soft));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   flex-shrink: 0;
 }
 

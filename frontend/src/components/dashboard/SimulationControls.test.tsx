@@ -26,6 +26,8 @@ function setupMocks(overrides: Partial<{
     isConnected: true,
     isRunning: false,
     error: null,
+    connectionFailed: false,
+    retry: jest.fn(),
     startSimulation,
     stopSimulation,
     advanceTick,

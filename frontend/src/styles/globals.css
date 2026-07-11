@@ -1,20 +1,26 @@
 :root {
-  /* ── Parchment World Ledger palette ── */
-  --color-cream: #fcfbee;
-  --color-parchment: #f4efd8;
-  --color-parchment-2: #ece4c4;
-  --color-ink: #472c06;
+  /* ── Dune Imperial Ledger palette ── */
+  --color-cream: #faf7ea;
+  --color-parchment: #f0e8d0;
+  --color-parchment-2: #e6dcc0;
+  --color-parchment-dark: #d4c8a8;
+  --color-ink: #3a2a10;
   --color-ink-soft: #8a7554;
-  --color-oxblood: #7d251f;
-  --color-oxblood-tint: rgba(125, 37, 31, 0.07);
+  --color-ink-faded: #b5a684;
+  --color-oxblood: #6b1f1a;
+  --color-oxblood-tint: rgba(107, 31, 26, 0.07);
+  --color-gold: #b8911e;
+  --color-gold-tint: rgba(184, 145, 30, 0.10);
   --color-moss: #54661f;
   --color-moss-tint: rgba(84, 102, 31, 0.08);
   --color-ochre: #9c6b12;
   --color-ochre-tint: rgba(156, 107, 18, 0.08);
   --color-slate: #33415a;
   --color-slate-tint: rgba(51, 65, 90, 0.08);
-  --color-rule: #d9cda2;
-  --color-rule-strong: rgba(71, 44, 6, 0.33);
+  --color-rule: #d4c8a8;
+  --color-rule-strong: rgba(58, 42, 16, 0.35);
+  --color-imperial: #4a2e08;
+  --color-imperial-tint: rgba(74, 46, 8, 0.06);
 
   /* Semantic aliases (backward compat with existing CSS modules) */
   --color-bg: var(--color-cream);
@@ -26,7 +32,7 @@
   --color-success: var(--color-moss);
   --color-danger: var(--color-oxblood);
   --color-warning: var(--color-ochre);
-  --color-accent: var(--color-slate);
+  --color-accent: var(--color-gold);
   --color-connected: var(--color-moss);
   --color-disconnected: var(--color-oxblood);
 
@@ -52,6 +58,7 @@
   --font-size-lg: 1.25rem;
   --font-size-xl: 1.5rem;
   --font-size-2xl: 2rem;
+  --font-size-3xl: 2.5rem;
 
   /* Shadows — subtle, like paper depth */
   --shadow-sm: 1px 1px 0 var(--color-rule);
