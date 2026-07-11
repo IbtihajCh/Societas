@@ -7,6 +7,8 @@ import { SimulationStateResponseDTO, AgentSummaryDTO, SimulationEvent, WealthCla
 import AgentGrid from '@/components/dashboard/AgentGrid';
 import AgentDetailPanel from '@/components/dashboard/AgentDetailPanel';
 import ExplainPanel from '@/components/dashboard/ExplainPanel';
+import Sparkline from '@/components/dashboard/Sparkline';
+import WorldGauge from '@/components/dashboard/WorldGauge';
 
 const EMOTION_COLORS: Record<string, string> = {
   neutral: '#9a8a6a', happy: '#8aac4a', sad: '#6d8aaa', angry: '#c54a3f', stressed: '#d4a04a',
@@ -61,7 +63,8 @@ export default function Dashboard() {
     setStarting(false);
   }, [refreshAgents, setupPop, setupSeed, setupAI]);
 
-  const prevMetrics = useSimulationStore((s) => s.metricsHistory);
+  const metricsHistory = useSimulationStore((s) => s.metricsHistory);
+  const prevMetrics = metricsHistory;
   const prev = prevMetrics.length > 1 ? prevMetrics[prevMetrics.length - 2] : null;
 
   function delta(cur: number | undefined, key: keyof MetricsHistoryEntry) {
@@ -265,14 +268,21 @@ export default function Dashboard() {
             {nav === 'overview' && (
               <>
                 <div className="stat-strip">
-                  <StatBox label="population" value={pop} delta={delta(pop, 'population')} />
-                  <StatBox label="economic health" value={fmt(s.economic_health)} delta={delta(s.economic_health, 'economic_health')} />
+                  <StatBox label="population" value={pop} delta={delta(pop, 'population')} history={metricsHistory} historyKey="population" />
+                  <StatBox label="economic health" value={fmt(s.economic_health)} delta={delta(s.economic_health, 'economic_health')} history={metricsHistory} historyKey="economic_health" />
                   <StatBox label="unemployment" value={fmtPct(s.unemployment_rate)} delta={delta(s.unemployment_rate, 'unemployment_rate')}
-                    color={s.unemployment_rate && s.unemployment_rate > 0.15 ? 'var(--ochre)' : undefined} />
+                    color={s.unemployment_rate && s.unemployment_rate > 0.15 ? 'var(--ochre)' : undefined} history={metricsHistory} historyKey="unemployment_rate" />
                   <StatBox label="crime rate" value={fmtPct(s.crime_rate)} delta={delta(s.crime_rate, 'crime_rate')}
-                    color={s.crime_rate && s.crime_rate > 0.12 ? 'var(--oxblood)' : undefined} />
-                  <StatBox label="cohesion" value={fmt(s.social_cohesion)} delta={delta(s.social_cohesion, 'social_cohesion')} />
+                    color={s.crime_rate && s.crime_rate > 0.12 ? 'var(--oxblood)' : undefined} history={metricsHistory} historyKey="crime_rate" />
+                  <StatBox label="cohesion" value={fmt(s.social_cohesion)} delta={delta(s.social_cohesion, 'social_cohesion')} history={metricsHistory} historyKey="social_cohesion" />
                   <StatBox label="morality avg" value={fmt(s.morality)} delta={null} />
+                </div>
+
+                <div className="gauge-strip">
+                  <WorldGauge value={s.economic_health ?? 0} max={1} label="ECON" colorVar="--gold" displayValue={fmt(s.economic_health)} size={80} />
+                  <WorldGauge value={s.social_cohesion ?? 0} max={1} label="COHESION" colorVar="--moss" displayValue={fmt(s.social_cohesion)} size={80} />
+                  <WorldGauge value={s.morality ?? 0} max={1} label="MORALITY" colorVar="--slate" displayValue={fmt(s.morality)} size={80} />
+                  <WorldGauge value={1 - (s.crime_rate ?? 0)} max={1} label="SAFETY" colorVar="--ochre" displayValue={fmtPct(1 - (s.crime_rate ?? 0))} size={80} />
                 </div>
 
                 <div className="layout">
@@ -567,14 +577,21 @@ export default function Dashboard() {
   );
 }
 
-function StatBox({ label, value, delta, color }: {
+function StatBox({ label, value, delta, color, history, historyKey }: {
   label: string; value: string | number; delta: { text: string; cls: string } | null; color?: string;
+  history?: MetricsHistoryEntry[]; historyKey?: keyof MetricsHistoryEntry;
 }) {
+  const sparkData = history && historyKey
+    ? history.slice(-30).map((e) => (e[historyKey] as number) ?? 0)
+    : [];
   return (
     <div className="stat">
       <div className="label sc">{label}</div>
       <div className="value" style={color ? { color } : undefined}>{value}</div>
       {delta && <div className={`delta ${delta.cls}`}>{delta.text}</div>}
+      {sparkData.length > 1 && (
+        <Sparkline data={sparkData} width={72} height={20} colorVar={color ? '--ink' : '--gold'} />
+      )}
     </div>
   );
 }

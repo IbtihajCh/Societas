@@ -34,7 +34,7 @@ export default function WorldGauge({
           cy={cy}
           r={r}
           fill="none"
-          stroke="var(--color-parchment-dark)"
+          stroke="var(--rule)"
           strokeWidth={stroke}
         />
         <circle
@@ -58,13 +58,13 @@ export default function WorldGauge({
             fontFamily: 'var(--font-mono)',
             fontSize: size > 60 ? 14 : 11,
             fontWeight: 600,
-            fill: 'var(--color-ink)',
+            fill: 'var(--ink)',
           }}
         >
           {displayValue ?? value.toFixed(2)}
         </text>
       </svg>
-      <span style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-ink-soft)' }}>
+      <span style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-soft)' }}>
         {label}
       </span>
     </div>

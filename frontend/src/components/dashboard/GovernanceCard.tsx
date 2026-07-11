@@ -59,82 +59,76 @@ export default function GovernanceCard({ state }: Props) {
   };
 
   return (
-    <div style={{ border: '1px solid #eaeaea', borderRadius: '8px', padding: '1rem' }}>
-      <h3 style={{ margin: '0 0 0.75rem' }}>Governance Controls</h3>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+    <div className="panel" style={{ marginBottom: '20px' }}>
+      <div className="panel-head">
         <div>
-          <label>Tax Rate: {(taxRate * 100).toFixed(0)}%</label>
-          <input type="range" min={0} max={0.5} step={0.01} value={taxRate}
-            onChange={(e) => setTaxRate(Number(e.target.value))}
-            style={{ width: '100%' }} />
+          <div className="panel-title">Governance Controls</div>
+          <div className="panel-sub sc">policy management</div>
         </div>
+      </div>
+      <div className="panel-inner">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+          <div className="slider-group">
+            <div className="slider-top"><span>Tax Rate</span><span>{(taxRate * 100).toFixed(0)}%</span></div>
+            <input type="range" min={0} max={0.5} step={0.01} value={taxRate}
+              onChange={(e) => setTaxRate(Number(e.target.value))} />
+          </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <label>
-            <input type="checkbox" checked={welfareEnabled}
-              onChange={(e) => setWelfareEnabled(e.target.checked)} /> Welfare
-          </label>
-          {welfareEnabled && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span>Amount:</span>
-              <input type="number" min={0} max={50} value={welfareAmount}
-                onChange={(e) => setWelfareAmount(Number(e.target.value))}
-                style={{ width: '60px', padding: '0.2rem' }} />
+          <div className="slider-group">
+            <div className="slider-top">
+              <span>Welfare</span>
+              <span style={{ color: welfareEnabled ? 'var(--moss)' : 'var(--ink-soft)' }}>
+                {welfareEnabled ? `$${welfareAmount}/citizen · enabled` : 'disabled'}
+              </span>
             </div>
-          )}
+            <input type="range" min={0} max={50} step={1} value={welfareAmount}
+              onChange={(e) => { setWelfareAmount(Number(e.target.value)); setWelfareEnabled(Number(e.target.value) > 0); }} />
+          </div>
+
+          <div className="slider-group">
+            <div className="slider-top"><span>Food Subsidy</span><span>+{foodSubsidy}%</span></div>
+            <input type="range" min={0} max={50} step={5} value={foodSubsidy}
+              onChange={(e) => setFoodSubsidy(Number(e.target.value))} />
+          </div>
+
+          <button className="btn" style={{ width: '100%', marginTop: '4px' }} onClick={apply}>Apply Changes</button>
+          {msg && <p style={{ fontSize: '11px', marginTop: '6px', color: 'var(--moss)', fontFamily: 'var(--font-mono)' }}>{msg}</p>}
         </div>
 
-        <div>
-          <label>Food Subsidy: +{foodSubsidy}%</label>
-          <input type="range" min={0} max={50} step={5} value={foodSubsidy}
-            onChange={(e) => setFoodSubsidy(Number(e.target.value))}
-            style={{ width: '100%' }} />
+        <div style={{ borderTop: '1px solid var(--rule)', paddingTop: '0.75rem' }}>
+          <h4 style={{ margin: '0 0 0.5rem', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-soft)' }}>Create Policy</h4>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input placeholder="Policy name" value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem', background: 'var(--parchment-2)', color: 'var(--ink)', border: '1px solid var(--rule)', borderRadius: '4px' }} />
+            <select value={newCategory} onChange={(e) => setNewCategory(Number(e.target.value))}
+              style={{ padding: '0.4rem', fontSize: '0.85rem', background: 'var(--parchment-2)', color: 'var(--ink)', border: '1px solid var(--rule)', borderRadius: '4px' }}>
+              <option value={1}>Economic</option>
+              <option value={2}>Social</option>
+              <option value={4}>Public Order</option>
+            </select>
+            <button onClick={createPolicy}
+              style={{ padding: '0.4rem 0.8rem', background: 'var(--moss)', color: 'var(--cream)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}>
+              Create
+            </button>
+          </div>
         </div>
 
-        <button onClick={apply}
-          style={{ padding: '0.4rem 0.8rem', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-          Apply Changes
-        </button>
+        {policies.length > 0 && (
+          <div style={{ borderTop: '1px solid var(--rule)', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
+            <h4 style={{ margin: '0 0 0.5rem', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-soft)' }}>Active Policies ({policies.length})</h4>
+            {policies.map((p: any) => (
+              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid var(--rule)', fontSize: '0.85rem', color: 'var(--ink)' }}>
+                <span><strong style={{ color: 'var(--gold)' }}>{p.name}</strong> — <span style={{ color: 'var(--ink-soft)' }}>{p.category}</span></span>
+                <button onClick={() => revoke(p.id)}
+                  style={{ padding: '0.2rem 0.5rem', background: 'var(--oxblood)', color: 'var(--cream)', border: 'none', borderRadius: '3px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                  Revoke
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-      <div style={{ marginBottom: '1rem', padding: '0.5rem', background: '#fff3cd', borderRadius: '4px', fontSize: '0.85rem', display: msg ? 'block' : 'none' }}>
-        {msg}
-      </div>
-
-      <div style={{ borderTop: '1px solid #eaeaea', paddingTop: '0.75rem' }}>
-        <h4 style={{ margin: '0 0 0.5rem' }}>Create Policy</h4>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <input placeholder="Policy name" value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }} />
-          <select value={newCategory} onChange={(e) => setNewCategory(Number(e.target.value))}
-            style={{ padding: '0.4rem', fontSize: '0.85rem' }}>
-            <option value={1}>Economic</option>
-            <option value={2}>Social</option>
-            <option value={4}>Public Order</option>
-          </select>
-          <button onClick={createPolicy}
-            style={{ padding: '0.4rem 0.8rem', background: '#16a34a', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-            Create
-          </button>
-        </div>
-      </div>
-
-      {policies.length > 0 && (
-        <div style={{ borderTop: '1px solid #eaeaea', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
-          <h4 style={{ margin: '0 0 0.5rem' }}>Active Policies ({policies.length})</h4>
-          {policies.map((p: any) => (
-            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.3rem 0', borderBottom: '1px solid #f0f0f0', fontSize: '0.85rem' }}>
-              <span><strong>{p.name}</strong> — {p.category}</span>
-              <button onClick={() => revoke(p.id)}
-                style={{ padding: '0.2rem 0.5rem', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer', fontSize: '0.8rem' }}>
-                Revoke
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
