@@ -394,10 +394,10 @@ def run_tick(
             collect_tick_memories(agent, result, world, tick_number)
 
         # Fill in skipped agents (non-evaluating)
+        # NOTE: maybe_lose_job already called for all agents in Pass 1 above — do NOT duplicate.
         for idx, agent in enumerate(living_agents):
             if action_results[idx] is not None:
                 continue
-            maybe_lose_job(agent, rng, world)
             if not should_evaluate_this_tick(agent, tick_number):
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
