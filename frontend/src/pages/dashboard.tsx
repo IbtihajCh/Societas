@@ -4,6 +4,7 @@ import { useSimulationStore } from '@/store/simulationStore';
 import { apiService } from '@/services/api';
 import AgentGrid from '@/components/dashboard/AgentGrid';
 import AgentDetailPanel from '@/components/dashboard/AgentDetailPanel';
+import ExplainPanel from '@/components/dashboard/ExplainPanel';
 
 const EMOTION_COLORS: Record<string, string> = {
   neutral: '#8A7554', happy: '#54661F', sad: '#33415A', angry: '#7D251F', stressed: '#9C6B12',
@@ -35,6 +36,10 @@ export default function Dashboard() {
   const [govWelfare, setGovWelfare] = useState(0);
   const [govMsg, setGovMsg] = useState('');
   const [starting, setStarting] = useState(false);
+  const [setupPop, setSetupPop] = useState(30);
+  const [setupSeed, setSetupSeed] = useState(42);
+  const [setupAI, setSetupAI] = useState(true);
+
 
   const tick = state?.tick ?? 0;
   const pop = state?.population ?? 0;
@@ -44,12 +49,14 @@ export default function Dashboard() {
     setStarting(true);
     try {
       await apiService.resetSimulation();
-      await apiService.startSimulation({ population_size: 30, seed: 42, enable_ai: true });
+      await apiService.startSimulation({
+        population_size: setupPop, seed: setupSeed, enable_ai: setupAI,
+      });
       useSimulationStore.getState().reset();
       await refreshAgents();
     } catch { /* ignore */ }
     setStarting(false);
-  }, [refreshAgents]);
+  }, [refreshAgents, setupPop, setupSeed, setupAI]);
 
   const prevMetrics = useSimulationStore((s) => s.metricsHistory);
   const prev = prevMetrics.length > 1 ? prevMetrics[prevMetrics.length - 2] : null;
@@ -132,10 +139,36 @@ export default function Dashboard() {
           <p style={{ color: 'var(--ink-soft)', fontSize: '13px', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
             Agent-based civilisation simulation<br />20×20 toroidal grid
           </p>
-          <button className="btn primary" style={{ padding: '12px 32px', fontSize: '14px' }}
-            onClick={startSim} disabled={starting}>
-            {starting ? 'starting…' : 'start simulation'}
-          </button>
+          <div style={{
+            background: 'var(--parchment)', border: '1px solid var(--rule)',
+            borderRadius: '8px', padding: '1.5rem', width: '320px',
+            display: 'flex', flexDirection: 'column', gap: '1rem',
+          }}>
+            <div className="slider-group">
+              <div className="slider-top"><span>Population</span><span>{setupPop}</span></div>
+              <input type="range" min="5" max="200" value={setupPop} onChange={(e) => setSetupPop(Number(e.target.value))} />
+            </div>
+            <div className="slider-group">
+              <div className="slider-top"><span>Seed</span><span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{setupSeed}</span></div>
+              <input type="range" min="1" max="999" value={setupSeed} onChange={(e) => setSetupSeed(Number(e.target.value))} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
+              <span style={{ fontSize: '13px', color: 'var(--ink)' }}>AI-driven agents</span>
+              <label className="toggle">
+                <input type="checkbox" checked={setupAI} onChange={(e) => setSetupAI(e.target.checked)} />
+                <span className="slider-track"></span>
+              </label>
+            </div>
+            {setupAI && (
+              <p style={{ fontSize: '11px', color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', margin: 0 }}>
+                E2B · 26b A4B · 31B attending
+              </p>
+            )}
+            <button className="btn primary" style={{ padding: '12px 0', fontSize: '14px', width: '100%' }}
+              onClick={startSim} disabled={starting}>
+              {starting ? 'starting\u2026' : 'start simulation'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -320,8 +353,10 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
+                <ExplainPanel />
 
                 <div className="layout">
+
                   <div className="panel">
                     <div className="panel-head">
                       <div>
@@ -363,17 +398,29 @@ export default function Dashboard() {
                           No events yet. Run the simulation to see world events.
                         </p>
                       ) : (
-                        events.slice(-10).reverse().map((ev: any, i: number) => (
-                          <div className="event" key={i}>
-                            <span className="event-mark" style={{
-                              background: ev.type === 'crime' ? 'var(--oxblood)' :
-                                ev.type === 'env_event' ? 'var(--ochre)' :
-                                ev.type === 'marriage' ? 'var(--moss)' : 'var(--slate)'
-                            }}></span>
-                            <div className="event-text">{ev.description || `${ev.type}`}</div>
-                            <div className="event-time">{ev.tick !== undefined ? `t-${tick - ev.tick}` : ''}</div>
-                          </div>
-                        ))
+                        events.slice(-10).reverse().map((ev: any, i: number) => {
+                          const etype = ev.event_type || ev.type || 'unknown';
+                          const color =
+                            etype === 'crime' ? 'var(--oxblood)' :
+                            etype === 'env_event' ? 'var(--ochre)' :
+                            etype === 'marriage' ? 'var(--moss)' :
+                            etype === 'tick_completed' ? 'var(--slate)' :
+                            etype === 'agent_acted' ? 'var(--ink-soft)' : 'var(--slate)';
+                          const label = etype.replace(/_/g, ' ');
+                          let desc = label;
+                          if (ev.data?.action) desc += `: ${ev.data.action}`;
+                          if (ev.data?.agent_id) desc += ` (agent ${ev.data.agent_id})`;
+                          if (ev.data?.duration_ms) desc += ` — ${ev.data.duration_ms}ms`;
+                          return (
+                            <div className="event" key={i}>
+                              <span className="event-mark" style={{ background: color }}></span>
+                              <div className="event-text">{desc}</div>
+                              <div className="event-time">
+                                {ev.tick !== undefined ? `t-${Math.max(0, tick - ev.tick)}` : ''}
+                              </div>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>

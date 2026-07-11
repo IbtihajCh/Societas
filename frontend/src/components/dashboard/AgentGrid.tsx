@@ -13,15 +13,14 @@ interface AgentGridProps {
 }
 
 const EMOTION_COLORS: Record<string, string> = {
-  HAPPY: '#4CAF50',
-  NORMAL: '#9E9E9E',
-  SAD: '#2196F3',
-  ANGRY: '#F44336',
-  DESPAIR: '#9C27B0',
+  HAPPY: '#54661F',
+  NORMAL: '#8A7554',
+  SAD: '#33415A',
+  ANGRY: '#7D251F',
+  DESPAIR: '#9C6B12',
 };
 
-const DEAD_COLOR = '#E0E0E0';
-const DEAD_STROKE = '#BDBDBD';
+const DEAD_STROKE = '#D1CFBF';
 
 interface TooltipState {
   x: number;
@@ -105,6 +104,65 @@ export default function AgentGrid({
     return map;
   }, [agents]);
 
+  // Draw a pixel sprite face for the given emotion
+  function drawFace(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, emotion: string, color: string) {
+    // Head
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    const e = r * 0.35;
+    const ey = y - r * 0.1;
+    const mouthY = y + r * 0.3;
+    const mouthR = r * 0.25;
+
+    // Eyes (two dots)
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(x - e, ey, r * 0.08, 0, Math.PI * 2);
+    ctx.arc(x + e, ey, r * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Mouth
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    switch (emotion) {
+      case 'HAPPY':
+        ctx.arc(x, y + r * 0.1, mouthR, 0.15 * Math.PI, 0.85 * Math.PI);
+        break;
+      case 'SAD':
+        ctx.arc(x, y + r * 0.55, mouthR, 1.15 * Math.PI, 1.85 * Math.PI);
+        break;
+      case 'ANGRY':
+        ctx.arc(x, y + r * 0.1, mouthR * 0.6, 0.15 * Math.PI, 0.85 * Math.PI);
+        // Slanted brows
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x - e - r * 0.2, ey - r * 0.2);
+        ctx.lineTo(x - e + r * 0.15, ey - r * 0.05);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + e + r * 0.2, ey - r * 0.2);
+        ctx.lineTo(x + e - r * 0.15, ey - r * 0.05);
+        ctx.stroke();
+        break;
+      case 'DESPAIR':
+        ctx.arc(x, mouthY, mouthR * 0.5, 0, Math.PI * 2);
+        break;
+      default:
+        ctx.moveTo(x - mouthR, y + r * 0.2);
+        ctx.lineTo(x + mouthR, y + r * 0.2);
+        break;
+    }
+    ctx.stroke();
+  }
+
   // Actual rendering
   const draw = () => {
     const canvas = canvasRef.current;
@@ -118,15 +176,14 @@ export default function AgentGrid({
     ctx.clearRect(0, 0, size, size);
 
     const cell = size / gridSize;
-    const cx = cell / 2;
 
     // Background
-    ctx.fillStyle = '#f8f9fa';
+    ctx.fillStyle = '#F4EFD8';
     ctx.fillRect(0, 0, size, size);
 
-    // Faint grid lines
-    ctx.strokeStyle = '#e9ecef';
-    ctx.lineWidth = 1;
+    // Faint grid lines (ledger style)
+    ctx.strokeStyle = '#E3DCC5';
+    ctx.lineWidth = 0.5;
     ctx.beginPath();
     for (let i = 0; i <= gridSize; i++) {
       const p = i * cell;
@@ -144,70 +201,47 @@ export default function AgentGrid({
           const e = heatmapData.get(`${gx},${gy}`);
           if (!e || !e.count) continue;
           const avg = e.sum / e.count;
-          const hue = 240 * (1 - avg);
-          ctx.fillStyle = `hsla(${hue}, 80%, 50%, ${0.08 + avg * 0.35})`;
+          ctx.fillStyle = `rgba(125, 37, 31, ${0.06 + avg * 0.25})`;
           ctx.fillRect(gx * cell, gy * cell, cell, cell);
         }
       }
     }
 
     const positions = useSimulationStore.getState().agentAnimPositions;
+    const faceR = Math.max(3, cell * 0.28);
 
-    // Group by alive (by emotion) and dead
-    const byEmotion: Record<string, AgentSummaryDTO[]> = {};
-    const dead: AgentSummaryDTO[] = [];
-
+    // Dead agents (small hollow dots)
     for (const a of agents) {
-      if (a.is_alive) {
-        const e = a.emotion.toUpperCase();
-        (byEmotion[e] ??= []).push(a);
-      } else {
-        dead.push(a);
-      }
-    }
-
-    const dotR = Math.max(2, cell * 0.32);
-    const deadR = Math.max(2, dotR * 0.4);
-
-    // Dead agents (small, hollow)
-    for (const a of dead) {
+      if (a.is_alive) continue;
       const pos = positions[a.id];
       if (!pos) continue;
       ctx.strokeStyle = DEAD_STROKE;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 0.8;
       ctx.beginPath();
-      ctx.arc(pos.x * cell, pos.y * cell, deadR, 0, Math.PI * 2);
+      ctx.arc(pos.x * cell, pos.y * cell, faceR * 0.35, 0, Math.PI * 2);
       ctx.stroke();
     }
 
-    // Living agents (filled circles per emotion)
-    for (const [emotion, group] of Object.entries(byEmotion)) {
-      ctx.fillStyle = EMOTION_COLORS[emotion] ?? '#9E9E9E';
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      for (const a of group) {
-        const pos = positions[a.id];
-        if (!pos) continue;
-        const px = pos.x * cell;
-        const py = pos.y * cell;
-        ctx.moveTo(px + dotR, py);
-        ctx.arc(px, py, dotR, 0, Math.PI * 2);
-      }
-      ctx.fill();
-      ctx.stroke();
-    }
+    // Living agents (face sprites per emotion)
+    for (const a of agents) {
+      if (!a.is_alive) continue;
+      const pos = positions[a.id];
+      if (!pos) continue;
+      const emo = a.emotion?.toUpperCase() || 'NORMAL';
+      const color = EMOTION_COLORS[emo] ?? '#8A7554';
+      const px = pos.x * cell;
+      const py = pos.y * cell;
 
-    // Highlight hovered agent
-    if (hoveredRef.current) {
-      const pos = positions[hoveredRef.current];
-      if (pos) {
-        ctx.strokeStyle = '#FFD700';
-        ctx.lineWidth = 3;
+      // Highlight ring for hovered
+      if (hoveredRef.current === a.id) {
+        ctx.strokeStyle = '#BF9A30';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(pos.x * cell, pos.y * cell, dotR + 3, 0, Math.PI * 2);
+        ctx.arc(px, py, faceR + 2, 0, Math.PI * 2);
         ctx.stroke();
       }
+
+      drawFace(ctx, px, py, faceR, emo, color);
     }
 
     ctx.restore();
@@ -273,22 +307,14 @@ export default function AgentGrid({
 
   return (
     <div>
-      {/* Legend */}
-      <div style={{ marginBottom: '0.5rem', display: 'flex', gap: '1rem', fontSize: '0.8rem', flexWrap: 'wrap' }}>
-        {Object.entries(EMOTION_COLORS).map(([e, c]) => (
-          <span key={e}><span style={{ color: c }}>●</span> {e.charAt(0) + e.slice(1).toLowerCase()}</span>
-        ))}
-        <span><span style={{ color: DEAD_STROKE }}>○</span> Dead</span>
-      </div>
-
       {/* Canvas */}
       <div
         ref={containerRef}
         style={{
           width: '100%',
           maxWidth: 640,
-          border: '2px solid #333',
-          borderRadius: 8,
+          border: '1px solid var(--rule)',
+          borderRadius: 6,
           overflow: 'hidden',
           position: 'relative',
           cursor: isHoveringAgent ? 'pointer' : 'crosshair',
@@ -309,38 +335,40 @@ export default function AgentGrid({
               position: 'fixed',
               left: tooltip.x + 14,
               top: tooltip.y + 14,
-              background: 'rgba(0,0,0,0.88)',
-              color: '#fff',
-              padding: '8px 12px',
-              borderRadius: 8,
-              fontSize: 13,
+              background: '#FCFBEE',
+              border: '1px solid #D1CFBF',
+              color: '#472C06',
+              padding: '10px 14px',
+              borderRadius: 6,
+              fontSize: 12,
               pointerEvents: 'none',
               zIndex: 10000,
-              minWidth: 160,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              minWidth: 180,
+              boxShadow: '0 2px 12px rgba(71,44,6,0.12)',
+              fontFamily: 'Inter, sans-serif',
             }}
           >
-            <div style={{ fontWeight: 700, marginBottom: 4, fontSize: 14 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, fontSize: 13, color: '#472C06' }}>
               {tooltip.agent.persona || `Agent ${tooltip.agent.id}`}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 8px', fontSize: 12 }}>
-              <span style={{ color: '#aaa' }}>ID</span>
-              <span>{tooltip.agent.id}</span>
-              <span style={{ color: '#aaa' }}>Emotion</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 10px', fontSize: 11 }}>
+              <span style={{ color: '#7A6D5A' }}>ID</span>
+              <span style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{tooltip.agent.id}</span>
+              <span style={{ color: '#7A6D5A' }}>Emotion</span>
               <span>
-                <span style={{ color: EMOTION_COLORS[tooltip.agent.emotion.toUpperCase()] ?? '#9E9E9E' }}>●</span>
+                <span style={{ color: EMOTION_COLORS[tooltip.agent.emotion.toUpperCase()] ?? '#8A7554' }}>●</span>
                 {' '}{tooltip.agent.emotion}
               </span>
-              <span style={{ color: '#aaa' }}>Age</span>
+              <span style={{ color: '#7A6D5A' }}>Age</span>
               <span>{tooltip.agent.age}</span>
-              <span style={{ color: '#aaa' }}>Job</span>
+              <span style={{ color: '#7A6D5A' }}>Job</span>
               <span>{tooltip.agent.job_type?.replace(/_/g, ' ') ?? 'none'}</span>
-              <span style={{ color: '#aaa' }}>Class</span>
+              <span style={{ color: '#7A6D5A' }}>Class</span>
               <span>{tooltip.agent.wealth_class?.replace(/_/g, ' ').toLowerCase()}</span>
-              <span style={{ color: '#aaa' }}>Grid</span>
-              <span>({tooltip.agent.grid_x ?? '?'}, {tooltip.agent.grid_y ?? '?'})</span>
-              <span style={{ color: '#aaa' }}>Unlust</span>
-              <span>{(tooltip.agent.unlust ?? 0).toFixed(3)}</span>
+              <span style={{ color: '#7A6D5A' }}>Grid</span>
+              <span style={{ fontFamily: 'IBM Plex Mono, monospace' }}>({tooltip.agent.grid_x ?? '?'}, {tooltip.agent.grid_y ?? '?'})</span>
+              <span style={{ color: '#7A6D5A' }}>Unlust</span>
+              <span style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{(tooltip.agent.unlust ?? 0).toFixed(3)}</span>
             </div>
           </div>
         )}
