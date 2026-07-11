@@ -217,21 +217,33 @@ class VLLMRouter:
         if not self.is_available():
             return ""
         prompt = (
-            f"You are an expert simulation analyst. A society simulation is running.\n"
-            f"Current state: population={state.population}, economic_health={state.economic_health:.2f}, "
-            f"crime_rate={state.crime_rate:.2f}, protest_intensity={state.protest_intensity:.2f}, "
-            f"unemployment_rate={state.unemployment_rate:.2f}, food_availability={state.food_availability:.2f}, "
-            f"tax_rate={state.tax_rate:.2f}, welfare_enabled={state.welfare_enabled}, "
-            f"avg_unlust={state.unlust:.2f}, morality={state.morality:.2f}.\n\n"
+            f"You are an objective simulation analyst. A society simulation is running.\n\n"
+            f"Normal ranges for reference:\n"
+            f"- Crime rate: 0.04-0.12 (normal baseline), 0.15-0.25 (elevated), >0.25 (crisis)\n"
+            f"- Protest intensity: 0.0-0.10 (normal), 0.10-0.25 (unrest), >0.25 (crisis)\n"
+            f"- Unemployment: 0.05-0.12 (normal), 0.12-0.20 (elevated), >0.20 (crisis)\n"
+            f"- Food availability: 0.80-1.0 (normal), 0.5-0.8 (shortage), <0.5 (crisis)\n"
+            f"- Unlust: 0.05-0.15 (normal), 0.15-0.30 (unhappy), >0.30 (crisis)\n"
+            f"- Morality: 0.45-0.55 (normal), <0.40 (eroding), <0.30 (crisis)\n"
+            f"- Economic health: 0.45-0.55 (normal), <0.40 (recession), <0.30 (depression)\n"
+            f"- Welfare enabled: typically false at start\n"
+            f"- Tax rate: 0.10-0.20 (normal), >0.30 (high)\n\n"
+            f"Current state: population={state.population}, economic_health={state.economic_health:.3f}, "
+            f"crime_rate={state.crime_rate:.3f}, protest_intensity={state.protest_intensity:.3f}, "
+            f"unemployment_rate={state.unemployment_rate:.3f}, food_availability={state.food_availability:.3f}, "
+            f"tax_rate={state.tax_rate:.3f}, welfare_enabled={state.welfare_enabled}, "
+            f"avg_unlust={state.unlust:.3f}, morality={state.morality:.3f}.\n\n"
             f"Question: {question}\n\n"
-            f"Provide a concise natural-language explanation (2-4 sentences) based on the data above."
+            f"Answer the question based ONLY on the data. First state whether the metrics are normal or abnormal "
+            f"relative to the normal ranges above. Then explain what factors from the simulation state contribute "
+            f"to the observed values. If values are within normal range, say so clearly. Be concise (2-4 sentences)."
         )
         results = self._call_vllm(
             self._client_dense,
             prompt,
             api_key=self._config.api_key_dense_31b,
-            temperature=0.4,
-            max_tokens=256,
+            temperature=0.2,
+            max_tokens=300,
             model=self._config.model_dense_31b,
             extract_json=False,
         )

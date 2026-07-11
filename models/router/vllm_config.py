@@ -28,5 +28,5 @@ class VLLMConfig:
     max_tokens_moe: int = 256
     max_tokens_dense: int = 512
 
-    timeout_seconds: int = 60
+    timeout_seconds: int = 30
     max_retries: int = 1
