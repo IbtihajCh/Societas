@@ -475,11 +475,13 @@ def run_tick(
     from simulation.events.media_engine import process_media_tick
     news_articles = process_media_tick(world, tick_number, living_agents, rng)
     if news_articles:
-        if not hasattr(world, "media_state") or not isinstance(getattr(world, "media_state", None), dict):
-            world.media_state = {"articles": []}
-        world.media_state.setdefault("articles", []).extend(
+        articles_list = world.media_state.setdefault("articles", [])
+        articles_list.extend(
             [{"tick": a.tick, "headline": a.headline, "body": a.body, "category": a.category, "is_fake": a.is_fake} for a in news_articles]
         )
+        # Keep only the last 200 articles to prevent unbounded growth
+        while len(articles_list) > 200:
+            articles_list.pop(0)
     env_event_ids.extend(
         f"news:{a.headline[:40]}" for a in news_articles
     )
