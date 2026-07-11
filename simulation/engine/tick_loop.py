@@ -290,6 +290,12 @@ def run_tick(
             if is_moral_dilemma(agent, world):
                 ambiguity_count += 1
                 prompt = build_moral_dilemma_prompt(agent, world, nearby_counts)
+                dilemma_prompts.append((idx, prompt))
+                dilemma_agents.append(agent)
+            else:
+                prompt = build_agent_prompt(agent, world, nearby_counts)
+                normal_prompts.append((idx, prompt))
+                normal_agents.append(agent)
 
         # Batch call: normal decisions → E2B
         normal_responses: list[str] = []
@@ -330,7 +336,7 @@ def run_tick(
                         llm_log.append({
                             "tick": tick_number,
                             "agent_id": str(agent.id),
-                            "model_type": model_type,
+                            "model_type": "agent_decide",
                             "action": str(validated),
                             "reason": str(parsed.get("reason", ""))[:200],
                             "feeling": str(parsed.get("feeling", ""))[:100],
@@ -357,6 +363,15 @@ def run_tick(
                         "reasoning": parsed.get("reason", ""),
                         "feeling": parsed.get("feeling", ""),
                     }
+                    if len(llm_log) < 50:
+                        llm_log.append({
+                            "tick": tick_number,
+                            "agent_id": str(agent.id),
+                            "model_type": "moral_reasoning",
+                            "action": str(validated),
+                            "reason": str(parsed.get("reason", ""))[:200],
+                            "feeling": str(parsed.get("feeling", ""))[:100],
+                        })
                 else:
                     action = deterministic_fallback(agent, world, rng)
                     metadata = {"source": "deterministic_fallback", "reasoning": "Invalid LLM action"}
@@ -397,6 +412,10 @@ def run_tick(
                 ambiguity_count += 1
             action = deterministic_fallback(agent, world, rng)
             metadata = {"source": "deterministic_fallback", "reasoning": "No AI router"}
+
+            result = execute_action(agent, action, world, living_agents, rng, tick_number)
+            result.metadata = metadata
+            action_results.append(result)
 
     action_counts_result = Counter()
     for agent in living_agents:
