@@ -33,35 +33,35 @@ interface TooltipState {
 // Ledger palette & constants
 // ---------------------------------------------------------------------------
 
-const PARCHMENT = '#F4EFD8';
-const GRID_LINE = '#E3DCC5';
-const INK = '#472C06';
-const INK_SOFT = '#8A7554';
-const CREAM = '#FCFBEE';
-const HOVER_GOLD = '#FFD700';
+const PARCHMENT = '#221c14';
+const GRID_LINE = '#3d3328';
+const INK = '#f0e8d0';
+const INK_SOFT = '#9a8a6a';
+const CREAM = '#1a1510';
+const HOVER_GOLD = '#e0b050';
 const GRID_SIZE = 20;
 
 const FACE_COLORS: Record<string, string> = {
-  happy: '#54661F',
-  neutral: '#8A7554',
-  sad: '#33415A',
-  angry: '#7D251F',
-  despair: '#9C6B12',
-  stressed: '#9C6B12',
+  happy: '#8aac4a',
+  neutral: '#9a8a6a',
+  sad: '#6d8aaa',
+  angry: '#c54a3f',
+  despair: '#d4a04a',
+  stressed: '#d4a04a',
 };
 
 const DOT_COLORS: Record<string, string> = {
-  happy: '#54661F',
-  neutral: '#8A7554',
-  sad: '#33415A',
-  angry: '#7D251F',
-  despair: '#9C6B12',
-  stressed: '#9C6B12',
-  dead: '#8A7554',
+  happy: '#8aac4a',
+  neutral: '#9a8a6a',
+  sad: '#6d8aaa',
+  angry: '#c54a3f',
+  despair: '#d4a04a',
+  stressed: '#d4a04a',
+  dead: '#5a4e3a',
 };
 
-const FACE_DEFAULT = '#8A7554';
-const DOT_DEFAULT = '#8A7554';
+const FACE_DEFAULT = '#9a8a6a';
+const DOT_DEFAULT = '#9a8a6a';
 
 // ---------------------------------------------------------------------------
 // Pixel-art face drawing (canvas)
@@ -81,9 +81,12 @@ function drawFace(
   // Head — pixel-art rectangle fill
   ctx.fillStyle = color;
   ctx.fillRect(cx - half, cy - half, size, size);
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = CREAM;
+  ctx.lineWidth = 0.8;
   ctx.strokeRect(cx - half, cy - half, size, size);
+  // Glow
+  ctx.shadowBlur = 6;
+  ctx.shadowColor = color;
 
   // Eyes — pixel rects
   const eyeW = Math.max(2, cellSize * 0.06);
@@ -276,11 +279,14 @@ const AgentGrid: React.FC<AgentGridProps> = ({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, w, h);
 
-    // ── Background (parchment) ──
-    ctx.fillStyle = PARCHMENT;
+    // ── Background (parchment with radial gradient) ──
+    const radialGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) / 1.4);
+    radialGrad.addColorStop(0, '#2a2218');
+    radialGrad.addColorStop(1, '#15100a');
+    ctx.fillStyle = radialGrad;
     ctx.fillRect(0, 0, w, h);
 
-    // ── Grid lines (subtle tan) ──
+    // ── Grid lines (subtle gold) ──
     const cellW = w / GRID_SIZE;
     const cellH = h / GRID_SIZE;
 
@@ -318,13 +324,16 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       const emotion = (agent.emotion || 'neutral').toLowerCase();
       const faceColor = FACE_COLORS[emotion] ?? FACE_DEFAULT;
 
-      // Hover ring (gold)
+      // Hover ring (gold with glow)
       if (hoveredRef.current === agent.id) {
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = HOVER_GOLD;
         ctx.strokeStyle = HOVER_GOLD;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(cx, cy, cellSize * 0.28, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.shadowBlur = 0;
       }
 
       // Selected ring (dashed gold)
@@ -339,6 +348,7 @@ const AgentGrid: React.FC<AgentGridProps> = ({
       }
 
       drawFace(ctx, cx, cy, cellSize, emotion, faceColor);
+      ctx.shadowBlur = 0;
     }
   }, [agents, selectedAgent, gridRef]);
 

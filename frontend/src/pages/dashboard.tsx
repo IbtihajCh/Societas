@@ -9,7 +9,7 @@ import AgentDetailPanel from '@/components/dashboard/AgentDetailPanel';
 import ExplainPanel from '@/components/dashboard/ExplainPanel';
 
 const EMOTION_COLORS: Record<string, string> = {
-  neutral: '#8A7554', happy: '#54661F', sad: '#33415A', angry: '#7D251F', stressed: '#9C6B12',
+  neutral: '#9a8a6a', happy: '#8aac4a', sad: '#6d8aaa', angry: '#c54a3f', stressed: '#d4a04a',
 };
 
 function fmt(v: number | undefined | null, d = '—') {
@@ -95,7 +95,7 @@ export default function Dashboard() {
   }, [lastActionCounts, totalActions, actionCategories]);
 
   const categoryColors: Record<string, string> = {
-    Work: '#54661F', Social: '#33415A', Antisocial: '#7D251F', Care: '#8A7554', Economic: '#9C6B12',
+    Work: '#8aac4a', Social: '#6d8aaa', Antisocial: '#c54a3f', Care: '#9a8a6a', Economic: '#d4a04a',
   };
 
   const wealth = wealthData.length > 0 ? wealthData[wealthData.length - 1] : null;
