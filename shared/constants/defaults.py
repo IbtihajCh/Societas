@@ -139,9 +139,9 @@ BASE_UNEMPLOYMENT_RATE: float = 0.10
 SALARY_MULTIPLIER_POOR: float = 0.6
 SALARY_MULTIPLIER_MIDDLE: float = 1.0
 SALARY_MULTIPLIER_RICH: float = 1.3
-FOOD_COST_MULTIPLIER_POOR: float = 1.3   # poor pay more for food (food deserts)
+FOOD_COST_MULTIPLIER_POOR: float = 1.3  # poor pay more for food (food deserts)
 FOOD_COST_MULTIPLIER_MIDDLE: float = 1.0
-FOOD_COST_MULTIPLIER_RICH: float = 0.8   # rich have cheaper food access
+FOOD_COST_MULTIPLIER_RICH: float = 0.8  # rich have cheaper food access
 
 # === World ===
 FOOD_AVAILABILITY_DEFAULT: float = 0.85
@@ -300,13 +300,11 @@ Tuned 2026-07-11 for population stability."""
 DEATH_INHERITANCE_FRACTION: float = 0.7
 """Fraction of a parent's wealth passed to children on death."""
 
-BIRTH_CHANCE_BASE: float = 0.005
-"""Goldilocks rate (v2 engine calibration 2026-07-11). Sweep [0.0001-0.01] showed 0.005 produces
-stable population: 62/80 at 500t, 30/80 at 1000t. Below 0.005 leads to extinction; above leads to explosion.
-0.0001 was extinction; 0.005 is the stable middle ground."""
-"""Base per-tick probability of giving birth for eligible agents. Reduced
-from 0.0002 (still produced 200+ births in 200 ticks = 3.5x pop growth).
-Tuned 2026-07-11 for population stability."""
+BIRTH_CHANCE_BASE: float = 0.009
+"""Goldilocks rate (v2 engine calibration 2026-07-12). Tuned for long-run stability:
+at 80 initial agents, 1000 ticks, AGE_PROGRESSION_INTERVAL=0.1, achieves ~60 survivors.
+Below 0.008 leads to extinction (45 at 1000t); above 0.010 leads to explosion (164 at 1000t).
+0.009 is the stable middle ground for 1000-tick horizons."""
 
 MIN_ADULT_AGE_FOR_BIRTH: int = 18
 """Minimum age for an agent to be eligible for reproduction."""
