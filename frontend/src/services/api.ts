@@ -30,7 +30,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 120000,
 });
 
 export class ApiError extends Error {
@@ -133,10 +133,6 @@ export const apiService = {
     return response.data;
   },
 
-<<<<<<< HEAD
-  revokePolicy: async (policyId: string): Promise<PolicyRevokeResponseDTO> => {
-    const response = await apiClient.delete<PolicyRevokeResponseDTO>(
-=======
   applyGovernance: async (params: {
     tax_rate?: number;
     welfare_enabled?: boolean;
@@ -150,9 +146,8 @@ export const apiService = {
     return response.data;
   },
 
-  revokePolicy: async (policyId: string): Promise<PolicyResponseDTO> => {
-    const response = await apiClient.delete<PolicyResponseDTO>(
->>>>>>> a2bd1d4 (v1-v6 complete: lifecycle, social systems, economy, self-actualization, governance UI, animated grid, LLM explainability, mock AI fallback, save/load, policy suggestions)
+  revokePolicy: async (policyId: string): Promise<PolicyRevokeResponseDTO> => {
+    const response = await apiClient.delete<PolicyRevokeResponseDTO>(
       `/policies/${policyId}`,
     );
     return response.data;
@@ -198,6 +193,13 @@ export const apiService = {
     return response.data;
   },
 
+  getAgentDetail: async (agentId: string): Promise<AgentDetailDTO> => {
+    const response = await apiClient.get<AgentDetailDTO>(
+      `/agents/${agentId}`,
+    );
+    return response.data;
+  },
+
   getAgentHistory: async (agentId: string): Promise<AgentHistoryResponseDTO> => {
     const response = await apiClient.get<AgentHistoryResponseDTO>(
       `/agents/${agentId}/history`,
@@ -211,5 +213,8 @@ export const apiService = {
 
   autoRun: async (params: { active: boolean; interval_ms?: number }): Promise<any> => {
     return apiClient.post('/simulation/auto-run', params).then((r) => r.data);
+  },
+  explain: async (question: string): Promise<{ answer: string; evidence: Record<string, any> }> => {
+    return apiClient.post('/explain', { question }).then((r) => r.data);
   },
 };
