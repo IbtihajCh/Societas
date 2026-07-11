@@ -98,6 +98,17 @@ def spread_reputation(
             # Update knowledge of this agent
             known[agent.id] = agent_rep
 
+    # Cleanup: remove dead agent entries from all known_reputations dicts.
+    # This prevents indefinite accumulation of stale keys for agents that
+    # have died during the simulation.
+    alive_ids = {a.id for a in all_agents if a.is_alive}
+    for other in all_agents:
+        known = other.metadata.get("known_reputations")
+        if known:
+            for dead_id in list(known.keys()):
+                if dead_id not in alive_ids:
+                    del known[dead_id]
+
 
 def reputation_effects(agent: AgentState) -> None:
     """Apply self-esteem adjustments based on current reputation.
