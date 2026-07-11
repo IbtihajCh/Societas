@@ -37,6 +37,7 @@ from shared.utilities.deterministic_rng import DeterministicRNG
 from simulation.agents.emotion_engine import emotion_productivity_mod
 from simulation.agents.morality_engine import detect_fraud, process_fraud
 from simulation.agents.political_system import can_campaign, do_campaign
+from simulation.agents.family_support import get_living_children, get_living_parents
 from simulation.agents.unlust_engine import morality_active
 
 __all__ = ["execute_action", "get_nearby_agents", "compute_nearby_counts", "move_agent"]
@@ -446,6 +447,74 @@ def _do_isolate(agent: AgentState, result: AgentActionResult) -> None:
     agent.needs.set_level(NeedType.SOCIAL_CONNECTION, social - 0.02)
     result.outcome = "isolated"
     result.score_delta = {"social": -0.02}
+
+
+def _do_support_family(
+    agent: AgentState,
+    all_agents: list[AgentState],
+    rng: DeterministicRNG,
+    result: AgentActionResult,
+) -> None:
+    """Support family action: send money to living family members.
+
+    Finds living children, parents, and spouse, then distributes a small
+    amount of money to each. Both the agent and recipients get a small
+    unlust relief and happiness boost.
+
+    Args:
+        agent: The agent providing support.
+        all_agents: All agents in the simulation.
+        rng: Deterministic RNG.
+        result: Action result to populate.
+    """
+    family: list[AgentState] = []
+    # Living children
+    for child_id in agent.children_ids:
+        for a in all_agents:
+            if a.id == child_id and a.is_alive:
+                family.append(a)
+                break
+    # Living parents
+    for parent_id in agent.parent_ids:
+        for a in all_agents:
+            if a.id == parent_id and a.is_alive:
+                family.append(a)
+                break
+    # Living spouse
+    if agent.spouse is not None:
+        for a in all_agents:
+            if a.id == agent.spouse and a.is_alive:
+                family.append(a)
+                break
+
+    if not family:
+        result.outcome = "no_family_nearby"
+        return
+
+    total_shared = 0.0
+    for member in family:
+        amount = min(agent.resources.money * 0.03, 10.0)
+        if amount <= 0:
+            continue
+        agent.resources.money -= amount
+        agent.resources.wealth = agent.resources.money
+        member.resources.money += amount
+        member.resources.wealth = member.resources.money
+        member.unlust = max(0.0, member.unlust - 0.02)
+        total_shared += amount
+
+    if total_shared > 0:
+        agent.unlust = max(0.0, agent.unlust - 0.02)
+        agent.emotions.happiness_score = min(1.0, agent.emotions.happiness_score + 0.03)
+        agent.good_acts += 1
+        agent.needs.set_level(
+            NeedType.FAMILY_BOND,
+            agent.needs.get_level(NeedType.FAMILY_BOND) + 0.05,
+        )
+        result.outcome = f"supported_family:£{total_shared:.2f}"
+        result.score_delta = {"money": -total_shared, "happiness": 0.03}
+    else:
+        result.outcome = "no_money_to_share"
 
 
 def _do_share(

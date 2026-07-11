@@ -47,8 +47,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Engine reference doc (concise guide for other teams)
 - vLLM integration spec for AI Systems Engineer
 - Development playbook (`simulation/development-playbook.md`)
+- **v2 engine calibration** (2026-07-11) — 8-tweak campaign + Goldilocks search fixes default-config extinction
+  - `simulation/PROGRESS_REPORT.md` — comprehensive 600-line report of v2 calibration work
+  - `docs/guides/llm-integration-guide.md` — 1519-line guide for AI engineer (8 prompt templates, event integration, test fixtures, end-to-end tick worked example, 9-step first-action checklist)
+  - `tests/unit/simulation/test_agent_registry.py` — 207-line new test file (was missing entirely; coverage was 0%)
 
 ### Changed
+
+- `shared/constants/defaults.py` (v2 calibration, breaking): `ANGRY_UNLUST_THRESHOLD` 0.58→0.45, `DESPAIR_UNLUST_THRESHOLD` 0.82→0.55, `UNLUST_MORALITY_GATE` 0.58→0.38 (invariant: GATE < DESPAIR so zone 2 is reachable), `BIRTH_CHANCE_BASE` 0.0001→0.005 (Goldilocks), `ECONOMIC_HARDSHIP_DEATH_RATE` 0.003→0.001, `AGE_MORTALITY_ELDERLY` 0.002→0.001, `SLEEP_DECAY_RATE` 0.04→0.02, `FOOD_DECAY_RATE` 0.018→0.012, `WATER_DECAY_RATE` 0.014→0.008, `AGE_PROGRESSION_INTERVAL` 1→0.1
 
 - `shared/` schemas and enums extended with Project Guide-aligned fields (ActionType, NeedType, EmotionType, WealthClass, AgentState, SimulationState)
 - `shared/utilities/deterministic_rng.py`: added `beta()`, `weighted_choice()`, `integers()` methods
@@ -73,6 +79,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - **Re-enable when:** implementation reaches Phase 1 (working simulation + backend code)
 
 ### Fixed
+
+- **v2 engine critical bugs** (2026-07-11)
+  - `simulation/agents/decision_engine.py:396` — `EmotionType.SADNESS` → `EmotionType.SAD` (typo crashed moral-dilemma path; entire `DESPAIR` emotion unreachable)
+  - `simulation/agents/decision_engine.py:339-351` — 11 dead actions added to `deterministic_fallback` base_scores (fraud, treat, counsel, campaign, comply, spread_rumor, support_family, invest, buy_property, hobby, idle)
+  - `simulation/engine/tick_loop.py:142` — order-independence sort (`living_agents.sort(key=lambda a: a.id)`) so same seed = same result regardless of input order
+  - `simulation/agents/lifecycle.py:115,117` — ambitious birth_chance bonus 0.2→0.0002 + happiness bonus 0.001→0.0001 (was causing 200+ births per 200-tick run; population exploded 80→234)
+  - `simulation/agents/needs_calculator.py` — wired all 8 death pathways (FOOD, WATER, HEALTH with rng prob, SLEEP with rng prob, DESPAIR, EXISTENTIAL via purpose_fulfillment, AGE, ECONOMIC); added passive health decay 0.001/tick in `decay_needs()`
+  - `simulation/world/economy.py` — `INFLATION_DECAY_RATE` now wired into `process_economy_tick` via `world.economy.inflation_rate` (was a dead constant)
+  - `simulation/agents/action_executor.py` — `SLEEP_REPLENISH_RATE` removed from `decay_needs` (replenishment only via REST action; prevents auto-sleep rise)
+  - `simulation/agents/agent_factory.py:273-282` — removed 10% elderly starter population (combined with `AGE_PROGRESSION_INTERVAL=1` caused 80% deaths by tick 200)
+  - `simulation/test_reports/sweep_runner.py` — `assign_initial_housing()` called for all agents after `create_initial_population` (property market was effectively dead)
+  - `simulation/agents/memory_system.py:17` — added missing `from typing import Optional` import
+  - `prompts/agent_decision.md`, `prompts/moral_reasoning.md` — action enum updated to full 25 actions (was 15)
 
 ### Security
 

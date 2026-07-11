@@ -22,11 +22,12 @@ from typing import Any, Optional
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, _ROOT)
 
-from shared.types.enums import ActionType, EmotionType, WealthClass, EmploymentStatus
+from shared.types.enums import ActionType, EmotionType, WealthClass
 from shared.schemas.simulation_state import SimulationState
 from shared.utilities.deterministic_rng import DeterministicRNG
 from simulation.engine.tick_loop import run_tick
 from simulation.agents.agent_factory import create_initial_population
+from simulation.world.property_market import assign_initial_housing
 
 
 # ---------------------------------------------------------------------------
@@ -379,6 +380,8 @@ def run_single(
     rng = DeterministicRNG(seed)
     world = build_world()
     agents = create_initial_population(n_agents, rng)
+    for agent in agents:
+        assign_initial_housing(agent)
     per_tick = []
     total_crimes = 0
     total_protests = 0
@@ -398,7 +401,7 @@ def run_single(
 
         avg_h = sum(a.emotions.happiness_score for a in living) / max(1, len(living))
         avg_u = sum(a.unlust for a in living) / max(1, len(living))
-        unemployed = sum(1 for a in living if getattr(a.resources, "employed", False) == EmploymentStatus.UNEMPLOYED) / max(1, len(living))
+        unemployed = sum(1 for a in living if not getattr(a.resources, "employed", False)) / max(1, len(living))
 
         per_tick.append({
             "tick": tick, "alive": len(living), "dead": total_deaths,
@@ -521,11 +524,11 @@ def sweep_group(group_name: str, output_dir: str = ".") -> dict:
         report = generate_report(group_name, param_name, values, results)
         safe_name = param_name.lower()
         report_path = os.path.join(output_dir, f"sweep_{group_name}_{safe_name}.md")
-        with open(report_path, "w") as f:
+        with open(report_path, "w", encoding="utf-8") as f:
             f.write(report)
 
         meta_path = os.path.join(output_dir, f"sweep_{group_name}_{safe_name}.json")
-        with open(meta_path, "w") as f:
+        with open(meta_path, "w", encoding="utf-8") as f:
             json.dump({"param": param_name, "group": group_name, "values": values, "results": results}, f, indent=2, default=str)
 
     # Group summary
@@ -544,7 +547,7 @@ def sweep_group(group_name: str, output_dir: str = ".") -> dict:
         summary_lines.append(f"| {param_name} | {', '.join(str(v) for v in values)} | {verdict} |")
 
     summary_path = os.path.join(output_dir, f"sweep_{group_name}_summary.md")
-    with open(summary_path, "w") as f:
+    with open(summary_path, "w", encoding="utf-8") as f:
         f.write("\n".join(summary_lines))
     print(f"\nSummary: {summary_path}")
 
@@ -573,9 +576,9 @@ def main():
             report = generate_report("custom", param_name, values, results)
             print(report)
             safe = param_name.lower()
-            with open(os.path.join(output_dir, f"sweep_custom_{safe}.md"), "w") as f:
+            with open(os.path.join(output_dir, f"sweep_custom_{safe}.md"), "w", encoding="utf-8") as f:
                 f.write(report)
-            with open(os.path.join(output_dir, f"sweep_custom_{safe}.json"), "w") as f:
+            with open(os.path.join(output_dir, f"sweep_custom_{safe}.json"), "w", encoding="utf-8") as f:
                 json.dump({"param": param_name, "values": values, "results": results}, f, indent=2, default=str)
     else:
         # Run all sweep groups

@@ -10,7 +10,7 @@ injecting variety that mimics LLM behavior while remaining deterministic.
 import json
 from typing import Any
 
-from shared.types.enums import ActionType, EmotionType, NeedType
+from shared.types.enums import ActionType, EmotionType, JobType, NeedType, WealthClass
 from shared.schemas.agent_state import AgentState
 from shared.schemas.simulation_state import SimulationState
 from shared.constants.defaults import BASE_FOOD_COST, SCARCITY_BASE
@@ -210,6 +210,53 @@ class MockAIRouter:
         # Low money
         if money < 100:
             weights["beg"] = weights.get("beg", 0.0) + 10.0
+
+        # -- New action weights --
+
+        # FRAUD — immoral rich
+        if not is_moral and money > 200:
+            weights["fraud"] = agent.traits.ambition * 8.0
+
+        # TREAT — doctor profession
+        if agent.job_type == JobType.DOCTOR:
+            weights["treat"] = 15.0 + agent.traits.morality * 10.0
+
+        # COUNSEL — therapist profession
+        if agent.job_type == JobType.THERAPIST:
+            weights["counsel"] = 15.0 + agent.traits.morality * 10.0
+
+        # CAMPAIGN — political ambition
+        if agent.traits.ambition > 0.5 and agent.notoriety > 0.4 and money > 100:
+            weights["campaign"] = agent.traits.ambition * 15.0
+
+        # COMPLY — compliant personality
+        if agent.trust_in_govt > 0.5 and agent.traits.anger_tendency < 0.3:
+            weights["comply"] = agent.trust_in_govt * 8.0
+
+        # SPREAD_RUMOR — dominance-driven gossip
+        if agent.traits.dominance_urge > 0.6:
+            weights["spread_rumor"] = agent.traits.dominance_urge * 10.0
+
+        # SUPPORT_FAMILY — family financial support
+        if money > 20:
+            family_bond = agent.needs.get_level(NeedType.FAMILY_BOND)
+            if family_bond < 0.5:
+                weights["support_family"] = (0.5 - family_bond) * 10.0
+
+        # INVEST — financial investment
+        if money > 200 and agent.traits.ambition > 0.4:
+            weights["invest"] = agent.traits.ambition * 8.0
+
+        # BUY_PROPERTY — real estate
+        if money > 500 and agent.wealth_class != WealthClass.POOR:
+            weights["buy_property"] = 5.0
+
+        # HOBBY — stress relief
+        if agent.emotions.happiness_score < 0.4 or agent.unlust > 0.5:
+            weights["hobby"] = 8.0
+
+        # IDLE — conscious choice, very low weight
+        weights["idle"] = 1.0
 
         # Moral bias for dilemma context
         if moral_bias:

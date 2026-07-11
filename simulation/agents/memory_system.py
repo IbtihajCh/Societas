@@ -15,6 +15,7 @@ Constants:
 """
 
 from dataclasses import dataclass, field
+from typing import Optional
 
 from shared.schemas.agent_state import AgentState
 from shared.schemas.simulation_state import SimulationState
