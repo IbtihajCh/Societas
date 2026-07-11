@@ -8,9 +8,10 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { AgentDetailDTO } from '@/types/api';
+import { apiService } from '@/services/api';
 
 interface AgentDetailPanelProps {
-  agent: AgentDetailDTO;
+  agentId: string;
   onClose: () => void;
 }
 
@@ -121,13 +122,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function AgentDetailPanel({ agent, onClose }: AgentDetailPanelProps) {
+export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelProps) {
   const [mounted, setMounted] = useState(false);
+  const [agent, setAgent] = useState<AgentDetailDTO | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 10);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    apiService.getAgentDetail(agentId).then(setAgent).finally(() => setLoading(false));
+  }, [agentId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -136,6 +143,14 @@ export default function AgentDetailPanel({ agent, onClose }: AgentDetailPanelPro
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  if (!agent) {
+    return (
+      <div style={{ position: 'fixed', right: 0, top: 0, bottom: 0, width: '380px', zIndex: 1001, background: 'var(--parchment)', borderLeft: '1px solid var(--rule-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{loading ? 'Loading...' : 'Agent not found'}</p>
+      </div>
+    );
+  }
 
   const emotionKey = agent.emotion?.toLowerCase() || 'normal';
   const emotionColor = EMOTION_COLORS[emotionKey] || EMOTION_COLORS.normal;
