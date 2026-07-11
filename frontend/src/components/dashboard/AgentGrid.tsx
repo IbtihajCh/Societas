@@ -1,48 +1,196 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AgentSummaryDTO } from '@/types/api';
-import { useSimulationStore } from '@/store/simulationStore';
-import { useAnimationFrame } from '@/hooks/useAnimationFrame';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 
-interface AgentGridProps {
-  agents: AgentSummaryDTO[];
-  gridSize?: number;
-  showHeatmap?: boolean;
-  isRunning?: boolean;
-  onRefresh?: () => void;
-  onAgentClick?: (agentId: string) => void;
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface AgentData {
+  id: string;
+  grid_x?: number;
+  grid_y?: number;
+  emotion?: string;
+  is_alive?: boolean;
+  age?: number;
+  job_type?: string;
+  wealth_class?: string;
+  unlust?: number;
 }
 
-const EMOTION_COLORS: Record<string, string> = {
-  HAPPY: '#54661F',
-  NORMAL: '#8A7554',
-  SAD: '#33415A',
-  ANGRY: '#7D251F',
-  DESPAIR: '#9C6B12',
-};
-
-const DEAD_STROKE = '#D1CFBF';
+interface AgentGridProps {
+  gridRef?: React.RefObject<HTMLDivElement> | null;
+  agents: AgentData[];
+  onAgentClick?: (agentId: string) => void;
+  selectedAgent?: string | null;
+}
 
 interface TooltipState {
   x: number;
   y: number;
-  agent: AgentSummaryDTO;
+  agent: AgentData;
 }
 
-interface HeatEntry {
-  sum: number;
-  count: number;
+// ---------------------------------------------------------------------------
+// Ledger palette & constants
+// ---------------------------------------------------------------------------
+
+const PARCHMENT = '#F4EFD8';
+const GRID_LINE = '#E3DCC5';
+const INK = '#472C06';
+const INK_SOFT = '#8A7554';
+const CREAM = '#FCFBEE';
+const HOVER_GOLD = '#FFD700';
+const GRID_SIZE = 20;
+
+const FACE_COLORS: Record<string, string> = {
+  happy: '#54661F',
+  neutral: '#8A7554',
+  sad: '#33415A',
+  angry: '#7D251F',
+  despair: '#9C6B12',
+  stressed: '#9C6B12',
+};
+
+const DOT_COLORS: Record<string, string> = {
+  happy: '#54661F',
+  neutral: '#8A7554',
+  sad: '#33415A',
+  angry: '#7D251F',
+  despair: '#9C6B12',
+  stressed: '#9C6B12',
+  dead: '#8A7554',
+};
+
+const FACE_DEFAULT = '#8A7554';
+const DOT_DEFAULT = '#8A7554';
+
+// ---------------------------------------------------------------------------
+// Pixel-art face drawing (canvas)
+// ---------------------------------------------------------------------------
+
+function drawFace(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  cellSize: number,
+  emotion: string,
+  color: string,
+) {
+  const half = cellSize * 0.22;
+  const size = half * 2;
+
+  // Head — pixel-art rectangle fill
+  ctx.fillStyle = color;
+  ctx.fillRect(cx - half, cy - half, size, size);
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(cx - half, cy - half, size, size);
+
+  // Eyes — pixel rects
+  const eyeW = Math.max(2, cellSize * 0.06);
+  const eyeH = Math.max(2, cellSize * 0.08);
+  const eyeSpacing = cellSize * 0.13;
+  const eyeY = cy - cellSize * 0.03;
+
+  ctx.fillStyle = CREAM;
+  ctx.fillRect(
+    Math.round(cx - eyeSpacing - eyeW / 2),
+    Math.round(eyeY - eyeH / 2),
+    eyeW,
+    eyeH,
+  );
+  ctx.fillRect(
+    Math.round(cx + eyeSpacing - eyeW / 2),
+    Math.round(eyeY - eyeH / 2),
+    eyeW,
+    eyeH,
+  );
+
+  // Mouth
+  const mouthY = cy + cellSize * 0.08;
+  const mouthR = cellSize * 0.1;
+
+  ctx.strokeStyle = CREAM;
+  ctx.lineWidth = 1.2;
+  ctx.lineCap = 'round';
+
+  switch (emotion) {
+    case 'happy': {
+      // Upward smile arc
+      ctx.beginPath();
+      ctx.arc(cx, mouthY - cellSize * 0.02, mouthR, 0.2 * Math.PI, 0.8 * Math.PI);
+      ctx.stroke();
+      break;
+    }
+    case 'neutral': {
+      // Flat line
+      ctx.beginPath();
+      ctx.moveTo(cx - mouthR, mouthY);
+      ctx.lineTo(cx + mouthR, mouthY);
+      ctx.stroke();
+      break;
+    }
+    case 'sad': {
+      // Downward frown arc
+      ctx.beginPath();
+      ctx.arc(cx, mouthY + cellSize * 0.12, mouthR, 1.2 * Math.PI, 1.8 * Math.PI);
+      ctx.stroke();
+      break;
+    }
+    case 'angry': {
+      // Smaller arc mouth
+      ctx.beginPath();
+      ctx.arc(cx, mouthY - cellSize * 0.02, mouthR * 0.6, 0.2 * Math.PI, 0.8 * Math.PI);
+      ctx.stroke();
+      // Slanted brows above eyes
+      ctx.strokeStyle = CREAM;
+      ctx.lineWidth = 1.8;
+      const browY = eyeY - cellSize * 0.1;
+      ctx.beginPath();
+      ctx.moveTo(cx - eyeSpacing - cellSize * 0.04, browY);
+      ctx.lineTo(cx - eyeSpacing + cellSize * 0.07, browY + cellSize * 0.05);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + eyeSpacing + cellSize * 0.04, browY);
+      ctx.lineTo(cx + eyeSpacing - cellSize * 0.07, browY + cellSize * 0.05);
+      ctx.stroke();
+      break;
+    }
+    case 'despair': {
+      // Open O mouth
+      ctx.beginPath();
+      ctx.arc(cx, mouthY + cellSize * 0.02, mouthR * 0.45, 0, Math.PI * 2);
+      ctx.stroke();
+      // Teardrop pixels
+      ctx.fillStyle = INK_SOFT;
+      const tearX = cx - eyeSpacing;
+      const tearY = eyeY + cellSize * 0.1;
+      ctx.fillRect(Math.round(tearX - 1), Math.round(tearY), 2, 3);
+      ctx.fillRect(Math.round(cx + eyeSpacing - 1), Math.round(tearY), 2, 3);
+      break;
+    }
+    default: {
+      // Fallback neutral line
+      ctx.beginPath();
+      ctx.moveTo(cx - mouthR, mouthY);
+      ctx.lineTo(cx + mouthR, mouthY);
+      ctx.stroke();
+      break;
+    }
+  }
 }
 
-interface AgentTooltipProps {
-  tooltip: TooltipState;
-  emotionColors: Record<string, string>;
-}
+// ---------------------------------------------------------------------------
+// Tooltip DOM overlay
+// ---------------------------------------------------------------------------
 
-function AgentTooltip({ tooltip, emotionColors }: AgentTooltipProps) {
+function AgentTooltip({ tooltip }: { tooltip: TooltipState }) {
   const { x, y, agent } = tooltip;
+  const emotion = (agent.emotion || 'neutral').toLowerCase();
+  const dotColor = DOT_COLORS[emotion] ?? DOT_DEFAULT;
+
   const pad = 14;
-  const width = 220;
-  const height = 170;
+  const width = 210;
+  const height = 190;
 
   let left = x + pad;
   let top = y + pad;
@@ -55,25 +203,34 @@ function AgentTooltip({ tooltip, emotionColors }: AgentTooltipProps) {
 
   return (
     <div className="agent-tooltip" style={{ left, top }}>
-      <div className="name">
-        {agent.persona || `Agent ${agent.id}`}
-      </div>
+      <div className="name">Agent {agent.id}</div>
       <div className="grid">
         <span className="label">ID</span>
         <span className="value">{agent.id}</span>
+
         <span className="label">Emotion</span>
         <span>
-          <span style={{ color: emotionColors[agent.emotion.toUpperCase()] ?? '#8A7554' }}>●</span>
-          {' '}{agent.emotion}
+          <span style={{ color: dotColor }}>●</span>
+          {' '}
+          {agent.emotion || 'neutral'}
         </span>
+
         <span className="label">Age</span>
-        <span>{agent.age}</span>
+        <span>{agent.age ?? '?'}</span>
+
         <span className="label">Job</span>
-        <span>{agent.job_type?.replace(/_/g, ' ') ?? 'none'}</span>
+        <span>{(agent.job_type || 'none').replace(/_/g, ' ')}</span>
+
         <span className="label">Class</span>
-        <span>{agent.wealth_class?.replace(/_/g, ' ').toLowerCase()}</span>
+        <span>
+          {(agent.wealth_class || 'unknown').replace(/_/g, ' ').toLowerCase()}
+        </span>
+
         <span className="label">Grid</span>
-        <span className="value">({agent.grid_x ?? '?'}, {agent.grid_y ?? '?'})</span>
+        <span>
+          ({agent.grid_x ?? '?'}, {agent.grid_y ?? '?'})
+        </span>
+
         <span className="label">Unlust</span>
         <span className="value">{(agent.unlust ?? 0).toFixed(3)}</span>
       </div>
@@ -81,298 +238,212 @@ function AgentTooltip({ tooltip, emotionColors }: AgentTooltipProps) {
   );
 }
 
-export default function AgentGrid({
+// ---------------------------------------------------------------------------
+// Agent grid component
+// ---------------------------------------------------------------------------
+
+const AgentGrid: React.FC<AgentGridProps> = ({
+  gridRef,
   agents,
-  gridSize = 20,
-  showHeatmap = false,
-  isRunning = false,
-  onRefresh,
   onAgentClick,
-}: AgentGridProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  selectedAgent,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [size, setSize] = useState(0);
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-  const [isHoveringAgent, setIsHoveringAgent] = useState(false);
-  const advanceAnimations = useSimulationStore((s) => s.advanceAnimations);
+  const internalRef = useRef<HTMLDivElement>(null);
+  const containerRef = gridRef ?? internalRef;
   const hoveredRef = useRef<string | null>(null);
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [isHovering, setIsHovering] = useState(false);
 
-  // Responsive square canvas
-  useEffect(() => {
+  // ---- Draw ----
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!container) return;
-    const measure = () => {
-      const w = Math.floor(container.getBoundingClientRect().width);
-      setSize(w);
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, []);
+    if (!canvas || !container) return;
 
-  // HiDPI backing store
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !size) return;
+    const rect = container.getBoundingClientRect();
+    const w = Math.floor(rect.width);
+    const h = Math.floor(rect.height);
+    if (!w || !h) return;
+
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(size * dpr);
-    canvas.height = Math.floor(size * dpr);
-  }, [size]);
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
 
-  // Sync animation targets from agent positions
-  useEffect(() => {
-    const targets: Record<string, { x: number; y: number }> = {};
-    for (const a of agents) {
-      targets[a.id] = {
-        x: (a.grid_x ?? 0) + 0.5,
-        y: (a.grid_y ?? 0) + 0.5,
-      };
-    }
-    useSimulationStore.getState().updateAnimPositions(targets);
-  }, [agents]);
-
-  // Poll agents every 2s while running
-  useEffect(() => {
-    if (!isRunning || !onRefresh) return;
-    const iv = setInterval(onRefresh, 2000);
-    return () => clearInterval(iv);
-  }, [isRunning, onRefresh]);
-
-  // Heatmap data: avg unlust per cell
-  const heatmapData = useMemo(() => {
-    const map = new Map<string, HeatEntry>();
-    for (const a of agents) {
-      if (!a.is_alive) continue;
-      const key = `${a.grid_x ?? 0},${a.grid_y ?? 0}`;
-      const e = map.get(key) ?? { sum: 0, count: 0 };
-      e.sum += a.unlust;
-      e.count += 1;
-      map.set(key, e);
-    }
-    return map;
-  }, [agents]);
-
-  // Draw a pixel sprite face for the given emotion
-  function drawFace(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, emotion: string, color: string) {
-    // Head
-    ctx.fillStyle = color;
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    const e = r * 0.35;
-    const ey = y - r * 0.1;
-    const mouthY = y + r * 0.3;
-    const mouthR = r * 0.25;
-
-    // Eyes (two dots)
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(x - e, ey, r * 0.08, 0, Math.PI * 2);
-    ctx.arc(x + e, ey, r * 0.08, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Mouth
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    switch (emotion) {
-      case 'HAPPY':
-        ctx.arc(x, y + r * 0.1, mouthR, 0.15 * Math.PI, 0.85 * Math.PI);
-        break;
-      case 'SAD':
-        ctx.arc(x, y + r * 0.55, mouthR, 1.15 * Math.PI, 1.85 * Math.PI);
-        break;
-      case 'ANGRY':
-        ctx.arc(x, y + r * 0.1, mouthR * 0.6, 0.15 * Math.PI, 0.85 * Math.PI);
-        // Slanted brows
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(x - e - r * 0.2, ey - r * 0.2);
-        ctx.lineTo(x - e + r * 0.15, ey - r * 0.05);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x + e + r * 0.2, ey - r * 0.2);
-        ctx.lineTo(x + e - r * 0.15, ey - r * 0.05);
-        ctx.stroke();
-        break;
-      case 'DESPAIR':
-        ctx.arc(x, mouthY, mouthR * 0.5, 0, Math.PI * 2);
-        break;
-      default:
-        ctx.moveTo(x - mouthR, y + r * 0.2);
-        ctx.lineTo(x + mouthR, y + r * 0.2);
-        break;
-    }
-    ctx.stroke();
-  }
-
-  // Actual rendering
-  const draw = () => {
-    const canvas = canvasRef.current;
-    if (!canvas || !size) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    ctx.save();
     ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, size, size);
+    ctx.clearRect(0, 0, w, h);
 
-    const cell = size / gridSize;
+    // ── Background (parchment) ──
+    ctx.fillStyle = PARCHMENT;
+    ctx.fillRect(0, 0, w, h);
 
-    // Background
-    ctx.fillStyle = '#F4EFD8';
-    ctx.fillRect(0, 0, size, size);
+    // ── Grid lines (subtle tan) ──
+    const cellW = w / GRID_SIZE;
+    const cellH = h / GRID_SIZE;
 
-    // Faint grid lines (ledger style)
-    ctx.strokeStyle = '#E3DCC5';
+    ctx.strokeStyle = GRID_LINE;
     ctx.lineWidth = 0.5;
     ctx.beginPath();
-    for (let i = 0; i <= gridSize; i++) {
-      const p = i * cell;
-      ctx.moveTo(p, 0);
-      ctx.lineTo(p, size);
-      ctx.moveTo(0, p);
-      ctx.lineTo(size, p);
+    for (let i = 0; i <= GRID_SIZE; i++) {
+      const px = Math.round(i * cellW) + 0.5;
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, h);
+      const py = Math.round(i * cellH) + 0.5;
+      ctx.moveTo(0, py);
+      ctx.lineTo(w, py);
     }
     ctx.stroke();
 
-    // Heatmap overlay
-    if (showHeatmap) {
-      for (let gy = 0; gy < gridSize; gy++) {
-        for (let gx = 0; gx < gridSize; gx++) {
-          const e = heatmapData.get(`${gx},${gy}`);
-          if (!e || !e.count) continue;
-          const avg = e.sum / e.count;
-          ctx.fillStyle = `rgba(125, 37, 31, ${0.06 + avg * 0.25})`;
-          ctx.fillRect(gx * cell, gy * cell, cell, cell);
-        }
+    // ── Agents ──
+    for (const agent of agents) {
+      if (agent.grid_x === undefined || agent.grid_y === undefined) continue;
+
+      const cx = (agent.grid_x + 0.5) * cellW;
+      const cy = (agent.grid_y + 0.5) * cellH;
+      const cellSize = Math.min(cellW, cellH);
+
+      // Dead: very small hollow circle in ink-soft
+      if (!agent.is_alive) {
+        ctx.strokeStyle = INK_SOFT;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(cx, cy, cellSize * 0.08, 0, Math.PI * 2);
+        ctx.stroke();
+        continue;
       }
-    }
 
-    const positions = useSimulationStore.getState().agentAnimPositions;
-    const faceR = Math.max(3, cell * 0.28);
+      const emotion = (agent.emotion || 'neutral').toLowerCase();
+      const faceColor = FACE_COLORS[emotion] ?? FACE_DEFAULT;
 
-    // Dead agents (small hollow dots)
-    for (const a of agents) {
-      if (a.is_alive) continue;
-      const pos = positions[a.id];
-      if (!pos) continue;
-      ctx.strokeStyle = DEAD_STROKE;
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.arc(pos.x * cell, pos.y * cell, faceR * 0.35, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    // Living agents (face sprites per emotion)
-    for (const a of agents) {
-      if (!a.is_alive) continue;
-      const pos = positions[a.id];
-      if (!pos) continue;
-      const emo = a.emotion?.toUpperCase() || 'NORMAL';
-      const color = EMOTION_COLORS[emo] ?? '#8A7554';
-      const px = pos.x * cell;
-      const py = pos.y * cell;
-
-      // Highlight ring for hovered
-      if (hoveredRef.current === a.id) {
-        ctx.strokeStyle = '#BF9A30';
+      // Hover ring (gold)
+      if (hoveredRef.current === agent.id) {
+        ctx.strokeStyle = HOVER_GOLD;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(px, py, faceR + 2, 0, Math.PI * 2);
+        ctx.arc(cx, cy, cellSize * 0.28, 0, Math.PI * 2);
         ctx.stroke();
       }
 
-      drawFace(ctx, px, py, faceR, emo, color);
-    }
-
-    ctx.restore();
-  };
-
-  useAnimationFrame((dt) => {
-    advanceAnimations(dt);
-    draw();
-  }, true);
-
-  // Hit-test for hover
-  const hitTest = (mx: number, my: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !size) return null;
-    const rect = canvas.getBoundingClientRect();
-    const gx = ((mx - rect.left) / size) * gridSize;
-    const gy = ((my - rect.top) / size) * gridSize;
-    const positions = useSimulationStore.getState().agentAnimPositions;
-
-    let best: AgentSummaryDTO | null = null;
-    let bestDist = 0.65;
-
-    for (const a of agents) {
-      if (!a.is_alive) continue;
-      const pos = positions[a.id];
-      if (!pos) continue;
-      const dx = pos.x - gx;
-      const dy = pos.y - gy;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d < bestDist) {
-        bestDist = d;
-        best = a;
+      // Selected ring (dashed gold)
+      if (selectedAgent === agent.id) {
+        ctx.strokeStyle = HOVER_GOLD;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, cellSize * 0.32, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
-    }
-    return best;
-  };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const a = hitTest(e.clientX, e.clientY);
-    if (a) {
-      hoveredRef.current = a.id;
-      setIsHoveringAgent(true);
-      setTooltip({ x: e.clientX, y: e.clientY, agent: a });
-    } else {
-      hoveredRef.current = null;
-      setIsHoveringAgent(false);
-      setTooltip(null);
+      drawFace(ctx, cx, cy, cellSize, emotion, faceColor);
     }
-  };
+  }, [agents, selectedAgent, gridRef]);
 
-  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const a = hitTest(e.clientX, e.clientY);
-    if (onAgentClick && a) {
-      onAgentClick(a.id);
-    }
-  };
+  // Run draw on mount and when dependencies change
+  useEffect(() => {
+    draw();
+  }, [draw]);
 
-  const handleMouseLeave = () => {
+  // Re-draw on container resize
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(() => draw());
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [containerRef, draw]);
+
+  // ── Hit testing ──
+  const hitTest = useCallback(
+    (clientX: number, clientY: number): AgentData | null => {
+      const container = containerRef.current;
+      if (!container) return null;
+
+      const rect = container.getBoundingClientRect();
+      const mx = clientX - rect.left;
+      const my = clientY - rect.top;
+      const w = rect.width;
+      const h = rect.height;
+      const cellW = w / GRID_SIZE;
+      const cellH = h / GRID_SIZE;
+
+      const gx = mx / cellW;
+      const gy = my / cellH;
+
+      let best: AgentData | null = null;
+      let bestDist = 0.55;
+
+      for (const a of agents) {
+        if (!a.is_alive) continue;
+        if (a.grid_x === undefined || a.grid_y === undefined) continue;
+        const dx = a.grid_x + 0.5 - gx;
+        const dy = a.grid_y + 0.5 - gy;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < bestDist) {
+          bestDist = d;
+          best = a;
+        }
+      }
+
+      return best;
+    },
+    [agents, gridRef],
+  );
+
+  // ── Event handlers ──
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const a = hitTest(e.clientX, e.clientY);
+      if (a) {
+        hoveredRef.current = a.id;
+        setIsHovering(true);
+        setTooltip({ x: e.clientX, y: e.clientY, agent: a });
+      } else {
+        hoveredRef.current = null;
+        setIsHovering(false);
+        setTooltip(null);
+      }
+      draw();
+    },
+    [hitTest, draw],
+  );
+
+  const handleMouseLeave = useCallback(() => {
     hoveredRef.current = null;
-    setIsHoveringAgent(false);
+    setIsHovering(false);
     setTooltip(null);
-  };
+    draw();
+  }, [draw]);
+
+  const handleClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const a = hitTest(e.clientX, e.clientY);
+      if (onAgentClick && a) {
+        onAgentClick(a.id);
+      }
+    },
+    [hitTest, onAgentClick],
+  );
 
   return (
-    <div>
-      {/* Canvas */}
-      <div
-        ref={containerRef}
-        className="grid-square"
-        style={{ cursor: isHoveringAgent ? 'pointer' : 'crosshair' }}
-      >
-        <canvas
-          ref={canvasRef}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          onClick={handleClick}
-        />
-
-        {/* Tooltip */}
-        {tooltip && (
-          <AgentTooltip tooltip={tooltip} emotionColors={EMOTION_COLORS} />
-        )}
-      </div>
+    <div
+      ref={containerRef}
+      className="grid-square"
+      style={{ cursor: isHovering ? 'pointer' : 'crosshair' }}
+    >
+      <canvas
+        ref={canvasRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+      />
+      {tooltip && <AgentTooltip tooltip={tooltip} />}
     </div>
   );
-}
+};
+
+export default AgentGrid;

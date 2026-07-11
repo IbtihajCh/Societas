@@ -1,125 +1,106 @@
-"""Explain endpoint: answers 'why did this happen?' using 31B LLM or rule-based fallback."""
-
 import logging
 import os
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends
 
 from backend.app.dependencies import get_simulation_service
 from backend.app.services.simulation_service import SimulationService
-from models.router.vllm_config import VLLMConfig
-from models.router.vllm_router import VLLMRouter
 
-router = APIRouter()
-logger = logging.getLogger("societas.explain")
+logger = logging.getLogger("societas.api")
 
-
-class ExplainRequest(BaseModel):
-    question: str = ""
+router = APIRouter(tags=["explain"])
 
 
-class ExplainResponse(BaseModel):
-    answer: str
-    evidence: dict
-    source: str = "llm"
-
-
-def _build_rule_explanation(state, question: str) -> str:
-    q = question.lower()
-    parts = []
-    if any(w in q for w in ["tax", "welfare", "policy", "economy"]):
-        parts.append(
-            f"Current tax rate is {state.tax_rate:.0%}, "
-            f"welfare is {'enabled' if state.welfare_enabled else 'disabled'} "
-            f"(amount: ${state.welfare_amount:.0f}). "
-            f"Economic health: {state.economic_health:.2f}, "
-            f"unemployment: {state.unemployment_rate:.0%}."
-        )
-    if any(w in q for w in ["crime", "steal", "harm", "protest", "riot"]):
-        parts.append(
-            f"Crime rate: {state.crime_rate:.2f}, "
-            f"protest intensity: {state.protest_intensity:.2f}, "
-            f"public order: {state.public_order:.2f}, "
-            f"average unlust: {state.unlust:.2f}."
-        )
-    if any(w in q for w in ["food", "hunger", "famine", "drought"]):
-        parts.append(
-            f"Food availability: {state.food_availability:.0%}, "
-            f"water availability: {state.water_availability:.0%}."
-        )
-    if any(w in q for w in ["die", "death", "mortality", "population"]):
-        parts.append(
-            f"Population: {state.population}, "
-            f"average unlust: {state.unlust:.2f}, "
-            f"morality: {state.morality:.2f}."
-        )
-    if any(w in q for w in ["unlust", "happiness", "emotion", "angry", "sad"]):
-        parts.append(
-            f"Average unlust: {state.unlust:.2f}, "
-            f"morality: {state.morality:.2f}, "
-            f"social cohesion: {state.social_cohesion:.2f}."
-        )
-    if any(w in q for w in ["env", "environment", "weather", "event"]):
-        active = state.active_env_events or []
-        if active:
-            parts.append(f"Active environmental events: {', '.join(active)}.")
-        else:
-            parts.append("No active environmental events.")
-    if not parts:
-        parts.append(
-            f"World state — population: {state.population}, "
-            f"tick: {state.time_step}, "
-            f"economic health: {state.economic_health:.2f}, "
-            f"crime rate: {state.crime_rate:.2f}, "
-            f"food availability: {state.food_availability:.0%}."
-        )
-    return " ".join(parts)
-
-
-@router.post("/explain", response_model=ExplainResponse)
-async def explain(
-    request: ExplainRequest,
+@router.post("/explain")
+async def explain_simulation_state(
+    body: dict,
     service: SimulationService = Depends(get_simulation_service),
 ):
-    engine = service.get_engine()
-    if engine is None:
-        raise HTTPException(status_code=400, detail="Simulation not started")
-    state = engine.get_state()
+    question = body.get("question", "")
+    state = service.get_state()
+    if state is None:
+        return {"answer": "Simulation not started.", "evidence": {}, "source": "system"}
 
-    evidence = {
-        "tick": state.time_step,
-        "population": state.population,
-        "economic_health": round(state.economic_health, 3),
-        "crime_rate": round(state.crime_rate, 3),
-        "protest_intensity": round(state.protest_intensity, 3),
-        "unemployment_rate": round(state.unemployment_rate, 3),
-        "food_availability": round(state.food_availability, 3),
-        "tax_rate": state.tax_rate,
-        "welfare_enabled": state.welfare_enabled,
-        "unlust": round(state.unlust, 3),
-        "morality": round(state.morality, 3),
-        "active_env_events": state.active_env_events or [],
+    answer_parts = []
+    evidence = {}
+
+    q = question.lower()
+
+    if "crime" in q:
+        cr = getattr(state, "crime_rate", 0)
+        answer_parts.append(f"The crime rate is {cr:.3f}.")
+        evidence["crime_rate"] = cr
+        if cr < 0.04:
+            answer_parts.append("This is well below the normal baseline (0.04–0.12).")
+        elif cr < 0.12:
+            answer_parts.append("This is within the normal baseline range.")
+        elif cr < 0.25:
+            answer_parts.append("This is elevated above normal (threshold 0.15).")
+        else:
+            answer_parts.append("This is at crisis level (threshold >0.25).")
+
+    if "econom" in q or "money" in q or "wealth" in q:
+        aw = getattr(state, "economic_health", 0.5)
+        unemp = getattr(state, "unemployment_rate", 0)
+        answer_parts.append(f"Economic health: {aw:.2f}, unemployment: {unemp:.2%}.")
+        evidence["economic_health"] = aw
+        evidence["unemployment_rate"] = unemp
+
+    if "death" in q or "die" in q or "mortal" in q:
+        pop = getattr(state, "population", 0)
+        answer_parts.append(f"Current population: {pop}.")
+        evidence["population"] = pop
+
+    if "unlust" in q or "unhap" in q or "miser" in q:
+        au = getattr(state, "unlust", 0)
+        answer_parts.append(f"The unlust (misery) index is {au:.3f}.")
+        evidence["unlust"] = au
+        if au < 0.15:
+            answer_parts.append("This is within the normal range (<0.15).")
+        elif au < 0.35:
+            answer_parts.append("This is elevated (0.15–0.35).")
+        else:
+            answer_parts.append("This is critical (>0.35).")
+
+    if "food" in q:
+        fa = getattr(state, "food_availability", 0.85)
+        answer_parts.append(f"Food availability: {fa:.2f}.")
+        evidence["food_availability"] = fa
+        if fa > 0.8:
+            answer_parts.append("This is within the normal range (0.80–1.0).")
+        elif fa > 0.5:
+            answer_parts.append("This is below normal but not yet critical.")
+        else:
+            answer_parts.append("This is at crisis level (<0.5).")
+
+    if "protest" in q or "riot" in q:
+        pi = getattr(state, "protest_intensity", 0)
+        answer_parts.append(f"Protest intensity: {pi:.3f}.")
+        evidence["protest_intensity"] = pi
+
+    if "tax" in q:
+        tr = getattr(state, "tax_rate", 0.15)
+        wel = getattr(state, "welfare_enabled", False)
+        answer_parts.append(f"Tax rate: {tr:.0%}. Welfare is {'enabled' if wel else 'disabled'}.")
+        evidence["tax_rate"] = tr
+        evidence["welfare_enabled"] = wel
+
+    if not answer_parts:
+        ec = getattr(state, "economic_health", 0)
+        sc = getattr(state, "social_cohesion", 0)
+        pop = getattr(state, "population", 0)
+        tick = getattr(state, "tick", 0)
+        answer_parts.append(
+            f"The simulation is at tick {tick} with {pop} agents. "
+            f"Economic health: {ec:.2f}, Social cohesion: {sc:.2f}."
+        )
+        evidence["economic_health"] = ec
+        evidence["social_cohesion"] = sc
+        evidence["population"] = pop
+        evidence["tick"] = tick
+
+    return {
+        "answer": " ".join(answer_parts),
+        "evidence": evidence,
+        "source": "rule",
     }
-
-    config = VLLMConfig(
-        base_url=os.getenv("VLLM_BASE_URL", ""),
-        base_url_e2b=os.getenv("VLLM_BASE_URL_E2B", ""),
-        base_url_moe_26b=os.getenv("VLLM_BASE_URL_MOE_26B", ""),
-        base_url_dense_31b=os.getenv("VLLM_BASE_URL_DENSE_31B", ""),
-        api_key_e2b=os.getenv("API_KEY_E2B", ""),
-        api_key_moe_26b=os.getenv("API_KEY_MOE_26B", ""),
-        api_key_dense_31b=os.getenv("API_KEY_DENSE_31B", ""),
-    )
-    router = VLLMRouter(config)
-
-    if router.is_available():
-        try:
-            answer = router.answer_question(request.question, state)
-            if answer:
-                return ExplainResponse(answer=answer, evidence=evidence, source="llm")
-        except Exception as e:
-            logger.warning("LLM explain call failed, using rule fallback: %s", e)
-
-    answer = _build_rule_explanation(state, request.question)
-    return ExplainResponse(answer=answer, evidence=evidence, source="rule")

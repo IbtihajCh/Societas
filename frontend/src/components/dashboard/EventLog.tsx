@@ -2,6 +2,33 @@ import React from 'react';
 import { useSimulationStore } from '@/store/simulationStore';
 import styles from './EventLog.module.css';
 
+const EVENT_COLORS: Record<string, string> = {
+  crime: 'var(--oxblood)',
+  env_event: 'var(--ochre)',
+  marriage: 'var(--moss)',
+  tick_completed: 'var(--slate)',
+};
+
+function formatLabel(eventType: string): string {
+  return eventType
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function describeEvent(data: Record<string, unknown>): string {
+  const parts: string[] = [];
+  if (typeof data.action === 'string' && data.action) {
+    parts.push(data.action);
+  }
+  if (typeof data.agent_id === 'string' && data.agent_id) {
+    parts.push(`Agent ${data.agent_id.slice(0, 8)}`);
+  }
+  if (typeof data.duration_ms === 'number') {
+    parts.push(`${data.duration_ms}ms`);
+  }
+  return parts.join(' · ');
+}
+
 const EventLog: React.FC = () => {
   const events = useSimulationStore((s) => s.events);
   const clearEvents = useSimulationStore((s) => s.clearEvents);
@@ -18,19 +45,26 @@ const EventLog: React.FC = () => {
         {events.length === 0 ? (
           <p className={styles.empty}>No events yet. Run the simulation to see events.</p>
         ) : (
-          events.slice(-50)
+          events
+            .slice(-50)
             .reverse()
-            .map((ev, i) => (
-              <div key={i} className={styles.eventRow}>
-                <span className={styles.eventTick}>[T{ev.tick}]</span>
-                <span className={styles.eventType}>{ev.event_type}</span>
-                <span className={styles.eventDesc}>
-                  {ev.event_type === 'agent_acted' && ev.data?.action
-                    ? `Agent ${String(ev.data?.agent_id ?? '').slice(0, 8)}: ${ev.data.action}`
-                    : ev.event_type === 'tick_completed'
-                    ? `Tick ${ev.tick} complete (${ev.data?.duration_ms ?? 0}ms)`
-                    : JSON.stringify(ev.data ?? {}).slice(0, 60)}
-                </span>
+            .map((ev) => (
+              <div key={ev.id} className="event">
+                <div
+                  className="event-mark"
+                  style={{
+                    backgroundColor:
+                      EVENT_COLORS[ev.event_type] ?? 'var(--ink-soft)',
+                    borderRadius: '50%',
+                  }}
+                />
+                <div className="event-text">
+                  <b>{formatLabel(ev.event_type)}</b>
+                  {describeEvent(ev.data) && (
+                    <> — {describeEvent(ev.data)}</>
+                  )}
+                </div>
+                <span className="event-time">T{ev.tick}</span>
               </div>
             ))
         )}

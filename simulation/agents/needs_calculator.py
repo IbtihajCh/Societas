@@ -14,9 +14,9 @@ from shared.constants.defaults import (
     AGE_PROGRESSION_INTERVAL,
     DESPAIR_MORTALITY_RATE,
     ECONOMIC_HARDSHIP_DEATH_RATE,
-    EXISTENTIAL_DEATH_CHANCE,
     ENV_NEED_DECAY_FOOD_MULTIPLIER,
     ENV_NEED_DECAY_WATER_MULTIPLIER,
+    EXISTENTIAL_DEATH_CHANCE,
     FAMILY_DECAY_RATE,
     FOOD_DEATH_THRESHOLD,
     FOOD_DECAY_RATE,
@@ -156,6 +156,7 @@ def decay_needs(
     )
     # INFERIORITY_GAP is computed on social interaction, no passive decay.
 
+    # Gradual health decay each tick.
     agent.resources.health = max(0.0, agent.resources.health - 0.001)
 
     # Derive wealth class from current money each tick.
@@ -301,8 +302,8 @@ def derive_wealth_class(money: float) -> WealthClass:
         money: Current liquid money in pounds.
 
     Returns:
-        ``WealthClass.POOR`` if money < 1000,
-        ``WealthClass.MIDDLE`` if 1000 <= money < 15000,
+        ``WealthClass.POOR`` if money < 500,
+        ``WealthClass.MIDDLE`` if 500 <= money < 5000,
         ``WealthClass.RICH`` otherwise.
     """
     if money < 500.0:

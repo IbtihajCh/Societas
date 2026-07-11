@@ -1,408 +1,408 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ResponsiveContainer,
-} from 'recharts';
-import { AgentDetailDTO } from '@/types/api';
 import { apiService } from '@/services/api';
+import { AgentDetailDTO, AgentNeeds, AgentTraits, AgentRecentAction } from '@/types/api';
 
 interface AgentDetailPanelProps {
-  agentId: string;
+  agentId: string | null;
   onClose: () => void;
 }
 
-const INK = 'var(--ink)';
-const INK_SOFT = 'var(--ink-soft)';
-const PARCHMENT_2 = 'var(--parchment-2)';
-const OXBLOOD = 'var(--oxblood)';
-const MOSS = 'var(--moss)';
-const SLATE = 'var(--slate)';
-const OCHRE = 'var(--ochre)';
-
 const EMOTION_COLORS: Record<string, string> = {
-  happy: MOSS,
-  normal: INK_SOFT,
-  sad: SLATE,
-  angry: OXBLOOD,
-  despair: OCHRE,
+  HAPPY: '#54661F',
+  NORMAL: '#8A7554',
+  SAD: '#33415A',
+  ANGRY: '#7D251F',
+  DESPAIR: '#9C6B12',
 };
 
-const emotionEmoji: Record<string, string> = {
-  happy: '😊',
-  normal: '😐',
-  sad: '😢',
-  angry: '😠',
-  despair: '😰',
+const NEED_LABELS: Record<keyof AgentNeeds, string> = {
+  food: 'Food',
+  water: 'Water',
+  sleep: 'Sleep',
+  safety: 'Safety',
+  social: 'Social',
+  self_esteem: 'Self Esteem',
+  sexual_tension: 'Sexual Tension',
+  romantic: 'Romantic',
+  family: 'Family',
+  creativity: 'Creativity',
+  autonomy: 'Autonomy',
+  purpose: 'Purpose',
+  status: 'Status',
 };
 
-const needLabels: { key: keyof AgentDetailDTO['needs']; label: string }[] = [
-  { key: 'food', label: 'Food' },
-  { key: 'water', label: 'Water' },
-  { key: 'sleep', label: 'Sleep' },
-  { key: 'safety', label: 'Safety' },
-  { key: 'social', label: 'Social' },
-  { key: 'self_esteem', label: 'Self-esteem' },
-  { key: 'sexual_tension', label: 'Sexual tension' },
-  { key: 'romantic', label: 'Romantic' },
-  { key: 'family', label: 'Family' },
-  { key: 'creativity', label: 'Creativity' },
-  { key: 'autonomy', label: 'Autonomy' },
-  { key: 'purpose', label: 'Purpose' },
-  { key: 'status', label: 'Status' },
-];
+const TRAIT_LABELS: Record<keyof AgentTraits, string> = {
+  morality: 'Morality',
+  creativity: 'Creativity',
+  ambition: 'Ambition',
+  resilience: 'Resilience',
+  dominance_urge: 'Dominance Urge',
+  anger_tendency: 'Anger Tendency',
+  extraversion: 'Extraversion',
+  risk_tolerance: 'Risk Tolerance',
+};
 
-const traitLabels: { key: keyof AgentDetailDTO['traits']; label: string }[] = [
-  { key: 'morality', label: 'Morality' },
-  { key: 'creativity', label: 'Creativity' },
-  { key: 'ambition', label: 'Ambition' },
-  { key: 'resilience', label: 'Resilience' },
-  { key: 'dominance_urge', label: 'Dominance urge' },
-  { key: 'anger_tendency', label: 'Anger tendency' },
-  { key: 'extraversion', label: 'Extraversion' },
-  { key: 'risk_tolerance', label: 'Risk tolerance' },
-];
-
-function formatCurrency(value: number): string {
-  return `£${Math.round(value).toLocaleString()}`;
-}
-
-function formatNumber(value: number | undefined): string {
-  if (value === undefined || value === null) return '—';
-  return value.toFixed(2);
-}
-
-function renderBar(value: number, color = OXBLOOD) {
-  const pct = Math.max(0, Math.min(1, value)) * 100;
+function NeedsSection({ needs }: { needs: AgentNeeds }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-      <div
-        style={{
-          flex: 1,
-          height: 8,
-          backgroundColor: PARCHMENT_2,
-          borderRadius: 4,
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            width: `${pct}%`,
-            height: '100%',
-            backgroundColor: color,
-            borderRadius: 4,
-            transition: 'width 0.4s ease',
-          }}
-        />
+    <div className="agent-section">
+      <h3 className="agent-section-title">Needs</h3>
+      <div className="agent-bars-grid">
+        {(Object.keys(NEED_LABELS) as (keyof AgentNeeds)[]).map((key) => {
+          const value = needs[key] ?? 0;
+          return (
+            <div className="agent-bar-row" key={key}>
+              <span className="agent-bar-label">{NEED_LABELS[key]}</span>
+              <div className="agent-bar-track">
+                <div
+                  className="agent-bar-fill"
+                  style={{ width: `${Math.min(100, Math.max(0, value * 100))}%` }}
+                />
+              </div>
+              <span className="agent-bar-value">{(value * 100).toFixed(0)}%</span>
+            </div>
+          );
+        })}
       </div>
-      <span style={{ fontVariantNumeric: 'tabular-nums', minWidth: 42, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-        {value.toFixed(2)}
-      </span>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function TraitsSection({ traits }: { traits: AgentTraits }) {
   return (
-    <div style={{ borderTop: `1px solid var(--rule-strong)`, padding: '1.25rem 0' }}>
-      <h3
-        style={{
-          margin: '0 0 0.75rem 0',
-          fontSize: '0.7rem',
-          textTransform: 'uppercase',
-          letterSpacing: '0.12em',
-          color: INK_SOFT,
-          fontWeight: 600,
-          fontFamily: 'var(--font-mono)',
-        }}
-      >
-        {title}
-      </h3>
-      {children}
+    <div className="agent-section">
+      <h3 className="agent-section-title">Traits</h3>
+      <div className="agent-bars-grid">
+        {(Object.keys(TRAIT_LABELS) as (keyof AgentTraits)[]).map((key) => {
+          const value = traits[key] ?? 0;
+          return (
+            <div className="agent-bar-row" key={key}>
+              <span className="agent-bar-label">{TRAIT_LABELS[key]}</span>
+              <div className="agent-bar-track">
+                <div
+                  className="agent-bar-fill agent-bar-fill--trait"
+                  style={{ width: `${Math.min(100, Math.max(0, value * 100))}%` }}
+                />
+              </div>
+              <span className="agent-bar-value">{(value * 100).toFixed(0)}%</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RecentActionsSection({ actions }: { actions: AgentRecentAction[] }) {
+  if (!actions || actions.length === 0) return null;
+
+  return (
+    <div className="agent-section">
+      <h3 className="agent-section-title">Recent Actions</h3>
+      <ul className="agent-list">
+        {actions.slice(0, 10).map((action, i) => (
+          <li key={i} className="agent-list-item">
+            <span className="agent-list-tick">T{action.tick}</span>
+            <span className="agent-list-action">{action.action.replace(/_/g, ' ')}</span>
+            {action.description && (
+              <span className="agent-list-desc">{action.description}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function MemoriesSection({ memories }: { memories?: Array<{ tick: number; content: string }> }) {
+  if (!memories || memories.length === 0) return null;
+
+  return (
+    <div className="agent-section">
+      <h3 className="agent-section-title">Memories</h3>
+      <ul className="agent-list">
+        {memories.slice(0, 5).map((mem, i) => (
+          <li key={i} className="agent-list-item agent-list-item--memory">
+            <span className="agent-list-tick">T{mem.tick}</span>
+            <span className="agent-list-desc">{mem.content}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function RelationshipsSection({ agent }: { agent: AgentDetailDTO }) {
+  const hasRelationships =
+    agent.spouse ||
+    (agent.children_ids && agent.children_ids.length > 0) ||
+    (agent.parent_ids && agent.parent_ids.length > 0) ||
+    (agent.enemies && agent.enemies.length > 0) ||
+    agent.social_connections > 0;
+
+  if (!hasRelationships) return null;
+
+  return (
+    <div className="agent-section">
+      <h3 className="agent-section-title">Relationships</h3>
+      <div className="agent-relationships">
+        {agent.spouse && (
+          <div className="agent-relation">
+            <span className="agent-relation-label">Spouse</span>
+            <span className="agent-relation-value">{agent.spouse}</span>
+          </div>
+        )}
+        {agent.children_ids && agent.children_ids.length > 0 && (
+          <div className="agent-relation">
+            <span className="agent-relation-label">Children</span>
+            <span className="agent-relation-value">{agent.children_ids.length}</span>
+          </div>
+        )}
+        {agent.parent_ids && agent.parent_ids.length > 0 && (
+          <div className="agent-relation">
+            <span className="agent-relation-label">Parents</span>
+            <span className="agent-relation-value">{agent.parent_ids.length}</span>
+          </div>
+        )}
+        {agent.enemies && agent.enemies.length > 0 && (
+          <div className="agent-relation">
+            <span className="agent-relation-label">Enemies</span>
+            <span className="agent-relation-value">{agent.enemies.length}</span>
+          </div>
+        )}
+        {agent.social_connections > 0 && (
+          <div className="agent-relation">
+            <span className="agent-relation-label">Social Connections</span>
+            <span className="agent-relation-value">{agent.social_connections}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelProps) {
-  const [mounted, setMounted] = useState(false);
   const [agent, setAgent] = useState<AgentDetailDTO | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setMounted(true), 10);
-    return () => clearTimeout(t);
-  }, []);
+    if (!agentId) {
+      setAgent(null);
+      setError(null);
+      return;
+    }
 
-  useEffect(() => {
-    apiService.getAgentDetail(agentId).then(setAgent).finally(() => setLoading(false));
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    apiService
+      .getAgentDetail(agentId)
+      .then((data) => {
+        if (!cancelled) {
+          setAgent(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err?.detail ?? err?.message ?? 'Failed to load agent details');
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [agentId]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const isOpen = agentId !== null;
 
-  if (!agent) {
-    return (
-      <>
-        <div className={`agent-panel-overlay ${mounted ? 'open' : ''}`} onClick={onClose} />
-        <div className={`agent-panel ${mounted ? 'open' : ''}`} role="dialog" aria-modal="true">
-          <div className="agent-panel-header">
-            <div className="agent-panel-title">Citizen record</div>
-            <button className="agent-panel-close" onClick={onClose} aria-label="Close citizen record">×</button>
-          </div>
-          <div className="agent-panel-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <p style={{ color: INK_SOFT, fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
-              {loading ? 'Loading record…' : 'Citizen not found'}
-            </p>
-          </div>
-        </div>
-      </>
-    );
-  }
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
 
-  const emotionKey = agent.emotion?.toLowerCase() || 'normal';
-  const emotionColor = EMOTION_COLORS[emotionKey] || EMOTION_COLORS.normal;
-  const emoji = emotionEmoji[emotionKey] || '○';
-
-  const radarData = needLabels.map(({ key, label }) => ({
-    subject: label,
-    value: agent.needs[key] ?? 0.5,
-  }));
+  const formatValue = (val: unknown): string => {
+    if (val === null || val === undefined) return '—';
+    if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+    return String(val);
+  };
 
   return (
     <>
-      <div className={`agent-panel-overlay ${mounted ? 'open' : ''}`} onClick={onClose} />
-      <div className={`agent-panel ${mounted ? 'open' : ''}`} role="dialog" aria-modal="true">
+      {/* Overlay */}
+      <div
+        className={`agent-panel-overlay${isOpen ? ' open' : ''}`}
+        onClick={handleOverlayClick}
+        aria-hidden="true"
+      />
+
+      {/* Panel */}
+      <div
+        className={`agent-panel${isOpen ? ' open' : ''}`}
+        role="dialog"
+        aria-label={agent ? `Agent details: ${agent.persona}` : 'Agent details'}
+        aria-hidden={!isOpen}
+      >
         {/* Header */}
         <div className="agent-panel-header">
           <div>
-            <h2 className="agent-panel-title">Citizen {agent.id}</h2>
-            <p style={{ margin: '0.25rem 0 0 0', color: INK_SOFT, fontSize: '0.85rem' }}>
-              {agent.is_alive ? (
-                <span style={{ color: MOSS }}>● Alive</span>
-              ) : (
-                <span style={{ color: OXBLOOD }}>● Deceased</span>
-              )}
-              {' '}· ({agent.grid_x}, {agent.grid_y})
-            </p>
+            {loading && <p className="agent-panel-title">Loading...</p>}
+            {!loading && error && <p className="agent-panel-title">Error</p>}
+            {!loading && !error && agent && (
+              <h2 className="agent-panel-title">{agent.persona || `Agent ${agent.id}`}</h2>
+            )}
+            {!loading && !error && !agent && agentId && (
+              <p className="agent-panel-title">No data available</p>
+            )}
+            {!loading && !error && !agent && !agentId && (
+              <p className="agent-panel-title">Select an agent</p>
+            )}
           </div>
           <button
             className="agent-panel-close"
             onClick={onClose}
-            aria-label="Close citizen record"
+            aria-label="Close panel"
+            type="button"
           >
-            ×
+            ✕
           </button>
         </div>
 
-        {/* Scrollable content */}
+        {/* Body */}
         <div className="agent-panel-body">
-          {/* Identity */}
-          <div style={{ padding: '1.25rem 0' }}>
-            <p
-              style={{
-                margin: 0,
-                fontSize: '1rem',
-                lineHeight: 1.55,
-                fontStyle: 'italic',
-                color: INK,
-                fontFamily: 'var(--font-display)',
-              }}
-            >
-              {agent.persona || `Citizen ${agent.id}`}
+          {loading && (
+            <p style={{ color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
+              Loading agent details...
             </p>
-            <div
-              style={{
-                marginTop: '0.75rem',
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '0.5rem',
-                fontSize: '0.85rem',
-              }}
-            >
-              <Pill label={agent.wealth_class?.replace(/_/g, ' ')} />
-              <Pill label={agent.job_type?.replace(/_/g, ' ')} />
-              <Pill label={agent.employment_status?.replace(/_/g, ' ')} />
-            </div>
-          </div>
-
-          {/* Emotion & Unlust */}
-          <Section title="Mood">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <span style={{ fontSize: '1.25rem' }}>{emoji}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>
-                  {agent.emotion}
-                </div>
-                <div style={{ fontSize: '0.8rem', color: INK_SOFT }}>Happiness {agent.happiness_score.toFixed(2)}</div>
-              </div>
-              <span style={{ color: emotionColor, fontWeight: 700 }}>{agent.happiness_score.toFixed(2)}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ minWidth: 64, fontSize: '0.85rem', color: INK_SOFT }}>Unlust</span>
-              {renderBar(agent.unlust, OCHRE)}
-            </div>
-          </Section>
-
-          {/* Needs */}
-          <Section title="Needs">
-            <div style={{ width: '100%', height: 220, marginBottom: '1rem' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={radarData} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
-                  <PolarGrid stroke="var(--rule-strong)" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fill: INK_SOFT, fontSize: 10 }} />
-                  <PolarRadiusAxis angle={90} domain={[0, 1]} tick={false} axisLine={false} />
-                  <Radar
-                    name="Needs"
-                    dataKey="value"
-                    stroke={OXBLOOD}
-                    fill={OXBLOOD}
-                    fillOpacity={0.25}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={{ display: 'grid', gap: 8 }}>
-              {needLabels.map(({ key, label }) => (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ minWidth: 90, fontSize: '0.8rem', color: INK }}>{label}</span>
-                  {renderBar(agent.needs[key] ?? 0.5)}
-                </div>
-              ))}
-            </div>
-          </Section>
-
-          {/* Traits */}
-          <Section title="Traits">
-            <div style={{ display: 'grid', gap: 8 }}>
-              {traitLabels.map(({ key, label }) => (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ minWidth: 110, fontSize: '0.8rem', color: INK }}>{label}</span>
-                  {renderBar(agent.traits[key] ?? 0.5, SLATE)}
-                </div>
-              ))}
-            </div>
-          </Section>
-
-          {/* Relationships */}
-          <Section title="Relationships">
-            <div style={{ display: 'grid', gap: 10 }}>
-              <RelationshipRow icon="⚭" label="Spouse" value={agent.spouse || 'None'} />
-              <RelationshipRow icon="▶" label="Children" value={agent.children_ids?.length ?? 0} />
-              <RelationshipRow icon="◯" label="Social connections" value={agent.social_connections} />
-              <RelationshipRow icon="■" label="Community" value={agent.community_id ?? 'None'} />
-            </div>
-          </Section>
-
-          {/* Recent Actions */}
-          <Section title="Recent Actions">
-            {agent.recent_actions && agent.recent_actions.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {agent.recent_actions.slice(0, 12).map((action, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      backgroundColor: 'var(--cream)',
-                      borderRadius: 4,
-                      padding: '0.65rem 0.8rem',
-                      borderLeft: `3px solid ${OXBLOOD}`,
-                    }}
-                  >
-                    <div style={{ fontSize: '0.75rem', color: INK_SOFT, marginBottom: 2, fontFamily: 'var(--font-mono)' }}>
-                      tick {action.tick}
-                    </div>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', textTransform: 'uppercase' }}>
-                      {action.action?.replace(/_/g, ' ')}
-                    </div>
-                    {action.description && (
-                      <div style={{ fontSize: '0.8rem', color: INK_SOFT, marginTop: 2 }}>
-                        {action.description}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ color: INK_SOFT, fontSize: '0.9rem' }}>No recent actions recorded.</p>
-            )}
-          </Section>
-
-          {/* Last reasoning */}
-          {agent.last_reasoning && (
-            <Section title="Last Reasoning">
-              <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.5, color: INK, fontStyle: 'italic' }}>
-                “{agent.last_reasoning}”
-              </p>
-            </Section>
           )}
 
-          {/* Stats */}
-          <Section title="Stats">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <Stat label="Age" value={`${agent.age} (${agent.age_bracket || '—'})`} />
-              <Stat label="Money" value={formatCurrency(agent.money)} />
-              <Stat label="Health" value={formatNumber(agent.health)} />
-              <Stat label="Debt" value={formatCurrency(agent.debt ?? 0)} />
-              <Stat label="Notoriety" value={formatNumber(agent.notoriety)} />
-              <Stat label="Trust in Govt" value={formatNumber(agent.trust_in_govt)} />
-              <Stat label="Property" value={agent.property ? 'Yes' : 'No'} />
-              <Stat label="Last action" value={agent.last_action?.replace(/_/g, ' ') || '—'} />
-            </div>
-          </Section>
+          {error && (
+            <p style={{ color: '#7D251F', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
+              {error}
+            </p>
+          )}
+
+          {!loading && !error && agent && (
+            <>
+              {/* Emotion */}
+              <div className="agent-section">
+                <div className="agent-emotion-row">
+                  <span
+                    className="agent-emotion-dot"
+                    style={{
+                      color: EMOTION_COLORS[agent.emotion?.toUpperCase()] ?? '#8A7554',
+                    }}
+                  >
+                    ●
+                  </span>
+                  <span className="agent-emotion-label">
+                    {agent.emotion ?? 'unknown'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Meta info */}
+              <div className="agent-section">
+                <h3 className="agent-section-title">Details</h3>
+                <div className="agent-meta-grid">
+                  <span className="agent-meta-label">ID</span>
+                  <span className="agent-meta-value">{agent.id}</span>
+
+                  <span className="agent-meta-label">Age</span>
+                  <span className="agent-meta-value">{agent.age}</span>
+
+                  <span className="agent-meta-label">Gender</span>
+                  <span className="agent-meta-value">{formatValue(agent.gender)}</span>
+
+                  <span className="agent-meta-label">Job</span>
+                  <span className="agent-meta-value">
+                    {agent.job_type ? agent.job_type.replace(/_/g, ' ') : '—'}
+                  </span>
+
+                  <span className="agent-meta-label">Class</span>
+                  <span className="agent-meta-value">
+                    {agent.wealth_class ? agent.wealth_class.replace(/_/g, ' ').toLowerCase() : '—'}
+                  </span>
+
+                  <span className="agent-meta-label">Grid</span>
+                  <span className="agent-meta-value">
+                    ({agent.grid_x ?? '?'}, {agent.grid_y ?? '?'})
+                  </span>
+
+                  <span className="agent-meta-label">Status</span>
+                  <span className="agent-meta-value">
+                    {agent.is_alive ? 'Alive' : 'Deceased'}
+                  </span>
+
+                  <span className="agent-meta-label">Unlust</span>
+                  <span className="agent-meta-value">{(agent.unlust ?? 0).toFixed(4)}</span>
+
+                  <span className="agent-meta-label">Health</span>
+                  <span className="agent-meta-value">
+                    {agent.health != null ? `${(agent.health * 100).toFixed(0)}%` : '—'}
+                  </span>
+
+                  <span className="agent-meta-label">Money</span>
+                  <span className="agent-meta-value">
+                    {agent.money != null ? `$${agent.money.toFixed(2)}` : '—'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Needs */}
+              {agent.needs && <NeedsSection needs={agent.needs} />}
+
+              {/* Traits */}
+              {agent.traits && <TraitsSection traits={agent.traits} />}
+
+              {/* Recent actions */}
+              {agent.recent_actions && <RecentActionsSection actions={agent.recent_actions} />}
+
+              {/* Resources */}
+              {agent.resources && Object.keys(agent.resources).length > 0 && (
+                <div className="agent-section">
+                  <h3 className="agent-section-title">Resources</h3>
+                  <div className="agent-meta-grid">
+                    {Object.entries(agent.resources).map(([key, value]) => (
+                      <React.Fragment key={key}>
+                        <span className="agent-meta-label">
+                          {key.replace(/_/g, ' ')}
+                        </span>
+                        <span className="agent-meta-value">
+                          {typeof value === 'number' ? value.toFixed(2) : formatValue(value)}
+                        </span>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Relationships */}
+              <RelationshipsSection agent={agent} />
+
+              {/* Memories (optional field) */}
+              <MemoriesSection memories={(agent as any).memories} />
+            </>
+          )}
+
+          {!loading && !error && !agent && agentId && (
+            <p
+              style={{
+                color: 'var(--ink-soft)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '12px',
+                textAlign: 'center',
+                marginTop: '2rem',
+              }}
+            >
+              No data returned for agent {agentId}
+            </p>
+          )}
         </div>
       </div>
     </>
-  );
-}
-
-function Pill({ label }: { label: string | undefined }) {
-  if (!label) return null;
-  return (
-    <span
-      style={{
-        backgroundColor: 'var(--cream)',
-        border: '1px solid var(--rule)',
-        padding: '0.25rem 0.6rem',
-        borderRadius: 99,
-        fontSize: '0.8rem',
-        textTransform: 'capitalize',
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
-function RelationshipRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: string;
-  label: string;
-  value: React.ReactNode;
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ fontSize: '1.1rem', color: INK_SOFT, width: 24, textAlign: 'center' }}>{icon}</span>
-      <span style={{ color: INK_SOFT, minWidth: 130 }}>{label}</span>
-      <span style={{ fontWeight: 600 }}>{value}</span>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div style={{ backgroundColor: 'var(--cream)', border: '1px solid var(--rule)', padding: '0.6rem 0.75rem', borderRadius: 4 }}>
-      <div style={{ fontSize: '0.75rem', color: INK_SOFT, marginBottom: 2, fontFamily: 'var(--font-mono)' }}>{label}</div>
-      <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{value}</div>
-    </div>
   );
 }

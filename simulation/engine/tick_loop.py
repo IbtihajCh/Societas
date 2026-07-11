@@ -33,6 +33,7 @@ from simulation.agents.action_executor import (
     execute_action,
     move_agent,
 )
+from simulation.agents.memory_system import collect_tick_memories
 from simulation.agents.community_system import (
     community_effects,
     update_communities,
@@ -64,7 +65,6 @@ from simulation.agents.sibling_system import (
     update_sibling_dynamics,
 )
 from simulation.agents.lifecycle import try_birth
-from simulation.agents.memory_system import collect_tick_memories
 from simulation.agents.needs_calculator import (
     check_death,
     decay_needs,
@@ -136,9 +136,6 @@ def run_tick(
         TickResult with all actions, events, and metrics from this tick.
     """
     start_time = time.time()
-    # Sort agents deterministically by ID to ensure order-independence.
-    # Input order must not affect which agent consumes which RNG values.
-    agents.sort(key=lambda a: a.id)
     living_agents = [a for a in agents if a.is_alive]
     living_agents.sort(key=lambda a: a.id)
 
@@ -247,8 +244,7 @@ def run_tick(
     for agent in living_agents:
         community_effects(agent, living_agents)
 
-    # Step 5b-collect: Collect episodic memories (blanket collection for all agents;
-    #                  covers passive observations and deterministic agents)
+    # Step 5b-collect: Collect episodic memories for all agents
     for agent in living_agents:
         collect_tick_memories(agent, None, world, tick_number)
 
@@ -293,8 +289,8 @@ def run_tick(
             if not should_evaluate_this_tick(agent, tick_number):
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
-                    collect_tick_memories(agent, result, world, tick_number)
                     action_results.append(result)
+                    collect_tick_memories(agent, result, world, tick_number)
                 continue
 
             nearby_counts = compute_nearby_counts(agent, living_agents)
@@ -331,6 +327,7 @@ def run_tick(
         # Pass 2: Execute actions from batched results
         action_results = [None] * len(living_agents)
 
+        model_type = "agent_decide"
         for (idx, _), response in zip(normal_prompts, normal_responses):
             agent = living_agents[idx]
             parsed = parse_llm_response(response)
@@ -347,7 +344,7 @@ def run_tick(
                         llm_log.append({
                             "tick": tick_number,
                             "agent_id": str(agent.id),
-                            "model_type": "agent_decide",
+                            "model_type": model_type,
                             "action": str(validated),
                             "reason": str(parsed.get("reason", ""))[:200],
                             "feeling": str(parsed.get("feeling", ""))[:100],
@@ -359,10 +356,11 @@ def run_tick(
                 action = deterministic_fallback(agent, world, rng)
                 metadata = {"source": "deterministic_fallback", "reasoning": "Unparseable LLM response"}
             result = execute_action(agent, action, world, living_agents, rng)
-            collect_tick_memories(agent, result, world, tick_number)
             result.metadata = metadata
             action_results[idx] = result
+            collect_tick_memories(agent, result, world, tick_number)
 
+        model_type = "moral_reasoning"
         for (idx, _), response in zip(dilemma_prompts, dilemma_responses):
             agent = living_agents[idx]
             parsed = parse_llm_response(response)
@@ -379,7 +377,7 @@ def run_tick(
                         llm_log.append({
                             "tick": tick_number,
                             "agent_id": str(agent.id),
-                            "model_type": "moral_reasoning",
+                            "model_type": model_type,
                             "action": str(validated),
                             "reason": str(parsed.get("reason", ""))[:200],
                             "feeling": str(parsed.get("feeling", ""))[:100],
@@ -391,9 +389,9 @@ def run_tick(
                 action = deterministic_fallback(agent, world, rng)
                 metadata = {"source": "deterministic_fallback", "reasoning": "Unparseable LLM response"}
             result = execute_action(agent, action, world, living_agents, rng)
-            collect_tick_memories(agent, result, world, tick_number)
             result.metadata = metadata
             action_results[idx] = result
+            collect_tick_memories(agent, result, world, tick_number)
 
         # Fill in skipped agents (non-evaluating)
         for idx, agent in enumerate(living_agents):
@@ -403,13 +401,13 @@ def run_tick(
             if not should_evaluate_this_tick(agent, tick_number):
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
-                    collect_tick_memories(agent, result, world, tick_number)
                     action_results[idx] = result
+                    collect_tick_memories(agent, result, world, tick_number)
             else:
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
-                    collect_tick_memories(agent, result, world, tick_number)
                     action_results[idx] = result
+                    collect_tick_memories(agent, result, world, tick_number)
 
         action_results = [r for r in action_results if r is not None]
 
@@ -420,15 +418,14 @@ def run_tick(
             if not should_evaluate_this_tick(agent, tick_number):
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
-                    collect_tick_memories(agent, result, world, tick_number)
                     action_results.append(result)
+                    collect_tick_memories(agent, result, world, tick_number)
                 continue
             nearby_counts = compute_nearby_counts(agent, living_agents)
             if is_moral_dilemma(agent, world):
                 ambiguity_count += 1
             action = deterministic_fallback(agent, world, rng)
             metadata = {"source": "deterministic_fallback", "reasoning": "No AI router"}
-
             result = execute_action(agent, action, world, living_agents, rng, tick_number)
             collect_tick_memories(agent, result, world, tick_number)
             result.metadata = metadata
@@ -474,14 +471,11 @@ def run_tick(
     update_world_metrics(world, agents)
 
     # Step 10: State hash + TickCompletedEvent
-    state_hash = compute_state_hash(world, agents)
-    duration_ms = (time.time() - start_time) * 1000.0
-
-    # Step 11: Media engine — generate news and apply effects
+    # Media engine — generate news and apply effects
     from simulation.events.media_engine import process_media_tick
     news_articles = process_media_tick(world, tick_number, living_agents, rng)
     if news_articles:
-        if not hasattr(world, "media_state") or not isinstance(world.media_state, dict):
+        if not hasattr(world, "media_state") or not isinstance(getattr(world, "media_state", None), dict):
             world.media_state = {"articles": []}
         world.media_state.setdefault("articles", []).extend(
             [{"tick": a.tick, "headline": a.headline, "body": a.body, "category": a.category, "is_fake": a.is_fake} for a in news_articles]
@@ -489,6 +483,8 @@ def run_tick(
     env_event_ids.extend(
         f"news:{a.headline[:40]}" for a in news_articles
     )
+    state_hash = compute_state_hash(world, agents)
+    duration_ms = (time.time() - start_time) * 1000.0
 
     return TickResult(
         tick=TickNumber(tick_number),

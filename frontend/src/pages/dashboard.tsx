@@ -117,7 +117,7 @@ export default function Dashboard() {
   return (
     <div className="shell">
       {!isConnected && (
-        <div className="setup-screen" style={{ position: 'fixed', inset: 0, zIndex: 999 }}>
+        <div className="setup-screen">
           <div className="setup-hero">
             <div className="crest">S</div>
             <div className="setup-title">Societas</div>
@@ -288,7 +288,7 @@ export default function Dashboard() {
                       <div className="map-frame">
                         <div className="corner tl"></div><div className="corner tr"></div>
                         <div className="corner bl"></div><div className="corner br"></div>
-                        <AgentGrid agents={agents} onAgentClick={(id: string) => setSelectedAgent(id)} isRunning={isRunning} />
+                        <AgentGrid agents={agents} onAgentClick={(id: string) => setSelectedAgent(id)} />
                       </div>
                       <div className="legend">
                         {Object.entries(EMOTION_COLORS).map(([mood, color]) => (
@@ -431,9 +431,9 @@ export default function Dashboard() {
                             etype === 'agent_acted' ? 'var(--ink-soft)' : 'var(--slate)';
                           const label = etype.replace(/_/g, ' ');
                           let desc = label;
-                          if (ev.data?.action) desc += `: ${ev.data.action}`;
-                          if (ev.data?.agent_id) desc += ` (agent ${ev.data.agent_id})`;
-                          if (ev.data?.duration_ms) desc += ` — ${ev.data.duration_ms}ms`;
+                          if (ev.data?.action) desc += `: ${String(ev.data.action)}`;
+                          if (ev.data?.agent_id) desc += ` (agent ${String(ev.data.agent_id)})`;
+                          if (ev.data?.duration_ms) desc += ` — ${String(ev.data.duration_ms)}ms`;
                           return (
                             <div className="event" key={i}>
                               <span className="event-mark" style={{ background: color }}></span>
