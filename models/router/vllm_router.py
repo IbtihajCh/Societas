@@ -193,12 +193,7 @@ class VLLMRouter:
         )
 
     def is_available(self) -> bool:
-        try:
-            headers = {"Authorization": f"Bearer {self._config.api_key_dense_31b}"}
-            resp = self._client_dense.get("/models", headers=headers)
-            return resp.status_code == 200
-        except Exception:
-            return False
+        return True
 
     def generate_narrative(self, context: str) -> str:
         results = self._call_vllm(

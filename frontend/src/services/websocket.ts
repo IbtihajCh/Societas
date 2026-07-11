@@ -19,14 +19,12 @@ export class SimulationWebSocketClient {
   private statusHandlers = new Set<StatusHandler>();
 
   constructor(url?: string) {
-    const envUrl = process.env.NEXT_PUBLIC_WS_URL;
-    if (envUrl) {
-      this.url = url ?? envUrl;
-    } else if (typeof window !== 'undefined') {
-      this.url = url ?? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
-    } else {
-      this.url = url ?? 'ws://localhost:8000/ws';
-    }
+    const wsBaseUrl =
+      process.env.NEXT_PUBLIC_WS_URL ||
+      (typeof window !== 'undefined'
+        ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8000`
+        : 'ws://localhost:8000');
+    this.url = url ?? `${wsBaseUrl}/ws`;
   }
 
   connect(): void {

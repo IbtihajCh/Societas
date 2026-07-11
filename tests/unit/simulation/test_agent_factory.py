@@ -118,11 +118,8 @@ class TestCreateAgent:
 
     def test_wealth_class_distribution(self):
         """Over 1000 agents, verify wealth class proportions approximately match config."""
-        wealth_counts: dict[WealthClass, int] = {
-            WealthClass.POOR: 0,
-            WealthClass.MIDDLE: 0,
-            WealthClass.RICH: 0,
-        }
+        from collections import defaultdict
+        wealth_counts: dict[WealthClass, int] = defaultdict(int)
         for seed in range(1000):
             rng = DeterministicRNG(seed=seed)
             agent = create_agent(0, rng)

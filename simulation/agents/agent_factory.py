@@ -270,16 +270,16 @@ def create_agent(agent_id: int, rng: DeterministicRNG) -> AgentState:
 
     health = rng.uniform(0.7, 1.0)
 
-    # Initial age distribution: 60% young adult (19-40), 30% middle adult (41-65),
-    # 10% elderly (66-100).  Age 18 belongs to the *child* bracket per
-    # AGE_CHILD_MAX, so young adults start at 19.
+    # Initial age distribution: 80% young adult (19-40), 20% middle adult (41-55).
+    # Skip elderly starters to give the simulation a viable baseline. With
+    # AGE_PROGRESSION_INTERVAL=1, a 40-year-old becomes elderly by tick 26
+    # (age 66), so we cap middle adults at 55 to keep a 2-generation window
+    # before natural mortality kicks in.
     age_roll = rng.random()
-    if age_roll < 0.6:
+    if age_roll < 0.8:
         age = int(rng.uniform(19, 41))
-    elif age_roll < 0.9:
-        age = int(rng.uniform(41, 66))
     else:
-        age = int(rng.uniform(66, 101))
+        age = int(rng.uniform(41, 56))
 
     age_bracket = get_age_bracket(age)
 

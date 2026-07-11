@@ -71,7 +71,13 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     wsClientRef.current = wsClient;
 
     const unsubStatus = wsClient.onStatusChange((status: ConnectionStatus) => {
-      setIsConnected(status === 'connected');
+      // Don't let WS status override HTTP-based isConnected.
+      // WS is for real-time push; HTTP health is the source of truth for connection.
+      if (status === 'connected') {
+        setIsConnected(true);
+      }
+      // 'connecting' and 'disconnected' do NOT set isConnected=false —
+      // the HTTP health poll handles that.
     });
 
     const unsubMessage = wsClient.onMessage(async (message: WebSocketMessage) => {
@@ -133,6 +139,9 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
 
     fetchStatus();
 
+    // Immediate health check, then poll every 10s (not 30s)
+    apiService.getHealth().then(() => setIsConnected(true)).catch(() => {});
+
     const interval = setInterval(async () => {
       try {
         await apiService.getHealth();
@@ -141,7 +150,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       } catch {
         setIsConnected(false);
       }
-    }, 30000);
+    }, 10000);
 
     return () => {
       unsubStatus();

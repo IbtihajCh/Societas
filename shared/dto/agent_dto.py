@@ -6,7 +6,7 @@ Data Transfer Objects for agent-related API communication.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from shared.types.aliases import AgentId
 from shared.types.enums import EmploymentStatus, WealthClass
@@ -132,6 +132,8 @@ class AgentDetailDTO:
     spouse: Optional[str] = None
     enemies: List[str] = field(default_factory=list)
     community_id: Optional[str] = None
+    # Recent actions timeline
+    recent_actions: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass

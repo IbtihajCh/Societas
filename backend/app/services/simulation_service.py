@@ -201,4 +201,5 @@ class SimulationService:
             action_counts=action_counts,
             wealth_stratified=wealth_stratified,
             llm_log=(result.llm_log[-20:] if result and hasattr(result, 'llm_log') and result.llm_log else []),
+            news_articles=state.media_state.get("articles", []),
         )

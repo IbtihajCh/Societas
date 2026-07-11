@@ -1,145 +1,99 @@
-import Link from 'next/link';
+import Router from 'next/router';
+import { useState, useCallback } from 'react';
+import { apiService } from '@/services/api';
 
 export default function Home() {
+  const [setupPop, setSetupPop] = useState(30);
+  const [setupSeed, setSetupSeed] = useState(42);
+  const [setupAI, setSetupAI] = useState(true);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleStart = useCallback(async () => {
+    setStarting(true);
+    setError(null);
+    try {
+      await apiService.resetSimulation();
+      await apiService.startSimulation({
+        population_size: setupPop,
+        seed: setupSeed,
+        enable_ai: setupAI,
+      });
+      Router.push('/dashboard');
+    } catch (e: any) {
+      setError(e?.message || 'Failed to start simulation');
+      setStarting(false);
+    }
+  }, [setupPop, setupSeed, setupAI]);
+
   return (
-    <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          paddingBottom: '16px',
-          borderBottom: '2px solid var(--color-ink)',
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '32px',
-              fontWeight: 600,
-              letterSpacing: '-0.01em',
-            }}
-          >
-            SOCIETAS
-          </h1>
-          <div
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '12px',
-              color: 'var(--color-ink-soft)',
-              marginTop: '6px',
-            }}
-          >
-            AI-Powered Governance & Society Simulation
-          </div>
-        </div>
-      </div>
-
-      <div
-        style={{
-          padding: '24px 0',
-          borderBottom: '1px solid var(--color-rule)',
-          marginBottom: '24px',
-        }}
-      >
-        <p
-          style={{
-            fontSize: '15px',
-            lineHeight: 1.6,
-            color: 'var(--color-ink)',
-            maxWidth: '600px',
-          }}
-        >
-          SOCIETAS simulates a society of autonomous agents making decisions
-          based on psychological traits, needs, and government policies. Powered
-          by AMD GPUs running Gemma LLMs for reasoning, narrative generation,
-          and moral decision-making.
+    <div className="setup-screen">
+      <div className="setup-hero">
+        <div className="crest">S</div>
+        <h1 className="setup-title">Societas</h1>
+        <div className="setup-subtitle">World Ledger</div>
+        <p className="setup-desc">
+          Agent-based civilisation simulation on a 20×20 toroidal grid.
+          Configure the founding population, seed the world, and start recording entries.
         </p>
-      </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '20px',
-          marginBottom: '24px',
-        }}
-      >
-        <div
-          style={{
-            border: '1px solid var(--color-rule-strong)',
-            background: 'var(--color-parchment)',
-            padding: '20px',
-          }}
-        >
-          <h3
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '15px',
-              fontWeight: 600,
-              paddingBottom: '12px',
-              borderBottom: '1px solid var(--color-ink)',
-              marginBottom: '14px',
-            }}
-          >
-            What You Can Do
-          </h3>
-          <ul
-            style={{
-              listStyle: 'none',
-              padding: 0,
-              fontSize: '13px',
-              color: 'var(--color-ink-soft)',
-              lineHeight: 2,
-            }}
-          >
-            <li>Monitor a live society in real-time</li>
-            <li>Adjust tax, welfare, and food policies</li>
-            <li>Track individual citizen lives</li>
-            <li>Observe AI reasoning for moral dilemmas</li>
-            <li>Read AI-generated chronicles of events</li>
-          </ul>
-        </div>
+        <div className="setup-card">
+          <div className="slider-group">
+            <div className="slider-top">
+              <span>Population</span>
+              <span>{setupPop}</span>
+            </div>
+            <input
+              type="range" min={5} max={200}
+              value={setupPop}
+              onChange={(e) => setSetupPop(Number(e.target.value))}
+            />
+          </div>
 
-        <div
-          style={{
-            border: '1px solid var(--color-rule-strong)',
-            background: 'var(--color-parchment)',
-            padding: '20px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '16px',
-          }}
-        >
-          <p
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '11px',
-              color: 'var(--color-ink-soft)',
-              textAlign: 'center',
-            }}
+          <div className="slider-group">
+            <div className="slider-top">
+              <span>Seed</span>
+              <span>{setupSeed}</span>
+            </div>
+            <input
+              type="range" min={1} max={999}
+              value={setupSeed}
+              onChange={(e) => setSetupSeed(Number(e.target.value))}
+            />
+          </div>
+
+          <div className="slider-group" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 13, color: 'var(--ink-soft)' }}>AI-driven agents</span>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={setupAI}
+                onChange={(e) => setSetupAI(e.target.checked)}
+              />
+              <span className="slider-track" />
+            </label>
+          </div>
+
+          {setupAI && (
+            <p className="setup-ai-note">
+              E2B · 26b A4B · 31B attending
+            </p>
+          )}
+
+          <button
+            className="btn primary"
+            style={{ width: '100%', textAlign: 'center', marginTop: 4 }}
+            onClick={handleStart}
+            disabled={starting}
           >
-            Entry point — the simulation awaits your governance.
-          </p>
-          <Link
-            href="/dashboard"
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: '13px',
-              fontWeight: 500,
-              padding: '10px 24px',
-              border: '1px solid var(--color-ink)',
-              background: 'var(--color-oxblood)',
-              color: 'var(--color-cream)',
-              cursor: 'pointer',
-              letterSpacing: '0.02em',
-            }}
-          >
-            Open the World Ledger →
-          </Link>
+            {starting ? 'Starting…' : 'start simulation'}
+          </button>
+
+          {error && (
+            <p style={{ color: 'var(--oxblood)', fontSize: 12, margin: 0 }}>
+              {error}
+            </p>
+          )}
         </div>
       </div>
     </div>

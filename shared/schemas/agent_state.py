@@ -288,6 +288,8 @@ class AgentState:
     community_id: Optional[str] = None
     last_action: ActionType = ActionType.IDLE
     last_reasoning: str = ""
+    memories: list = field(default_factory=list)
+    """Episodic memories stored as ``Memory`` dataclass instances."""
     insomnia_severity: float = 0.0
     """Insomnia severity (0.0 = none, 1.0 = severe)."""
     energy: float = 1.0
