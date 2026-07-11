@@ -290,12 +290,19 @@ def run_tick(
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
                     action_results.append(result)
+                    collect_tick_memories(agent, result, world, tick_number)
                 continue
 
             nearby_counts = compute_nearby_counts(agent, living_agents)
             if is_moral_dilemma(agent, world):
                 ambiguity_count += 1
                 prompt = build_moral_dilemma_prompt(agent, world, nearby_counts)
+                dilemma_prompts.append((idx, prompt))
+                dilemma_agents.append(agent)
+            else:
+                prompt = build_agent_prompt(agent, world, nearby_counts)
+                normal_prompts.append((idx, prompt))
+                normal_agents.append(agent)
 
         # Batch call: normal decisions → E2B
         normal_responses: list[str] = []
@@ -320,6 +327,7 @@ def run_tick(
         # Pass 2: Execute actions from batched results
         action_results = [None] * len(living_agents)
 
+        model_type = "agent_decide"
         for (idx, _), response in zip(normal_prompts, normal_responses):
             agent = living_agents[idx]
             parsed = parse_llm_response(response)
@@ -352,6 +360,7 @@ def run_tick(
             action_results[idx] = result
             collect_tick_memories(agent, result, world, tick_number)
 
+        model_type = "moral_reasoning"
         for (idx, _), response in zip(dilemma_prompts, dilemma_responses):
             agent = living_agents[idx]
             parsed = parse_llm_response(response)
@@ -364,6 +373,15 @@ def run_tick(
                         "reasoning": parsed.get("reason", ""),
                         "feeling": parsed.get("feeling", ""),
                     }
+                    if len(llm_log) < 50:
+                        llm_log.append({
+                            "tick": tick_number,
+                            "agent_id": str(agent.id),
+                            "model_type": model_type,
+                            "action": str(validated),
+                            "reason": str(parsed.get("reason", ""))[:200],
+                            "feeling": str(parsed.get("feeling", ""))[:100],
+                        })
                 else:
                     action = deterministic_fallback(agent, world, rng)
                     metadata = {"source": "deterministic_fallback", "reasoning": "Invalid LLM action"}

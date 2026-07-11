@@ -40,10 +40,10 @@ async def explain_simulation_state(
             answer_parts.append("This is at crisis level (threshold >0.25).")
 
     if "econom" in q or "money" in q or "wealth" in q:
-        aw = getattr(state, "avg_wealth", 0)
+        aw = getattr(state, "economic_health", 0.5)
         unemp = getattr(state, "unemployment_rate", 0)
-        answer_parts.append(f"Average wealth index: {aw:.2f}, unemployment: {unemp:.2%}.")
-        evidence["avg_wealth"] = aw
+        answer_parts.append(f"Economic health: {aw:.2f}, unemployment: {unemp:.2%}.")
+        evidence["economic_health"] = aw
         evidence["unemployment_rate"] = unemp
 
     if "death" in q or "die" in q or "mortal" in q:
@@ -52,9 +52,9 @@ async def explain_simulation_state(
         evidence["population"] = pop
 
     if "unlust" in q or "unhap" in q or "miser" in q:
-        au = getattr(state, "avg_unlust", 0)
-        answer_parts.append(f"The average unlust (misery) is {au:.3f}.")
-        evidence["avg_unlust"] = au
+        au = getattr(state, "unlust", 0)
+        answer_parts.append(f"The unlust (misery) index is {au:.3f}.")
+        evidence["unlust"] = au
         if au < 0.15:
             answer_parts.append("This is within the normal range (<0.15).")
         elif au < 0.35:
