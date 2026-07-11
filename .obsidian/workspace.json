@@ -177,5 +177,7 @@
     }
   },
   "active": "9c453ba3d70df987",
-  "lastOpenFiles": []
+  "lastOpenFiles": [
+    "backend/app/routers/explain.py"
+  ]
 }

@@ -10,17 +10,8 @@ from shared.schemas.simulation_state import SimulationState
 
 logger = logging.getLogger("societas.ai.vllm_router")
 
-FALLBACK_RESPONSE = json.dumps({
-    "action": "work",
-    "feeling": "neutral",
-    "reason": "vllm fallback",
-})
 
-FALLBACK_GOVERNANCE = {
-    "assessment": "Unavailable",
-    "recommendation": "Fallback to deterministic governance",
-    "watch_items": [],
-}
+_AVAILABILITY_TIMEOUT = 5
 
 
 class VLLMRouter:
@@ -42,6 +33,7 @@ class VLLMRouter:
             timeout=config.timeout_seconds,
         )
         self._call_count = 0
+        self._cached_available: bool | None = None
 
     def _call_vllm(
         self,
@@ -53,6 +45,9 @@ class VLLMRouter:
         model: str,
         extract_json: bool = True,
     ) -> list[str]:
+        if not api_key:
+            logger.warning("No API key configured for model %s", model)
+            return [""] * (len(prompt) if isinstance(prompt, list) else 1)
         headers = {"Authorization": f"Bearer {api_key}"}
         if isinstance(prompt, list):
             messages_list = [[{"role": "user", "content": p}] for p in prompt]
@@ -63,8 +58,6 @@ class VLLMRouter:
         else:
             payload_list = [{"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": temperature, "max_tokens": max_tokens}]
 
-        last_error: Exception | None = None
-        text_fallback = "Narrative currently unavailable" if not extract_json else FALLBACK_RESPONSE
         texts: list[str] = []
         for payload in payload_list:
             for attempt in range(self._config.max_retries + 1):
@@ -83,32 +76,33 @@ class VLLMRouter:
                         texts.append(raw)
                     break
                 except Exception as e:
-                    last_error = e
                     if attempt < self._config.max_retries:
                         logger.warning("vLLM call failed (attempt %d): %s", attempt + 1, e)
                     else:
                         logger.error("vLLM call failed after %d retries: %s", self._config.max_retries + 1, e)
-                        texts.append(text_fallback)
+                        texts.append("")
 
         if not texts:
             count = len(prompt) if isinstance(prompt, list) else 1
-            return [text_fallback] * count
+            return [""] * count
         return texts
 
     def _extract_json(self, text: str) -> str:
         start = text.find("{")
         end = text.rfind("}") + 1
         if start == -1 or end == 0:
-            return FALLBACK_RESPONSE
+            return ""
         candidate = text[start:end]
         try:
             json.loads(candidate)
             return candidate
         except json.JSONDecodeError:
-            return FALLBACK_RESPONSE
+            return ""
 
     def agent_decide(self, prompt: str, agent: AgentState, world: SimulationState) -> str:
         self._call_count += 1
+        if not self.is_available():
+            return ""
         results = self._call_vllm(
             self._client_e2b,
             prompt,
@@ -122,6 +116,8 @@ class VLLMRouter:
     def agent_decide_batch(
         self, prompts: list[str], agents: list[AgentState], world: SimulationState
     ) -> list[str]:
+        if not self.is_available():
+            return [""] * len(prompts)
         self._call_count += len(prompts)
         return self._call_vllm(
             self._client_e2b,
@@ -134,6 +130,8 @@ class VLLMRouter:
 
     def moral_reasoning(self, prompt: str, agent: AgentState, world: SimulationState) -> str:
         self._call_count += 1
+        if not self.is_available():
+            return ""
         results = self._call_vllm(
             self._client_moe,
             prompt,
@@ -147,6 +145,8 @@ class VLLMRouter:
     def moral_reasoning_batch(
         self, prompts: list[str], agents: list[AgentState], world: SimulationState
     ) -> list[str]:
+        if not self.is_available():
+            return [""] * len(prompts)
         self._call_count += len(prompts)
         return self._call_vllm(
             self._client_moe,
@@ -158,6 +158,8 @@ class VLLMRouter:
         )
 
     def governance_advisory(self, world: SimulationState, agents: list[AgentState]) -> dict[str, Any]:
+        if not self.is_available():
+            return {"assessment": "LLM unavailable", "recommendation": "Deterministic governance active", "watch_items": []}
         prompt = self._build_governance_prompt(world, agents)
         results = self._call_vllm(
             self._client_dense,
@@ -168,13 +170,15 @@ class VLLMRouter:
             model=self._config.model_dense_31b,
         )
         raw = results[0]
+        if not raw:
+            return {"assessment": "No LLM response", "recommendation": "Deterministic governance active", "watch_items": []}
         try:
             data = json.loads(raw)
             if "assessment" in data and "recommendation" in data:
                 return data
         except (json.JSONDecodeError, TypeError):
             pass
-        return FALLBACK_GOVERNANCE
+        return {"assessment": "Parse failed", "recommendation": "Deterministic governance active", "watch_items": []}
 
     def _build_governance_prompt(self, world: SimulationState, agents: list[AgentState]) -> str:
         living = [a for a in agents if a.is_alive]
@@ -193,9 +197,49 @@ class VLLMRouter:
         )
 
     def is_available(self) -> bool:
-        return True
+        if self._cached_available is not None:
+            return self._cached_available
+        api_key = self._config.api_key_dense_31b or self._config.api_key_e2b
+        if not api_key:
+            self._cached_available = False
+            return False
+        try:
+            headers = {"Authorization": f"Bearer {api_key}"}
+            resp = self._client_dense.get("/models", headers=headers, timeout=_AVAILABILITY_TIMEOUT)
+            self._cached_available = resp.status_code == 200
+            return self._cached_available
+        except Exception as e:
+            logger.info("vLLM server unreachable: %s", e)
+            self._cached_available = False
+            return False
+
+    def answer_question(self, question: str, state: SimulationState) -> str:
+        if not self.is_available():
+            return ""
+        prompt = (
+            f"You are an expert simulation analyst. A society simulation is running.\n"
+            f"Current state: population={state.population}, economic_health={state.economic_health:.2f}, "
+            f"crime_rate={state.crime_rate:.2f}, protest_intensity={state.protest_intensity:.2f}, "
+            f"unemployment_rate={state.unemployment_rate:.2f}, food_availability={state.food_availability:.2f}, "
+            f"tax_rate={state.tax_rate:.2f}, welfare_enabled={state.welfare_enabled}, "
+            f"avg_unlust={state.unlust:.2f}, morality={state.morality:.2f}.\n\n"
+            f"Question: {question}\n\n"
+            f"Provide a concise natural-language explanation (2-4 sentences) based on the data above."
+        )
+        results = self._call_vllm(
+            self._client_dense,
+            prompt,
+            api_key=self._config.api_key_dense_31b,
+            temperature=0.4,
+            max_tokens=256,
+            model=self._config.model_dense_31b,
+            extract_json=False,
+        )
+        return results[0]
 
     def generate_narrative(self, context: str) -> str:
+        if not self.is_available():
+            return ""
         results = self._call_vllm(
             self._client_dense,
             context,
@@ -208,6 +252,8 @@ class VLLMRouter:
         return results[0]
 
     def moral_assessment(self, question: str) -> str:
+        if not self.is_available():
+            return ""
         results = self._call_vllm(
             self._client_moe,
             question,
@@ -220,6 +266,8 @@ class VLLMRouter:
         return results[0]
 
     def generate_narrative_moe(self, context: str) -> str:
+        if not self.is_available():
+            return ""
         results = self._call_vllm(
             self._client_moe,
             context,
@@ -232,6 +280,8 @@ class VLLMRouter:
         return results[0]
 
     def deep_ethics_assessment(self, context: str) -> str:
+        if not self.is_available():
+            return ""
         results = self._call_vllm(
             self._client_dense,
             context,

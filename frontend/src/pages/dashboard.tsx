@@ -14,6 +14,8 @@ import WealthStratifiedChart from '@/components/dashboard/WealthStratifiedChart'
 import ActionFrequencyChart from '@/components/dashboard/ActionFrequencyChart';
 import ActionDataSummary from '@/components/dashboard/ActionDataSummary';
 import LLMPanel from '@/components/dashboard/LLMPanel';
+import GovernanceCard from '@/components/dashboard/GovernanceCard';
+import ExplainPanel from '@/components/dashboard/ExplainPanel';
 
 export default function Dashboard() {
   const { state, agents, isConnected, isRunning, error, advanceTick, refreshAgents } =
@@ -183,6 +185,9 @@ export default function Dashboard() {
           <div style={{ marginTop: '1rem' }}>
             <WealthStratifiedChart />
           </div>
+          <div style={{ marginTop: '1rem' }}>
+            <GovernanceCard state={state} />
+          </div>
         </div>
       </div>
 
@@ -236,6 +241,11 @@ export default function Dashboard() {
       {/* LLM Panel */}
       <div style={{ marginTop: '2rem' }}>
         <LLMPanel />
+      </div>
+
+      {/* Ask Why? */}
+      <div style={{ marginTop: '2rem' }}>
+        <ExplainPanel />
       </div>
 
       {/* Agent Details */}
