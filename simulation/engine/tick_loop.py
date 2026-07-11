@@ -136,7 +136,11 @@ def run_tick(
         TickResult with all actions, events, and metrics from this tick.
     """
     start_time = time.time()
+    # Sort agents deterministically by ID to ensure order-independence.
+    # Input order must not affect which agent consumes which RNG values.
+    agents.sort(key=lambda a: a.id)
     living_agents = [a for a in agents if a.is_alive]
+    living_agents.sort(key=lambda a: a.id)
 
     # Step 1: TickStartedEvent (logged, no event bus for now)
     # Step 2: Apply policy effects & aggregate weights

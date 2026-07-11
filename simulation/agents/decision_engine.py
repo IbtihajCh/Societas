@@ -8,7 +8,7 @@ import json
 import math
 from typing import Any
 
-from shared.types.enums import ActionType, EmotionType, NeedType
+from shared.types.enums import ActionType, EmotionType, JobType, NeedType, WealthClass
 from shared.schemas.agent_state import AgentState
 from shared.schemas.simulation_state import SimulationState
 from shared.constants.defaults import (
@@ -88,7 +88,9 @@ def build_agent_prompt(
         f"tax_rate={world.tax_rate:.2f} welfare={world.welfare_enabled} food_avail={world.food_availability:.2f}\n"
         f"\nWhat do you do? Choose ONE:\n"
         f"work, buy_food, rest, seek_job, beg, befriend, console, isolate,\n"
-        f"share, steal, harm_other, protest, complain, comply, idle\n"
+        f"share, steal, harm_other, protest, complain, comply, idle,\n"
+        f"treat, counsel, fraud, campaign, spread_rumor, support_family,\n"
+        f"invest, buy_property, hobby\n"
         f'\nRespond EXACTLY: {{"action":"...","feeling":"...","reason":"one sentence"}}'
     )
 
@@ -138,7 +140,9 @@ def build_moral_dilemma_prompt(
         f"and situation. Consider their moral values, their desperation, their relationships,\n"
         f"and the social context. What is the RIGHT choice for THIS person?\n\n"
         f"Choose ONE action: work, buy_food, rest, seek_job, beg, befriend, console, isolate,\n"
-        f"share, steal, harm_other, protest, complain, comply, idle\n\n"
+        f"share, steal, harm_other, protest, complain, comply, idle,\n"
+        f"treat, counsel, fraud, campaign, spread_rumor, support_family,\n"
+        f"invest, buy_property, hobby\n\n"
         f'Respond EXACTLY: {{"action":"...","feeling":"...","reason":"2-3 sentences explaining the moral reasoning"}}'
     )
 
@@ -348,6 +352,17 @@ def deterministic_fallback(
         "BEG": 1.0,
         "HARM_OTHER": 0.5,
         "PROTEST": 1.0,
+        "FRAUD": 0.05,
+        "TREAT": 0.08,
+        "COUNSEL": 0.08,
+        "CAMPAIGN": 0.03,
+        "COMPLY": 0.10,
+        "SPREAD_RUMOR": 0.04,
+        "SUPPORT_FAMILY": 0.06,
+        "INVEST": 0.05,
+        "BUY_PROPERTY": 0.04,
+        "HOBBY": 0.08,
+        "IDLE": 0.02,
     }
 
     # Modulate scores by agent state
@@ -393,9 +408,62 @@ def deterministic_fallback(
         base_scores["PROTEST"] += 4.0
         base_scores["STEAL"] += 2.0
         base_scores["HARM_OTHER"] += 1.0
-    elif agent.emotions.primary == EmotionType.SADNESS:
+    elif agent.emotions.primary == EmotionType.SAD:
         base_scores["CONSOLE"] += 3.0
         base_scores["REST"] += 2.0
+
+    # -- New action modulations --
+
+    # FRAUD — only for immoral rich
+    if agent.resources.money >= 200 and agent.traits.morality <= 0.3:
+        fraud_bonus = (agent.resources.money / 200.0) * 2.0
+        base_scores["FRAUD"] += min(fraud_bonus, 5.0)
+
+    # TREAT — doctor profession bonus
+    if agent.job_type == JobType.DOCTOR:
+        base_scores["TREAT"] += 10.0
+
+    # COUNSEL — therapist profession bonus
+    if agent.job_type == JobType.THERAPIST:
+        base_scores["COUNSEL"] += 10.0
+
+    # CAMPAIGN — political ambition
+    if agent.traits.ambition > 0.5 and agent.notoriety > 0.4:
+        campaign_bonus = (agent.traits.ambition - 0.5) * 20.0
+        base_scores["CAMPAIGN"] += campaign_bonus
+
+    # COMPLY — compliant personality
+    if agent.trust_in_govt > 0.5 and agent.traits.anger_tendency < 0.3:
+        base_scores["COMPLY"] += agent.trust_in_govt * 5.0
+
+    # SPREAD_RUMOR — dominance-driven
+    if agent.traits.dominance_urge > 0.6:
+        rumor_bonus = (agent.traits.dominance_urge - 0.6) * 15.0
+        base_scores["SPREAD_RUMOR"] += rumor_bonus
+
+    # SUPPORT_FAMILY — family bond need
+    if agent.resources.money > 20:
+        family_bond = agent.needs.get_level(NeedType.FAMILY_BOND)
+        if family_bond < 0.5:
+            base_scores["SUPPORT_FAMILY"] += (0.5 - family_bond) * 10.0
+
+    # INVEST — financial ambition
+    if agent.resources.money > 200 and agent.traits.ambition > 0.4:
+        inv_bonus = (agent.traits.ambition - 0.4) * 10.0
+        base_scores["INVEST"] += inv_bonus
+
+    # BUY_PROPERTY — wealth status
+    if agent.resources.money > 500 and agent.wealth_class != WealthClass.POOR:
+        prop_bonus = (agent.resources.money / 500.0) * 2.0
+        base_scores["BUY_PROPERTY"] += min(prop_bonus, 5.0)
+
+    # HOBBY — stress relief when unhappy or high unlust
+    if agent.emotions.happiness_score < 0.4 or agent.unlust > 0.5:
+        base_scores["HOBBY"] += 5.0
+
+    # IDLE — subtle modulation: slightly more likely when low energy / despair
+    if agent.emotions.primary == EmotionType.DESPAIR or agent.unlust > 0.7:
+        base_scores["IDLE"] += 2.0
 
     # Filter out invalid actions
     valid_actions = {}
@@ -412,6 +480,26 @@ def deterministic_fallback(
         if action_name == "BEG" and agent.resources.money > 50:
             continue
         if action_name == "SHARE" and agent.resources.money < 100:
+            continue
+        if action_name == "FRAUD" and (agent.resources.money < 200 or agent.traits.morality > 0.3):
+            continue
+        if action_name == "TREAT" and agent.job_type != JobType.DOCTOR:
+            continue
+        if action_name == "COUNSEL" and agent.job_type != JobType.THERAPIST:
+            continue
+        if action_name == "CAMPAIGN" and (
+            agent.traits.ambition <= 0.5 or agent.notoriety <= 0.4 or agent.resources.money <= 100
+        ):
+            continue
+        if action_name == "COMPLY" and (agent.traits.anger_tendency > 0.4 or agent.trust_in_govt < 0.3):
+            continue
+        if action_name == "SPREAD_RUMOR" and agent.traits.dominance_urge <= 0.6:
+            continue
+        if action_name == "SUPPORT_FAMILY" and agent.resources.money <= 20:
+            continue
+        if action_name == "INVEST" and (agent.resources.money <= 200 or agent.traits.ambition <= 0.4):
+            continue
+        if action_name == "BUY_PROPERTY" and (agent.resources.money <= 500 or agent.wealth_class == WealthClass.POOR):
             continue
         valid_actions[action_name] = score
 
@@ -437,5 +525,16 @@ def deterministic_fallback(
         "BEG": ActionType.BEG,
         "HARM_OTHER": ActionType.HARM_OTHER,
         "PROTEST": ActionType.PROTEST,
+        "FRAUD": ActionType.FRAUD,
+        "TREAT": ActionType.TREAT,
+        "COUNSEL": ActionType.COUNSEL,
+        "CAMPAIGN": ActionType.CAMPAIGN,
+        "COMPLY": ActionType.COMPLY,
+        "SPREAD_RUMOR": ActionType.SPREAD_RUMOR,
+        "SUPPORT_FAMILY": ActionType.SUPPORT_FAMILY,
+        "INVEST": ActionType.INVEST,
+        "BUY_PROPERTY": ActionType.BUY_PROPERTY,
+        "HOBBY": ActionType.HOBBY,
+        "IDLE": ActionType.IDLE,
     }
     return action_map.get(action_name, ActionType.IDLE)

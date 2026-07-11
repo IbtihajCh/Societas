@@ -14,6 +14,7 @@ from shared.constants.defaults import (
     AGE_PROGRESSION_INTERVAL,
     DESPAIR_MORTALITY_RATE,
     ECONOMIC_HARDSHIP_DEATH_RATE,
+    EXISTENTIAL_DEATH_CHANCE,
     ENV_NEED_DECAY_FOOD_MULTIPLIER,
     ENV_NEED_DECAY_WATER_MULTIPLIER,
     FAMILY_DECAY_RATE,
@@ -155,6 +156,8 @@ def decay_needs(
     )
     # INFERIORITY_GAP is computed on social interaction, no passive decay.
 
+    agent.resources.health = max(0.0, agent.resources.health - 0.001)
+
     # Derive wealth class from current money each tick.
     agent.wealth_class = derive_wealth_class(agent.resources.money)
     # Keep legacy wealth field in sync with money.
@@ -204,11 +207,11 @@ def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState
         agent.cause_of_death = "water_dehydration"
         return True
 
-    if agent.resources.health <= HEALTH_DEATH_THRESHOLD:
+    if agent.resources.health <= HEALTH_DEATH_THRESHOLD and rng.random() < 0.5:
         agent.cause_of_death = "health_failure"
         return True
 
-    if agent.needs.get_level(NeedType.SLEEP) < SLEEP_DEATH_THRESHOLD and agent.ticks_without_sleep >= 50:
+    if agent.needs.get_level(NeedType.SLEEP) < SLEEP_DEATH_THRESHOLD and agent.ticks_without_sleep >= 50 and rng.random() < 0.3:
         agent.cause_of_death = "insomnia_exhaustion"
         return True
 
@@ -216,6 +219,10 @@ def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState
         if rng.random() < DESPAIR_MORTALITY_RATE:
             agent.cause_of_death = "despair"
             return True
+
+    if agent.purpose_fulfillment < 0.1 and rng.random() < EXISTENTIAL_DEATH_CHANCE:
+        agent.cause_of_death = "existential_despair"
+        return True
 
     if agent.age_bracket == "elderly":
         mortality_chance = AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY
@@ -298,9 +305,9 @@ def derive_wealth_class(money: float) -> WealthClass:
         ``WealthClass.MIDDLE`` if 1000 <= money < 15000,
         ``WealthClass.RICH`` otherwise.
     """
-    if money < 1000.0:
+    if money < 500.0:
         return WealthClass.POOR
-    if money < 15000.0:
+    if money < 5000.0:
         return WealthClass.MIDDLE
     return WealthClass.RICH
 

@@ -12,7 +12,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 sys.path.insert(0, _ROOT)
 
 from collections import defaultdict
-from shared.types.enums import ActionType, EmotionType, WealthClass, NeedType, EmploymentStatus
+from shared.types.enums import ActionType, EmotionType, WealthClass, NeedType
 from shared.schemas.simulation_state import SimulationState
 from shared.utilities.deterministic_rng import DeterministicRNG
 from simulation.engine.tick_loop import run_tick
@@ -167,7 +167,7 @@ def run_scenario(name):
                 "total_protests": total_protests,
                 "avg_happiness": sum(a.emotions.happiness_score for a in living) / max(1, len(living)),
                 "avg_unlust": sum(a.unlust for a in living) / max(1, len(living)),
-                "unemployment_rate": sum(1 for a in living if a.resources.employed == EmploymentStatus.UNEMPLOYED) / max(1, len(living)),
+                "unemployment_rate": sum(1 for a in living if not a.resources.employed) / max(1, len(living)),
                 "crime_rate": world.crime_rate,
                 "protest_intensity": world.protest_intensity,
                 "food_availability": world.food_availability,

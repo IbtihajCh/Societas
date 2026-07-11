@@ -307,6 +307,24 @@ class TestApplyAllPolicies:
         # Tax rate set (once)
         assert world.tax_rate == pytest.approx(0.25)
 
+    def test_multiple_wealth_classes(self):
+        """Different wealth classes get different deltas."""
+        world = SimulationState()
+        policy = _make_policy({
+            WealthClass.POOR: ImpactDelta(money_delta=-5.0),
+            WealthClass.MIDDLE: ImpactDelta(money_delta=0.0),
+            WealthClass.RICH: ImpactDelta(money_delta=10.0),
+        })
+        poor = _make_agent("poor", wealth_class=WealthClass.POOR, money=100.0)
+        middle = _make_agent("middle", wealth_class=WealthClass.MIDDLE, money=100.0)
+        rich = _make_agent("rich", wealth_class=WealthClass.RICH, money=100.0)
+
+        apply_all_policies([poor, middle, rich], [policy], world)
+
+        assert poor.resources.money == pytest.approx(95.0)
+        assert middle.resources.money == pytest.approx(100.0)
+        assert rich.resources.money == pytest.approx(110.0)
+
     def test_dead_skipped(self):
         """dead agents not affected."""
         world = SimulationState()
@@ -330,3 +348,82 @@ class TestApplyAllPolicies:
         assert agent.resources.money == 100.0
         assert agent.needs.get_level(NeedType.FOOD) == pytest.approx(0.5)
         assert world.tax_rate == 0.15
+
+    def test_negative_economic_freedom(self):
+        """Negative economic_freedom -> WORK score decreased."""
+        base = {
+            ActionType.WORK: 1.0,
+            ActionType.STEAL: 0.5,
+        }
+        weights = PolicyWeights(economic_freedom=-0.5)
+        result = apply_policy_weights(base, weights)
+        assert result[ActionType.WORK] == pytest.approx(0.95)  # 1.0 + (-0.5)*0.1
+
+    def test_negative_social_welfare(self):
+        """Negative social_welfare -> SHARE decreased, STEAL increased."""
+        base = {
+            ActionType.SHARE: 0.5,
+            ActionType.STEAL: 0.5,
+        }
+        weights = PolicyWeights(social_welfare=-0.3)
+        result = apply_policy_weights(base, weights)
+        assert result[ActionType.SHARE] == pytest.approx(0.455)  # 0.5 + (-0.3)*0.15
+        assert result[ActionType.STEAL] == pytest.approx(0.53)   # 0.5 - (-0.3)*0.1
+
+    def test_negative_public_order(self):
+        """Negative public_order -> PROTEST, STEAL, HARM_OTHER increased."""
+        base = {
+            ActionType.PROTEST: 0.5,
+            ActionType.STEAL: 0.5,
+            ActionType.HARM_OTHER: 0.5,
+        }
+        weights = PolicyWeights(public_order=-0.5)
+        result = apply_policy_weights(base, weights)
+        assert result[ActionType.PROTEST] == pytest.approx(0.55)   # 0.5 - (-0.5)*0.1
+        assert result[ActionType.STEAL] == pytest.approx(0.575)    # 0.5 - (-0.5)*0.15
+        assert result[ActionType.HARM_OTHER] == pytest.approx(0.6) # 0.5 - (-0.5)*0.2
+
+    def test_food_event_clamping_lower(self):
+        """food_event applied to world.food_availability clamped to [0, 1]."""
+        agent = _make_agent()
+        policy = _make_policy({WealthClass.POOR: ImpactDelta(food_event=-1.5)})
+        world = SimulationState(food_availability=0.2)
+        world_changed: dict[str, bool] = {}
+
+        apply_policy_effects(agent, policy, world, world_changed)
+
+        assert world.food_availability == pytest.approx(0.0)
+
+    def test_food_event_clamping_upper(self):
+        """food_event applied to world.food_availability clamped to [0, 1]."""
+        agent = _make_agent()
+        policy = _make_policy({WealthClass.POOR: ImpactDelta(food_event=0.8)})
+        world = SimulationState(food_availability=0.5)
+        world_changed: dict[str, bool] = {}
+
+        apply_policy_effects(agent, policy, world, world_changed)
+
+        assert world.food_availability == pytest.approx(1.0)
+
+    def test_empty_deltas_different_class(self):
+        """Agent with class not in impact_deltas -> no change."""
+        agent = _make_agent(money=100.0)
+        policy = _make_policy({WealthClass.RICH: ImpactDelta(money_delta=-50.0)})
+        world = SimulationState()
+        world_changed: dict[str, bool] = {}
+
+        apply_policy_effects(agent, policy, world, world_changed)
+
+        assert agent.resources.money == 100.0  # Unchanged
+
+    def test_empty_impact_deltas(self):
+        """Policy with empty impact_deltas -> no changes."""
+        agent = _make_agent(money=100.0)
+        policy = _make_policy({})
+        world = SimulationState()
+        world_changed: dict[str, bool] = {}
+
+        apply_policy_effects(agent, policy, world, world_changed)
+
+        assert agent.resources.money == 100.0
+        assert world.tax_rate == 0.15  # default unchanged

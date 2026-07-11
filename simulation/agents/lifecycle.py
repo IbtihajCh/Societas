@@ -112,9 +112,9 @@ def try_birth(
     # --- Birth chance ---
     birth_chance = BIRTH_CHANCE_BASE
     if agent.traits.ambition > 0.5:
-        birth_chance += 0.2
+        birth_chance += 0.0002
     if agent.emotions.happiness_score > 0.5:
-        birth_chance += 0.001
+        birth_chance += 0.0001
 
     if rng.random() >= birth_chance:
         return None

@@ -2,7 +2,11 @@
 
 from typing import Optional
 
-from shared.constants.defaults import DEFAULT_WELFARE_AMOUNT, DEBT_INTEREST_RATE
+from shared.constants.defaults import (
+    DEBT_INTEREST_RATE,
+    DEFAULT_WELFARE_AMOUNT,
+    INFLATION_DECAY_RATE,
+)
 from shared.constants.simulation_constants import RENT_COST, SALARY_RANGES
 from shared.schemas.agent_state import AgentState
 from shared.schemas.simulation_state import SimulationState
@@ -101,6 +105,10 @@ def process_economy_tick(
     Returns:
         Dict with 'total_rent', 'total_welfare', 'rent_payers', 'welfare_recipients'.
     """
+    world.economy.inflation_rate = max(
+        0.0, world.economy.inflation_rate - INFLATION_DECAY_RATE
+    )
+
     # Labor market: compute job demand and adjust salaries
     job_demand = compute_job_demand(agents, world)
     world.job_demand = job_demand

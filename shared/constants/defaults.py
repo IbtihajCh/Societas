@@ -50,8 +50,12 @@ DEFAULT_VLLM_MODEL: str = "google/gemma-2-9b-it"
 # === Emotion thresholds (per Project Guide) ===
 HAPPY_THRESHOLD: float = 0.65
 SAD_THRESHOLD: float = 0.35
-ANGRY_UNLUST_THRESHOLD: float = 0.58
-DESPAIR_UNLUST_THRESHOLD: float = 0.82
+ANGRY_UNLUST_THRESHOLD: float = 0.45
+"""Lowered from 0.58 (v2 engine calibration 2026-07-11). At 0.58, max observed unlust is ~0.37
+so ANGRY emotion was unreachable. At 0.45, ANGRY fires in stress conditions."""
+DESPAIR_UNLUST_THRESHOLD: float = 0.55
+"""Lowered from 0.82 (v2 engine calibration 2026-07-11). INVARIANT: must be > UNLUST_MORALITY_GATE.
+At 0.82, max observed unlust is ~0.37 so DESPAIR was unreachable. At 0.55, DESPAIR fires."""
 ANGRY_TENDENCY_THRESHOLD: float = 0.4
 
 # === Emotion timers (ticks) ===
@@ -66,13 +70,23 @@ UNLUST_SAFETY_WEIGHT: float = 0.20
 UNLUST_SOCIAL_WEIGHT: float = 0.12
 UNLUST_FINANCIAL_WEIGHT: float = 0.18
 UNLUST_FINANCIAL_DIVISOR: float = 600.0
-UNLUST_MORALITY_GATE: float = 0.58
+UNLUST_MORALITY_GATE: float = 0.38
+"""Lowered from 0.58 (v2 engine calibration 2026-07-11). INVARIANT: must be < DESPAIR_UNLUST_THRESHOLD.
+At 0.58, zone 2 (unlust >= 0.58 and unlust < DESPAIR) was unreachable because DESPAIR was 0.82.
+At 0.38, zone 2 is reachable and morality-driven actions can fire."""
 UNLUST_NEED_THRESHOLD: float = 0.7
 
 # === Need decay rates (base, before scarcity modifier) ===
-FOOD_DECAY_RATE: float = 0.018
-WATER_DECAY_RATE: float = 0.014
-SLEEP_DECAY_RATE: float = 0.04
+FOOD_DECAY_RATE: float = 0.012
+"""Reduced from 0.018. At 0.018 * scarcity=1.15 = 0.0207/tick, food depletes
+from 0.5 to death in 23 ticks — leaves no margin for wealth-stratified cost."""
+WATER_DECAY_RATE: float = 0.008
+"""Reduced from 0.010. At 0.010, water dies in 44 ticks for the average agent,
+which is shorter than food (35 ticks). Water should last longer than food."""
+SLEEP_DECAY_RATE: float = 0.02
+"""Reduced from 0.04. With natural recovery of 0.02, net change is 0 — agents
+don't accumulate sleep debt unless they're doing nothing. At 0.04, 50 ticks
+without rest = death which is unrealistic."""
 SEXUAL_TENSION_GROWTH_RATE: float = 0.008
 SAFETY_DECAY_RATE: float = 0.004
 SOCIAL_DECAY_RATE: float = 0.009
@@ -112,7 +126,8 @@ JOB_LOSS_ECON_SENSITIVITY: float = 2.0
 JOB_SEEK_ECON_SENSITIVITY: float = 1.5
 INFLATION_DECAY_RATE: float = 0.002
 DEBT_INTEREST_RATE: float = 0.01
-ECONOMIC_HARDSHIP_DEATH_RATE: float = 0.003
+ECONOMIC_HARDSHIP_DEATH_RATE: float = 0.001
+"""Tuned 2026-07-11 for population stability."""
 
 # === Economy ===
 BASE_FOOD_COST: float = 10.0
@@ -273,17 +288,25 @@ AGE_MIDDLE_ADULT_MAX: int = 65
 AGE_ELDERLY_MAX: int = 1000
 """Maximum age for the elderly bracket — effectively no cap."""
 
-AGE_MORTALITY_BASE: float = 0.001
-"""Base per-tick mortality probability for all agents."""
+AGE_MORTALITY_BASE: float = 0.0001
+"""Base per-tick mortality probability for all agents. Reduced from 0.001
+because 0.001/tick is ~36% per year which is far too high."""
 
-AGE_MORTALITY_ELDERLY: float = 0.008
-"""Additional per-tick mortality probability for elderly agents."""
+AGE_MORTALITY_ELDERLY: float = 0.001
+"""Additional per-tick mortality probability for elderly agents. Reduced
+from 0.008 (combined with base = 0.009/tick, ~97% per year).
+Tuned 2026-07-11 for population stability."""
 
 DEATH_INHERITANCE_FRACTION: float = 0.7
 """Fraction of a parent's wealth passed to children on death."""
 
-BIRTH_CHANCE_BASE: float = 0.002
-"""Base per-tick probability of giving birth for eligible agents."""
+BIRTH_CHANCE_BASE: float = 0.005
+"""Goldilocks rate (v2 engine calibration 2026-07-11). Sweep [0.0001-0.01] showed 0.005 produces
+stable population: 62/80 at 500t, 30/80 at 1000t. Below 0.005 leads to extinction; above leads to explosion.
+0.0001 was extinction; 0.005 is the stable middle ground."""
+"""Base per-tick probability of giving birth for eligible agents. Reduced
+from 0.0002 (still produced 200+ births in 200 ticks = 3.5x pop growth).
+Tuned 2026-07-11 for population stability."""
 
 MIN_ADULT_AGE_FOR_BIRTH: int = 18
 """Minimum age for an agent to be eligible for reproduction."""
@@ -291,8 +314,9 @@ MIN_ADULT_AGE_FOR_BIRTH: int = 18
 MAX_REPRODUCTION_AGE: int = 50
 """Maximum age for an agent to be eligible for reproduction."""
 
-AGE_PROGRESSION_INTERVAL: int = 1
-"""Number of years (ticks) added per tick — age progresses by 1 per tick."""
+AGE_PROGRESSION_INTERVAL: float = 0.1
+"""Years of aging per tick (0.1 = 200 ticks ≈ 20 simulated years). 1.0 was
+catastrophic: a 40-year-old reached elderly (66) by tick 26."""
 
 # --- Marriage constants ---
 MARRIAGE_BASE_PROBABILITY: float = 0.05
