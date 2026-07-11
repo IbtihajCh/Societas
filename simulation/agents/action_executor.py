@@ -124,6 +124,20 @@ def move_agent(agent: AgentState, rng: DeterministicRNG) -> None:
         agent.grid_y = type(agent.grid_y)((int(agent.grid_y) + dy) % GRID_SIZE)
 
 
+def _repay_debt(agent: AgentState) -> None:
+    """Repay 1% of outstanding debt each tick if the agent has positive money.
+
+    Args:
+        agent: The agent to apply repayment to (modified in place).
+    """
+    if agent.resources.debt > 0 and agent.resources.money > 0:
+        repayment = min(agent.resources.debt * 0.01, agent.resources.money)
+        agent.resources.money -= repayment
+        agent.resources.wealth = agent.resources.money
+        agent.resources.debt -= repayment
+        agent.resources.debt = max(0.0, agent.resources.debt)
+
+
 def execute_action(
     agent: AgentState,
     action: ActionType,
@@ -144,6 +158,9 @@ def execute_action(
     Returns:
         AgentActionResult with action, outcome, and score_delta.
     """
+    # Automatic debt repayment (once per tick before the action)
+    _repay_debt(agent)
+
     result = AgentActionResult(
         agent_id=agent.id,
         action=action,
@@ -390,8 +407,12 @@ def _do_befriend(
         other.needs.set_level(NeedType.SOCIAL_CONNECTION, other_social + 0.10)
 
         if other.id not in agent.social_connections:
+            if len(agent.social_connections) >= 20:
+                agent.social_connections.pop(0)
             agent.social_connections.append(other.id)
         if agent.id not in other.social_connections:
+            if len(other.social_connections) >= 20:
+                other.social_connections.pop(0)
             other.social_connections.append(agent.id)
 
         agent.needs.set_level(
@@ -447,74 +468,6 @@ def _do_isolate(agent: AgentState, result: AgentActionResult) -> None:
     agent.needs.set_level(NeedType.SOCIAL_CONNECTION, social - 0.02)
     result.outcome = "isolated"
     result.score_delta = {"social": -0.02}
-
-
-def _do_support_family(
-    agent: AgentState,
-    all_agents: list[AgentState],
-    rng: DeterministicRNG,
-    result: AgentActionResult,
-) -> None:
-    """Support family action: send money to living family members.
-
-    Finds living children, parents, and spouse, then distributes a small
-    amount of money to each. Both the agent and recipients get a small
-    unlust relief and happiness boost.
-
-    Args:
-        agent: The agent providing support.
-        all_agents: All agents in the simulation.
-        rng: Deterministic RNG.
-        result: Action result to populate.
-    """
-    family: list[AgentState] = []
-    # Living children
-    for child_id in agent.children_ids:
-        for a in all_agents:
-            if a.id == child_id and a.is_alive:
-                family.append(a)
-                break
-    # Living parents
-    for parent_id in agent.parent_ids:
-        for a in all_agents:
-            if a.id == parent_id and a.is_alive:
-                family.append(a)
-                break
-    # Living spouse
-    if agent.spouse is not None:
-        for a in all_agents:
-            if a.id == agent.spouse and a.is_alive:
-                family.append(a)
-                break
-
-    if not family:
-        result.outcome = "no_family_nearby"
-        return
-
-    total_shared = 0.0
-    for member in family:
-        amount = min(agent.resources.money * 0.03, 10.0)
-        if amount <= 0:
-            continue
-        agent.resources.money -= amount
-        agent.resources.wealth = agent.resources.money
-        member.resources.money += amount
-        member.resources.wealth = member.resources.money
-        member.unlust = max(0.0, member.unlust - 0.02)
-        total_shared += amount
-
-    if total_shared > 0:
-        agent.unlust = max(0.0, agent.unlust - 0.02)
-        agent.emotions.happiness_score = min(1.0, agent.emotions.happiness_score + 0.03)
-        agent.good_acts += 1
-        agent.needs.set_level(
-            NeedType.FAMILY_BOND,
-            agent.needs.get_level(NeedType.FAMILY_BOND) + 0.05,
-        )
-        result.outcome = f"supported_family:£{total_shared:.2f}"
-        result.score_delta = {"money": -total_shared, "happiness": 0.03}
-    else:
-        result.outcome = "no_money_to_share"
 
 
 def _do_share(
@@ -800,6 +753,28 @@ def _do_support_family(
 
         total_sent += amount
         recipients += 1
+
+    # Spouse support
+    if agent.spouse is not None:
+        spouse_agent = next(
+            (a for a in all_agents if a.id == agent.spouse and a.is_alive), None
+        )
+        if spouse_agent is not None:
+            amount = min(agent.resources.money * 0.05, 10.0)
+            if amount > 0:
+                agent.resources.money -= amount
+                agent.resources.wealth = agent.resources.money
+                spouse_agent.resources.money += amount
+                spouse_agent.resources.wealth = spouse_agent.resources.money
+
+                agent.unlust = max(0.0, agent.unlust - SUPPORT_FAMILY_UNLUST_RELIEF)
+                spouse_agent.unlust = max(0.0, spouse_agent.unlust - SUPPORT_FAMILY_UNLUST_RELIEF)
+
+                agent.support_given = getattr(agent, "support_given", 0.0) + amount
+                spouse_agent.support_received = getattr(spouse_agent, "support_received", 0.0) + amount
+
+                total_sent += amount
+                recipients += 1
 
     result.outcome = f"sent £{total_sent:.2f} to {recipients} family member(s)"
     result.score_delta = {"money": -total_sent, "unlust": -SUPPORT_FAMILY_UNLUST_RELIEF * (recipients + 1)}
