@@ -57,7 +57,7 @@ describe('EventLog', () => {
     render(<EventLog />);
 
     expect(
-      screen.getByText(/No chronicle entries yet/i),
+      screen.getByText(/No events yet/i),
     ).toBeInTheDocument();
   });
 
@@ -65,23 +65,23 @@ describe('EventLog', () => {
     setupStore([]);
     render(<EventLog />);
 
-    expect(screen.getByText('Chronicle')).toBeInTheDocument();
+    expect(screen.getByText('Event Log')).toBeInTheDocument();
   });
 
   it('renders event types from store events', () => {
     setupStore(mockEvents);
     render(React.createElement(EventLog));
 
-    expect(screen.getByText('tick completed')).toBeInTheDocument();
-    expect(screen.getByText('agent acted')).toBeInTheDocument();
+    expect(screen.getByText('Tick Completed')).toBeInTheDocument();
+    expect(screen.getByText('Agent Acted')).toBeInTheDocument();
   });
 
   it('renders tick numbers', () => {
     setupStore(mockEvents);
     render(<EventLog />);
 
-    const t5 = screen.getAllByText('[T5]');
+    const t5 = screen.getAllByText('T5');
     expect(t5).toHaveLength(2);
-    expect(screen.getByText('[T0]')).toBeInTheDocument();
+    expect(screen.getByText('T0')).toBeInTheDocument();
   });
 });
