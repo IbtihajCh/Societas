@@ -417,3 +417,13 @@ FRAUD_FINE_MULTIPLIER: float = 0.5
 """Fraction of fraud gain paid as fine when detected."""
 FRAUD_NOTORIETY_GAIN: float = 0.2
 """Notoriety gain from undetected fraud."""
+
+# ── Media Engine ──────────────────────────────────────────
+MEDIA_SENSATIONALISM_BASE: float = 0.3
+"""Baseline sensationalism level for media articles."""
+MEDIA_TRUST_BASE: float = 0.6
+"""Baseline public trust in media (0.0 to 1.0)."""
+MEDIA_FAKE_NEWS_CHANCE: float = 0.15
+"""Probability per eligible tick that a fake news article is generated."""
+MEDIA_SENTIMENT_DECAY: float = 0.02
+"""Per-tick decay rate for media sentiment toward zero."""

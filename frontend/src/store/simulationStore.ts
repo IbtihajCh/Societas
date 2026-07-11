@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { SimulationEvent, ActionType, SimulationStateResponseDTO } from '@/types/api';
+import { SimulationEvent, ActionType, SimulationStateResponseDTO, AgentDetailDTO } from '@/types/api';
 import { apiService } from '@/services/api';
 
 /**
@@ -81,6 +81,10 @@ interface SimulationStore {
   isAutoRunning: boolean;
   autoRunIntervalMs: number;
 
+  // Selected agent detail panel state
+  selectedAgent: AgentDetailDTO | null;
+  selectedAgentId: string | null;
+
   // Actions
   setCurrentTick: (tick: number) => void;
   setIsRunning: (running: boolean) => void;
@@ -92,6 +96,8 @@ interface SimulationStore {
   setAutoRun: (active: boolean, intervalMs?: number) => void;
   addEvent: (event: SimulationEvent) => void;
   clearEvents: () => void;
+  setSelectedAgent: (agent: AgentDetailDTO | null) => void;
+  setSelectedAgentId: (id: string | null) => void;
 }
 
 const ANIMATION_DURATION = 0.2; // seconds
@@ -130,6 +136,10 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
   llmLog: [],
   isAutoRunning: false,
   autoRunIntervalMs: 1000,
+
+  // Selected agent detail panel state
+  selectedAgent: null,
+  selectedAgentId: null,
 
   // Actions
   setCurrentTick: (tick) => set({ currentTick: tick }),
@@ -261,6 +271,8 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
       apiService.autoRun({ active: false }).catch(console.error);
     }
   },
+  setSelectedAgent: (agent: AgentDetailDTO | null) => set({ selectedAgent: agent }),
+  setSelectedAgentId: (id: string | null) => set({ selectedAgentId: id }),
   addEvent: (event: SimulationEvent) => {
     set((prev) => ({
       events: [...prev.events.slice(-200), event],
@@ -296,5 +308,7 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
       llmLog: [],
       isAutoRunning: false,
       autoRunIntervalMs: 1000,
+      selectedAgent: null,
+      selectedAgentId: null,
     }),
 }));

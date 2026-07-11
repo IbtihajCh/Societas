@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSimulation } from '@/hooks/useSimulation';
 import { useSimulationStore } from '@/store/simulationStore';
+import { apiService } from '@/services/api';
+import { AgentDetailDTO } from '@/types/api';
 import MetricsPanel from '@/components/dashboard/MetricsPanel';
 import DiagnosticsPanel from '@/components/dashboard/DiagnosticsPanel';
 import SimulationControls from '@/components/dashboard/SimulationControls';
 import EventLog from '@/components/dashboard/EventLog';
 import AgentGrid from '@/components/dashboard/AgentGrid';
+import AgentDetailPanel from '@/components/dashboard/AgentDetailPanel';
 import TimeSeriesChart from '@/components/dashboard/TimeSeriesChart';
 import WealthStratifiedChart from '@/components/dashboard/WealthStratifiedChart';
 import ActionFrequencyChart from '@/components/dashboard/ActionFrequencyChart';
@@ -19,7 +22,23 @@ export default function Dashboard() {
   const setAutoRun = useSimulationStore((s) => s.setAutoRun);
   const tick = state?.tick ?? 0;
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<AgentDetailDTO | null>(null);
   const autoRunRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!selectedAgentId) {
+      setSelectedAgent(null);
+      return;
+    }
+    let cancelled = false;
+    apiService.getAgentDetail(selectedAgentId).then((agent) => {
+      if (!cancelled) setSelectedAgent(agent);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAgentId]);
 
   useEffect(() => {
     if (isAutoRunning) {
@@ -200,6 +219,7 @@ export default function Dashboard() {
           showHeatmap={showHeatmap}
           isRunning={isRunning}
           onRefresh={refreshAgents}
+          onAgentClick={(id) => setSelectedAgentId(id)}
         />
       </div>
 
@@ -270,6 +290,17 @@ export default function Dashboard() {
           {JSON.stringify(state, null, 2)}
         </pre>
       </div>
+
+      {/* Agent Detail Panel */}
+      {selectedAgent && (
+        <AgentDetailPanel
+          agent={selectedAgent}
+          onClose={() => {
+            setSelectedAgentId(null);
+            setSelectedAgent(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -64,6 +64,7 @@ from simulation.agents.sibling_system import (
     update_sibling_dynamics,
 )
 from simulation.agents.lifecycle import try_birth
+from simulation.agents.memory_system import collect_tick_memories
 from simulation.agents.needs_calculator import (
     check_death,
     decay_needs,
@@ -242,6 +243,11 @@ def run_tick(
     for agent in living_agents:
         community_effects(agent, living_agents)
 
+    # Step 5b-collect: Collect episodic memories (blanket collection for all agents;
+    #                  covers passive observations and deterministic agents)
+    for agent in living_agents:
+        collect_tick_memories(agent, None, world, tick_number)
+
     # Step 5b.5: Gang system — formation, actions, effects
     gangs = world.metadata.get("gangs", [])
     new_gangs = try_form_gangs(living_agents, rng, tick_number)
@@ -283,6 +289,7 @@ def run_tick(
             if not should_evaluate_this_tick(agent, tick_number):
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
+                    collect_tick_memories(agent, result, world, tick_number)
                     action_results.append(result)
                 continue
 
@@ -348,6 +355,7 @@ def run_tick(
                 action = deterministic_fallback(agent, world, rng)
                 metadata = {"source": "deterministic_fallback", "reasoning": "Unparseable LLM response"}
             result = execute_action(agent, action, world, living_agents, rng)
+            collect_tick_memories(agent, result, world, tick_number)
             result.metadata = metadata
             action_results[idx] = result
 
@@ -379,6 +387,7 @@ def run_tick(
                 action = deterministic_fallback(agent, world, rng)
                 metadata = {"source": "deterministic_fallback", "reasoning": "Unparseable LLM response"}
             result = execute_action(agent, action, world, living_agents, rng)
+            collect_tick_memories(agent, result, world, tick_number)
             result.metadata = metadata
             action_results[idx] = result
 
@@ -390,10 +399,12 @@ def run_tick(
             if not should_evaluate_this_tick(agent, tick_number):
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
+                    collect_tick_memories(agent, result, world, tick_number)
                     action_results[idx] = result
             else:
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
+                    collect_tick_memories(agent, result, world, tick_number)
                     action_results[idx] = result
 
         action_results = [r for r in action_results if r is not None]
@@ -405,6 +416,7 @@ def run_tick(
             if not should_evaluate_this_tick(agent, tick_number):
                 if agent.last_action != ActionType.IDLE:
                     result = execute_action(agent, agent.last_action, world, living_agents, rng)
+                    collect_tick_memories(agent, result, world, tick_number)
                     action_results.append(result)
                 continue
             nearby_counts = compute_nearby_counts(agent, living_agents)
@@ -414,6 +426,7 @@ def run_tick(
             metadata = {"source": "deterministic_fallback", "reasoning": "No AI router"}
 
             result = execute_action(agent, action, world, living_agents, rng, tick_number)
+            collect_tick_memories(agent, result, world, tick_number)
             result.metadata = metadata
             action_results.append(result)
 
@@ -459,6 +472,19 @@ def run_tick(
     # Step 10: State hash + TickCompletedEvent
     state_hash = compute_state_hash(world, agents)
     duration_ms = (time.time() - start_time) * 1000.0
+
+    # Step 11: Media engine — generate news and apply effects
+    from simulation.events.media_engine import process_media_tick
+    news_articles = process_media_tick(world, tick_number, living_agents, rng)
+    if news_articles:
+        if not hasattr(world, "media_state") or not isinstance(world.media_state, dict):
+            world.media_state = {"articles": []}
+        world.media_state.setdefault("articles", []).extend(
+            [{"tick": a.tick, "headline": a.headline, "body": a.body, "category": a.category, "is_fake": a.is_fake} for a in news_articles]
+        )
+    env_event_ids.extend(
+        f"news:{a.headline[:40]}" for a in news_articles
+    )
 
     return TickResult(
         tick=TickNumber(tick_number),

@@ -193,6 +193,13 @@ export const apiService = {
     return response.data;
   },
 
+  getAgentDetail: async (agentId: string): Promise<AgentDetailDTO> => {
+    const response = await apiClient.get<AgentDetailDTO>(
+      `/agents/${agentId}`,
+    );
+    return response.data;
+  },
+
   getAgentHistory: async (agentId: string): Promise<AgentHistoryResponseDTO> => {
     const response = await apiClient.get<AgentHistoryResponseDTO>(
       `/agents/${agentId}/history`,

@@ -71,3 +71,11 @@ class SimulationState:
     job_demand: Dict[str, int] = field(default_factory=dict)
     job_salary_multipliers: Dict[str, float] = field(default_factory=dict)
     active_env_events: List[dict] = field(default_factory=list)
+    media_state: dict = field(default_factory=lambda: {
+        "articles": [],
+        "trust_in_media": 0.6,
+        "sensationalism": 0.3,
+        "fake_news_level": 0.0,
+        "sentiment_gov": 0.0,
+        "sentiment_economy": 0.0,
+    })

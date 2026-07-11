@@ -225,45 +225,84 @@ export interface AgentSummaryDTO {
   grid_y?: number;
 }
 
+export interface AgentNeeds {
+  food: number;
+  water: number;
+  sleep: number;
+  safety: number;
+  social: number;
+  self_esteem: number;
+  sexual_tension: number;
+  romantic: number;
+  family: number;
+  creativity: number;
+  autonomy: number;
+  purpose: number;
+  status: number;
+}
+
+export interface AgentTraits {
+  morality: number;
+  creativity: number;
+  ambition: number;
+  resilience: number;
+  dominance_urge: number;
+  anger_tendency: number;
+  extraversion: number;
+  risk_tolerance: number;
+}
+
+export interface AgentRecentAction {
+  tick: number;
+  action: string;
+  description?: string;
+}
+
 export interface AgentDetailDTO {
   id: string;
   persona: string;
-  traits: Record<string, number>;
-  needs: Record<string, number>;
-  emotions: Record<string, number>;
-  resources: Record<string, number>;
-  employment_status: EmploymentStatus;
-  wealth_class: WealthClass;
+  wealth_class: string;
+  employment_status: string;
   age: number;
+  age_bracket?: string;
   is_alive: boolean;
-  location: string;
-  last_action: string | null;
-  last_reasoning: string;
-  social_connections: number;
-  gender: string;
-  culture: string;
-  born_tick: number;
+  emotion: string;
   unlust: number;
   happiness_score: number;
-  emotion: string;
-  emotion_timer: number;
-  good_acts: number;
-  crimes_committed: number;
-  notoriety: number;
-  trust_in_govt: number;
-  protest_count: number;
-  money: number;
-  base_salary: number;
-  employed: boolean;
-  education: string;
-  property: boolean;
-  health: number;
   job_type: string;
   grid_x: number;
   grid_y: number;
-  spouse: string | null;
-  enemies: string[];
+  needs: AgentNeeds;
+  traits: AgentTraits;
+  emotions?: Record<string, number>;
+  resources?: Record<string, number>;
+  last_action: string | null;
+  last_reasoning: string;
+  recent_actions: AgentRecentAction[];
+  social_connections: number;
   community_id: string | null;
+  notoriety: number;
+  trust_in_govt: number;
+  spouse: string | null;
+  children_ids: string[];
+  parent_ids: string[];
+  money: number;
+  health: number;
+  debt?: number;
+  property: boolean;
+  // Backward-compatible fields retained from the canonical backend DTO.
+  location?: string;
+  gender?: string;
+  culture?: string;
+  born_tick?: number;
+  emotion_timer?: number;
+  good_acts?: number;
+  crimes_committed?: number;
+  protest_count?: number;
+  base_salary?: number;
+  employed?: boolean;
+  education?: string;
+  enemies?: string[];
 }
 
 export interface AgentListResponseDTO {

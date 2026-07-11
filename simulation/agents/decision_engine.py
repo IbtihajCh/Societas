@@ -5,6 +5,7 @@ parses LLM responses, validates actions, and provides deterministic fallback.
 """
 
 import json
+import math
 from typing import Any
 
 from shared.types.enums import ActionType, EmotionType, NeedType
@@ -20,6 +21,7 @@ from shared.constants.defaults import (
     SCARCITY_BASE,
 )
 from shared.utilities.deterministic_rng import DeterministicRNG
+from simulation.agents.memory_system import compute_memory_prompt
 from simulation.agents.unlust_engine import morality_active
 
 __all__ = [
@@ -70,7 +72,7 @@ def build_agent_prompt(
     needs = agent.needs
     traits = agent.traits
 
-    return (
+    prompt = (
         f"You are a person in a society simulation. Your situation:\n"
         f"hunger={needs.get_level(NeedType.FOOD):.2f} water={needs.get_level(NeedType.WATER):.2f}\n"
         f"sleep={needs.get_level(NeedType.SLEEP):.2f} safety={needs.get_level(NeedType.SAFETY):.2f}\n"
@@ -89,6 +91,13 @@ def build_agent_prompt(
         f"share, steal, harm_other, protest, complain, comply, idle\n"
         f'\nRespond EXACTLY: {{"action":"...","feeling":"...","reason":"one sentence"}}'
     )
+
+    # Inject episodic memories into the prompt for context-aware decisions
+    agent_memories = compute_memory_prompt(agent)
+    if agent_memories:
+        prompt += f"\n\n{agent_memories}"
+
+    return prompt
 
 
 def build_moral_dilemma_prompt(
@@ -250,6 +259,41 @@ def validate_action(
     return action
 
 
+def softmax_choice(
+    action_scores: dict[str, float],
+    rng: DeterministicRNG,
+    temperature: float = 0.5,
+) -> str:
+    """
+    Select an action using softmax probability distribution.
+
+    P(action_i) = exp(score_i / temperature) / sum(exp(score_j / temperature))
+
+    Higher temperature = more random exploration
+    Lower temperature = more deterministic (greedy)
+    """
+    actions = list(action_scores.keys())
+    scores = list(action_scores.values())
+
+    # Apply temperature scaling
+    scaled = [s / temperature for s in scores]
+
+    # Numerical stability: subtract max
+    max_s = max(scaled)
+    exp_s = [math.exp(s - max_s) for s in scaled]
+    total = sum(exp_s)
+    probs = [e / total for e in exp_s]
+
+    # Cumulative distribution for weighted selection
+    r = rng.random()
+    cumulative = 0.0
+    for i, prob in enumerate(probs):
+        cumulative += prob
+        if r < cumulative:
+            return actions[i]
+    return actions[-1]
+
+
 def deterministic_fallback(
     agent: AgentState, world: SimulationState, rng: DeterministicRNG
 ) -> ActionType:
@@ -291,51 +335,107 @@ def deterministic_fallback(
     if money < 120:
         return ActionType.WORK if agent.resources.employed else ActionType.BEG
 
-    # Level 3 — Weighted selection based on state and personality
-    weights: dict[ActionType, float] = {}
-    weights[ActionType.WORK] = 40.0
-    weights[ActionType.REST] = 10.0
+    # Level 3 — Softmax over weighted action utilities
+    base_scores = {
+        "WORK": 5.0,
+        "REST": 3.0,
+        "BEFRIEND": 3.0,
+        "CONSOLE": 2.0,
+        "SHARE": 2.0,
+        "COMPLAIN": 1.0,
+        "ISOLATE": 1.0,
+        "STEAL": 1.0,
+        "BEG": 1.0,
+        "HARM_OTHER": 0.5,
+        "PROTEST": 1.0,
+    }
 
-    # Social needs
-    if social < 0.5:
-        weights[ActionType.BEFRIEND] = 15.0
-    else:
-        weights[ActionType.BEFRIEND] = 5.0
+    # Modulate scores by agent state
+    # Extraversion → higher BEFRIEND/CONSOLE
+    if agent.traits.extraversion > 0.6:
+        base_scores["BEFRIEND"] += (agent.traits.extraversion - 0.6) * 10
+        base_scores["CONSOLE"] += (agent.traits.extraversion - 0.6) * 5
+    elif agent.traits.extraversion < 0.3:
+        base_scores["ISOLATE"] += (0.3 - agent.traits.extraversion) * 10
 
-    # Prosocial actions
-    if agent.traits.morality > 0.68 and money > 250:
-        weights[ActionType.SHARE] = 10.0
-    if agent.emotions.primary in (EmotionType.SAD, EmotionType.DESPAIR):
-        weights[ActionType.CONSOLE] = 5.0
+    # Anger tendency → higher STEAL/PROTEST/HARM_OTHER
+    if agent.traits.anger_tendency > 0.5:
+        anger_bonus = (agent.traits.anger_tendency - 0.5) * 10
+        base_scores["STEAL"] += anger_bonus * 0.5
+        base_scores["PROTEST"] += anger_bonus * 0.4
+        base_scores["HARM_OTHER"] += anger_bonus * 0.3
 
-    # Political dissatisfaction
-    if agent.trust_in_govt < 0.3:
-        weights[ActionType.COMPLAIN] = 5.0
+    # Morality → lower criminal actions
+    if agent.traits.morality > 0.6:
+        morality_penalty = (agent.traits.morality - 0.6) * 10
+        base_scores["STEAL"] = max(0.1, base_scores["STEAL"] - morality_penalty * 0.5)
+        base_scores["HARM_OTHER"] = max(0.1, base_scores["HARM_OTHER"] - morality_penalty * 0.4)
+        base_scores["PROTEST"] = max(0.1, base_scores["PROTEST"] - morality_penalty * 0.3)
 
-    # Withdrawal under stress
+    # Unlust → higher PROTEST/ISOLATE/BEG
     if unlust > 0.4:
-        weights[ActionType.ISOLATE] = 5.0
+        unlust_bonus = (unlust - 0.4) * 15
+        base_scores["ISOLATE"] += unlust_bonus * 0.3
+        base_scores["BEG"] += unlust_bonus * 0.2
+    if unlust > 0.5:
+        base_scores["PROTEST"] += (unlust - 0.5) * 20
 
-    # Desperation overrides (unlust elevated but below morality gate)
-    if unlust > 0.45 and not is_moral:
-        weights[ActionType.STEAL] = 20.0
-        weights[ActionType.PROTEST] = 15.0
-        if agent.traits.anger_tendency > 0.6:
-            weights[ActionType.HARM_OTHER] = 5.0
+    # Employment status
+    if not agent.resources.employed:
+        base_scores["WORK"] = max(0.1, base_scores["WORK"] - 2.0)
+        base_scores["BEG"] += 2.0
 
-    # Anger-driven actions
-    if agent.emotions.primary == EmotionType.ANGRY:
-        weights[ActionType.PROTEST] = weights.get(ActionType.PROTEST, 0.0) + 20.0
-        if not is_moral:
-            weights[ActionType.STEAL] = weights.get(ActionType.STEAL, 0.0) + 10.0
-            weights[ActionType.HARM_OTHER] = weights.get(ActionType.HARM_OTHER, 0.0) + 8.0
-
-    # Despair-driven actions
+    # Emotional state
     if agent.emotions.primary == EmotionType.DESPAIR:
-        weights[ActionType.ISOLATE] = weights.get(ActionType.ISOLATE, 0.0) + 25.0
-        weights[ActionType.BEG] = 10.0
+        base_scores["ISOLATE"] += 5.0
+        base_scores["BEG"] += 3.0
+    elif agent.emotions.primary == EmotionType.ANGRY:
+        base_scores["PROTEST"] += 4.0
+        base_scores["STEAL"] += 2.0
+        base_scores["HARM_OTHER"] += 1.0
+    elif agent.emotions.primary == EmotionType.SADNESS:
+        base_scores["CONSOLE"] += 3.0
+        base_scores["REST"] += 2.0
 
-    # Pick weighted random
-    actions = list(weights.keys())
-    values = list(weights.values())
-    return rng.weighted_choice(actions, values)
+    # Filter out invalid actions
+    valid_actions = {}
+    for action_name, score in base_scores.items():
+        if score <= 0:
+            continue
+        # Validate action
+        if action_name == "WORK" and not agent.resources.employed:
+            continue
+        if action_name == "STEAL" and agent.traits.morality > 0.4:
+            continue
+        if action_name == "HARM_OTHER" and agent.traits.morality > 0.3:
+            continue
+        if action_name == "BEG" and agent.resources.money > 50:
+            continue
+        if action_name == "SHARE" and agent.resources.money < 100:
+            continue
+        valid_actions[action_name] = score
+
+    # If no valid actions, default to IDLE
+    if not valid_actions:
+        return ActionType.IDLE
+
+    # Temperature varies by emotional stability
+    temperature = 0.5
+    if abs(unlust - 0.5) > 0.3:
+        temperature = 0.8  # More random when unstable
+
+    action_name = softmax_choice(valid_actions, rng, temperature)
+    action_map = {
+        "WORK": ActionType.WORK,
+        "REST": ActionType.REST,
+        "BEFRIEND": ActionType.BEFRIEND,
+        "CONSOLE": ActionType.CONSOLE,
+        "SHARE": ActionType.SHARE,
+        "COMPLAIN": ActionType.COMPLAIN,
+        "ISOLATE": ActionType.ISOLATE,
+        "STEAL": ActionType.STEAL,
+        "BEG": ActionType.BEG,
+        "HARM_OTHER": ActionType.HARM_OTHER,
+        "PROTEST": ActionType.PROTEST,
+    }
+    return action_map.get(action_name, ActionType.IDLE)

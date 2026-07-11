@@ -13,6 +13,21 @@ from shared.types.enums import EmploymentStatus, WealthClass
 
 
 @dataclass
+class AgentRecentActionDTO:
+    """A single recent action entry for an agent detail view.
+
+    Attributes:
+        tick: Simulation tick when the action occurred.
+        action: Action type (e.g. 'work', 'rest', 'befriend').
+        description: Human-readable description of the action's outcome.
+    """
+
+    tick: int
+    action: str
+    description: str = ""
+
+
+@dataclass
 class AgentSummaryDTO:
     """
     Summary representation of an agent for list views.
@@ -97,10 +112,12 @@ class AgentDetailDTO:
     employment_status: EmploymentStatus = EmploymentStatus.UNEMPLOYED
     wealth_class: WealthClass = WealthClass.MIDDLE
     age: int = 0
+    age_bracket: str = "young_adult"
     is_alive: bool = True
     location: str = "default"
     last_action: Optional[str] = None
     last_reasoning: str = ""
+    recent_actions: List[AgentRecentActionDTO] = field(default_factory=list)
     social_connections: int = 0
     # Identity
     gender: str = "male"
@@ -123,6 +140,7 @@ class AgentDetailDTO:
     employed: bool = False
     education: str = "primary"
     property: bool = False
+    debt: float = 0.0
     health: float = 1.0
     job_type: str = "unemployed"
     # Grid position
@@ -131,7 +149,10 @@ class AgentDetailDTO:
     # Social connections (detailed)
     spouse: Optional[str] = None
     enemies: List[str] = field(default_factory=list)
+    parent_ids: List[AgentId] = field(default_factory=list)
+    children_ids: List[AgentId] = field(default_factory=list)
     community_id: Optional[str] = None
+    memories: List[dict] = field(default_factory=list)
 
 
 @dataclass

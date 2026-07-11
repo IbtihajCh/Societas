@@ -9,6 +9,7 @@ interface AgentGridProps {
   showHeatmap?: boolean;
   isRunning?: boolean;
   onRefresh?: () => void;
+  onAgentClick?: (agentId: string) => void;
 }
 
 const EMOTION_COLORS: Record<string, string> = {
@@ -39,11 +40,13 @@ export default function AgentGrid({
   showHeatmap = false,
   isRunning = false,
   onRefresh,
+  onAgentClick,
 }: AgentGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState(0);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [isHoveringAgent, setIsHoveringAgent] = useState(false);
   const advanceAnimations = useSimulationStore((s) => s.advanceAnimations);
   const hoveredRef = useRef<string | null>(null);
 
@@ -246,15 +249,25 @@ export default function AgentGrid({
     const a = hitTest(e.clientX, e.clientY);
     if (a) {
       hoveredRef.current = a.id;
+      setIsHoveringAgent(true);
       setTooltip({ x: e.clientX, y: e.clientY, agent: a });
     } else {
       hoveredRef.current = null;
+      setIsHoveringAgent(false);
       setTooltip(null);
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const a = hitTest(e.clientX, e.clientY);
+    if (onAgentClick && a) {
+      onAgentClick(a.id);
     }
   };
 
   const handleMouseLeave = () => {
     hoveredRef.current = null;
+    setIsHoveringAgent(false);
     setTooltip(null);
   };
 
@@ -278,13 +291,14 @@ export default function AgentGrid({
           borderRadius: 8,
           overflow: 'hidden',
           position: 'relative',
-          cursor: 'crosshair',
+          cursor: isHoveringAgent ? 'pointer' : 'crosshair',
         }}
       >
         <canvas
           ref={canvasRef}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
           style={{ width: size || '100%', height: size || 'auto', display: 'block' }}
         />
 
