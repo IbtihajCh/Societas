@@ -26,7 +26,7 @@ export default function GovernanceCard({ state }: Props) {
         tax_rate: Math.round(taxRate * 100) / 100,
         welfare_enabled: welfareEnabled,
         welfare_amount: Math.round(welfareAmount),
-        food_availability: Math.min(1.0, 0.85 + foodSubsidy / 100),
+        food_availability: Math.min(1.0, (state?.food_availability ?? 0.85) + foodSubsidy / 100),
       });
       const c = (r as any).changes || r;
       setMsg(`Applied: tax=${c.tax_rate ?? '?'}, welfare=${c.welfare_enabled ?? '?'}`);

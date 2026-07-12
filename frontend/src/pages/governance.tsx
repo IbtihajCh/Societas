@@ -68,7 +68,8 @@ export default function Governance() {
 
   const applyChanges = useCallback(async (changes: Record<string, any>) => {
     try {
-      await apiService.applyGovernance(changes);
+      const result = await apiService.applyGovernance(changes);
+      setSimState(result);
       setApplyStatus('Applied ✓');
       setTimeout(() => setApplyStatus(''), 2000);
     } catch (err) {
@@ -112,7 +113,7 @@ export default function Governance() {
   const handleApplyFoodSubsidy = async () => {
     try {
       setSubmitting(true);
-      const base = 0.85;
+      const base = simState?.food_availability ?? 0.85;
       const food_availability = Math.min(1.0, base + foodSubsidy);
       await apiService.applyGovernance({ food_availability });
       setApplyStatus('Applied ✓');
@@ -328,7 +329,7 @@ export default function Governance() {
                   onChange={(e) => {
                     const subsidy = Number(e.target.value) / 100;
                     setFoodSubsidy(subsidy);
-                    const base = 0.85;
+                    const base = simState?.food_availability ?? 0.85;
                     const food_availability = Math.min(1.0, base + subsidy);
                     applyChanges({ food_availability });
                   }}
@@ -483,3 +484,4 @@ export default function Governance() {
     </div>
   );
 }
+

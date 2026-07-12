@@ -27,7 +27,7 @@ function fmtPct(v: number | undefined | null, d = '—') {
 const NAV_ITEMS = ['overview', 'citizens', 'governance', 'communities', 'economy', 'life cycle', 'model log'];
 
 export default function Dashboard() {
-  const { state, agents, isConnected, isRunning, startSimulation, advanceTick, refreshAgents } = useSimulation();
+  const { state, agents, isConnected, isRunning, startSimulation, advanceTick, refreshAgents, refreshState, stopSimulation } = useSimulation();
   const logs = useSimulationStore((s) => s.llmLog);
   const events = useSimulationStore((s) => s.events);
   const actionHistory = useSimulationStore((s) => s.actionHistory);
@@ -59,9 +59,10 @@ export default function Dashboard() {
       });
       useSimulationStore.getState().reset();
       await refreshAgents();
+      await refreshState();
     } catch { /* ignore */ }
     setStarting(false);
-  }, [refreshAgents, setupPop, setupSeed, setupAI]);
+  }, [refreshAgents, refreshState, setupPop, setupSeed, setupAI]);
 
   const metricsHistory = useSimulationStore((s) => s.metricsHistory);
   const prevMetrics = metricsHistory;
@@ -107,9 +108,9 @@ export default function Dashboard() {
     try {
       const r: SimulationStateResponseDTO = await apiService.applyGovernance({
         tax_rate: govTax / 100, welfare_enabled: govWelfare > 0, welfare_amount: govWelfare,
-        food_availability: Math.min(1, 0.85 + govSubsidy / 100),
+        food_availability: Math.min(1, (state?.food_availability ?? 0.85) + govSubsidy / 100),
       });
-      setGovMsg(`Applied: tax=${(r.tax_rate * 100).toFixed(0) ?? '?'}%, welfare=${r.welfare_enabled ? 'enabled' : 'disabled'}`);
+      setGovMsg(`Applied: tax=${(r.tax_rate * 100).toFixed(0)}%, welfare=${r.welfare_enabled ? 'enabled' : 'disabled'}, food=${(r.food_availability * 100).toFixed(0)}%`);
       setTimeout(() => setGovMsg(''), 3000);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'error';
@@ -118,7 +119,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="shell">
+    <div className={`shell${s ? '' : ' shell--landing'}`}>
       {!isConnected && (
         <div className="setup-screen">
           <div className="setup-hero">
@@ -251,12 +252,12 @@ export default function Dashboard() {
                   <span className="stamp-dot" style={{ background: isRunning ? 'var(--moss)' : 'var(--ink-soft)' }}></span>
                   {isRunning ? 'running' : 'paused'}
                 </span>
-                <button className="btn quiet" onClick={() => apiService.resetSimulation()}>reset</button>
-                <button className="btn" onClick={advanceTick}>tick +1</button>
+                <button className="btn quiet" onClick={async () => { await apiService.resetSimulation(); await refreshAgents(); }}>reset</button>
+                <button className="btn" onClick={advanceTick} disabled={!isRunning}>tick +1</button>
                 <button className={`btn primary ${starting ? 'loading' : ''}`} onClick={startSim} disabled={starting}>
                   {starting ? 'starting' : isRunning ? 'restart' : 'start'}
                 </button>
-                <button className="btn quiet" onClick={() => apiService.stopSimulation()}>stop</button>
+                <button className="btn quiet" onClick={stopSimulation}>stop</button>
               </div>
             </div>
 
@@ -275,7 +276,7 @@ export default function Dashboard() {
                   <StatBox label="crime rate" value={fmtPct(s.crime_rate)} delta={delta(s.crime_rate, 'crime_rate')}
                     color={s.crime_rate && s.crime_rate > 0.12 ? 'var(--oxblood)' : undefined} history={metricsHistory} historyKey="crime_rate" />
                   <StatBox label="cohesion" value={fmt(s.social_cohesion)} delta={delta(s.social_cohesion, 'social_cohesion')} history={metricsHistory} historyKey="social_cohesion" />
-                  <StatBox label="morality avg" value={fmt(s.morality)} delta={null} />
+                  <StatBox label="morality avg" value={fmt(s.morality)} delta={null} history={metricsHistory} historyKey="morality" />
                 </div>
 
                 <div className="gauge-strip">
@@ -595,3 +596,4 @@ function StatBox({ label, value, delta, color, history, historyKey }: {
     </div>
   );
 }
+

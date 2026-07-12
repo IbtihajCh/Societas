@@ -105,6 +105,10 @@ a { color: inherit; text-decoration: none; }
   z-index: 0;
 }
 
+.shell--landing {
+  grid-template-columns: 1fr;
+}
+
 /* ============ SIDEBAR ============ */
 .sidebar {
   background: rgba(26, 21, 16, 0.92);
@@ -637,6 +641,10 @@ input[type=text]::placeholder, textarea::placeholder { color: var(--ink-soft); o
 @media (max-width: 1100px) {
   .layout { grid-template-columns: 1fr; }
   .shell { grid-template-columns: 1fr; }
+
+.shell--landing {
+  grid-template-columns: 1fr;
+}
   .sidebar { display: none; }
   .mobile-nav { display: block; }
   .main { padding: 20px 16px 40px; }
