@@ -38,7 +38,7 @@ interface PanelDef {
 }
 
 export default function Dashboard() {
-  const { state, agents, isConnected, isRunning, isAutoRunning, startSimulation, stopSimulation, advanceTick, startAutoRun, stopAutoRun, refreshAgents } = useSimulation();
+  const { state, agents, isConnected, isRunning, isAutoRunning, startSimulation, stopSimulation, advanceTick, startAutoRun, stopAutoRun, refreshAgents, refreshSimulationState } = useSimulation();
   const store = useSimulationStore();
   const events = store.events;
 
@@ -74,6 +74,26 @@ export default function Dashboard() {
       window.removeEventListener('mouseleave', handleLeave);
     };
   }, [isMouseOnScreen]);
+
+  /* ── Poll vLLM availability ── */
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const status = await apiService.getAIStatus();
+        if (!cancelled && !status.available) {
+          (window as any).__addToast?.('vLLM is offline, AI features degraded', 'system');
+        }
+      } catch {
+        if (!cancelled) {
+          (window as any).__addToast?.('vLLM is offline, AI features degraded', 'system');
+        }
+      }
+    };
+    poll();
+    const id = setInterval(poll, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   /* ── Canvas particle system ── */
   const particleCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -232,7 +252,13 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    apiService.getPolicies().then((res: any) => setPolicies(res.policies || res));
+    if (isConnected && !state) {
+      refreshSimulationState();
+    }
+  }, [isConnected, state, refreshSimulationState]);
+
+  useEffect(() => {
+    apiService.getPolicies().then((res: any) => setPolicies(res.policies || res)).catch(() => {});
   }, [state?.tick]);
 
   useEffect(() => {
@@ -508,7 +534,19 @@ export default function Dashboard() {
               </button>
               {!isAutoRunning ? (
                 <button className="btn primary" style={{ fontSize: '11px', padding: '5px 10px' }}
-                  onClick={() => startAutoRun(autoSpeed)}>
+                  onClick={async () => {
+                    try {
+                      const status = await apiService.getAIStatus();
+                      if (!status.available) {
+                        (window as any).__addToast?.('vLLM is offline, AI features degraded', 'system');
+                        return;
+                      }
+                    } catch {
+                      (window as any).__addToast?.('vLLM is offline, AI features degraded', 'system');
+                      return;
+                    }
+                    startAutoRun(autoSpeed);
+                  }}>
                   Auto Run
                 </button>
               ) : (
@@ -717,3 +755,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

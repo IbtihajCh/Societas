@@ -112,7 +112,7 @@ export const apiService = {
 
   // Policies
   getPolicies: async (): Promise<PolicyListResponseDTO> => {
-    const response = await apiClient.get<PolicyListResponseDTO>('/policies');
+    const response = await apiClient.get<PolicyListResponseDTO>('/policies/');
     return response.data;
   },
 
@@ -120,7 +120,7 @@ export const apiService = {
     policyData: PolicyCreateRequestDTO,
   ): Promise<PolicyResponseDTO> => {
     const response = await apiClient.post<PolicyResponseDTO>(
-      '/policies',
+      '/policies/',
       policyData,
     );
     return response.data;
@@ -213,6 +213,9 @@ export const apiService = {
 
   autoRun: async (params: { active: boolean; interval_ms?: number }): Promise<any> => {
     return apiClient.post('/simulation/auto-run', params).then((r) => r.data);
+  },
+  getAIStatus: async (): Promise<{ available: boolean; base_url_dense_31b: string }> => {
+    return apiClient.get('/ai/status').then((r) => r.data);
   },
   explain: async (question: string): Promise<{ answer: string; evidence: Record<string, any> }> => {
     return apiClient.post('/explain', { question }).then((r) => r.data);

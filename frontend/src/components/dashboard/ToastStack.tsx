@@ -23,7 +23,7 @@ const ToastStack: React.FC = () => {
       setTimeout(() => {
         setToasts(prev => prev.filter(t => t.id !== id));
       }, 300);
-    }, 3000);
+    }, 4000);
   }, []);
 
   // Expose addToast globally for other components

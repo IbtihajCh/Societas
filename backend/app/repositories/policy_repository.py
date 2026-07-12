@@ -9,6 +9,9 @@ from shared.types.enums import PolicyCategory
 
 from backend.app.database.connection import get_connection
 
+_CATEGORY_MAP = ["economic", "social", "environmental", "public_order",
+                 "education", "healthcare", "infrastructure", "cultural"]
+
 
 class PolicyRepository(IDataRepository[Policy]):
     async def save(self, entity: Policy) -> None:
@@ -103,11 +106,17 @@ class PolicyRepository(IDataRepository[Policy]):
 
     def _row_to_policy(self, row) -> Policy:
         weights_dict = json.loads(row["weights"]) if isinstance(row["weights"], str) else {}
+        raw_cat = row["category"]
+        if isinstance(raw_cat, int) or (isinstance(raw_cat, str) and raw_cat.isdigit()):
+            idx = int(raw_cat)
+            resolved = _CATEGORY_MAP[idx] if 0 <= idx < len(_CATEGORY_MAP) else "economic"
+        else:
+            resolved = raw_cat
         return Policy(
             id=PolicyId(row["policy_id"]),
             name=row["name"],
             description=row["description"] or "",
-            category=PolicyCategory(int(row["category"])),
+            category=PolicyCategory(resolved),
             weights=PolicyWeights(**{k: float(v) for k, v in weights_dict.items()}),
             is_active=bool(row["is_active"]),
             enactment_tick=0,

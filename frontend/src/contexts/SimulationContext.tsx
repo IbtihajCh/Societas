@@ -36,6 +36,7 @@ interface SimulationContextType {
   stopSimulation: () => Promise<void>;
   advanceTick: () => Promise<void>;
   refreshAgents: () => Promise<void>;
+  refreshSimulationState: () => Promise<void>;
   startAutoRun: (intervalMs?: number) => void;
   stopAutoRun: () => void;
 }
@@ -90,7 +91,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       const store = useSimulationStore.getState();
       if (isTickCompleted(message)) {
         store.addEvent({
-          id: `ws-tc-${message.tick}`,
+          id: `ws-tc-${message.tick}-${Date.now()}`,
           tick: message.tick,
           event_type: 'tick_completed',
           data: {
@@ -234,6 +235,21 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     setRetryCount((c) => c + 1);
   }, []);
 
+  const refreshSimulationState = useCallback(async () => {
+    try {
+      const status = await apiService.getSimulationStatus();
+      if (status.is_running && status.population > 0) {
+        const simState = await apiService.getSimulationState();
+        setState(simState);
+        setIsRunning(true);
+        useSimulationStore.getState().appendTickData(simState);
+        await fetchAgents();
+      }
+    } catch {
+      // ignore
+    }
+  }, [fetchAgents]);
+
   const stopAutoRun = useCallback(() => {
     if (autoRunRef.current !== null) {
       clearInterval(autoRunRef.current);
@@ -255,7 +271,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
           setState(result);
           useSimulationStore.getState().appendTickData(result);
         } catch {
-          // ignore
+          stopAutoRun();
         }
       }, intervalMs);
       setIsAutoRunning(true);
@@ -288,6 +304,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         stopSimulation,
         advanceTick,
         refreshAgents: fetchAgents,
+        refreshSimulationState,
         startAutoRun,
         stopAutoRun,
       }}

@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import Any
 
 import httpx
@@ -9,6 +10,8 @@ from shared.schemas.agent_state import AgentState
 from shared.schemas.simulation_state import SimulationState
 
 logger = logging.getLogger("societas.ai.vllm_router")
+
+_vllm_healthy: bool = True
 
 FALLBACK_RESPONSE = json.dumps({
     "action": "work",
@@ -53,6 +56,7 @@ class VLLMRouter:
         model: str,
         extract_json: bool = True,
     ) -> list[str]:
+        global _vllm_healthy
         headers = {"Authorization": f"Bearer {api_key}"}
         if isinstance(prompt, list):
             messages_list = [[{"role": "user", "content": p}] for p in prompt]
@@ -77,6 +81,7 @@ class VLLMRouter:
                         raw = ""
                     else:
                         raw = choices[0].get("message", {}).get("content", "")
+                    _vllm_healthy = True
                     if extract_json:
                         texts.append(self._extract_json(raw))
                     else:
@@ -86,7 +91,9 @@ class VLLMRouter:
                     last_error = e
                     if attempt < self._config.max_retries:
                         logger.warning("vLLM call failed (attempt %d): %s", attempt + 1, e)
+                        time.sleep(2 ** attempt)
                     else:
+                        _vllm_healthy = False
                         logger.error("vLLM call failed after %d retries: %s", self._config.max_retries + 1, e)
                         texts.append(text_fallback)
 
@@ -193,7 +200,8 @@ class VLLMRouter:
         )
 
     def is_available(self) -> bool:
-        return True
+        """Return whether vLLM calls have been succeeding (updated on each call)."""
+        return _vllm_healthy
 
     def generate_narrative(self, context: str) -> str:
         results = self._call_vllm(

@@ -14,7 +14,7 @@ export default function GovernanceCard({ state, onChange }: Props) {
   const [foodSubsidy, setFoodSubsidy] = useState(0);
   const [policies, setPolicies] = useState<any[]>([]);
   const [newName, setNewName] = useState('');
-  const [newCategory, setNewCategory] = useState(1);
+  const [newCategory, setNewCategory] = useState('economic');
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
@@ -40,7 +40,8 @@ export default function GovernanceCard({ state, onChange }: Props) {
   const createPolicy = async () => {
     if (!newName) return;
     try {
-      await apiService.createPolicy({ name: newName, description: `${newCategory === 1 ? 'Economic' : 'Social'} policy`, category: newCategory as unknown as PolicyCategory });
+      const catLabel = newCategory === 'economic' ? 'Economic' : newCategory === 'social' ? 'Social' : 'Public Order';
+      await apiService.createPolicy({ name: newName, description: `${catLabel} policy`, category: newCategory as unknown as PolicyCategory });
       setNewName('');
       setMsg('Policy created');
       const r: any = await apiService.getPolicies();
@@ -106,10 +107,10 @@ export default function GovernanceCard({ state, onChange }: Props) {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <input className="gov-input" placeholder="Policy name" value={newName}
             onChange={(e) => setNewName(e.target.value)} />
-          <select className="gov-select" value={newCategory} onChange={(e) => setNewCategory(Number(e.target.value))}>
-            <option value={1}>Economic</option>
-            <option value={2}>Social</option>
-            <option value={4}>Public Order</option>
+          <select className="gov-select" value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
+            <option value="economic">Economic</option>
+            <option value="social">Social</option>
+            <option value="public_order">Public Order</option>
           </select>
           <button className="btn primary create-btn" onClick={createPolicy}>Create</button>
         </div>
