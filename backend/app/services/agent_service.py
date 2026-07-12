@@ -68,7 +68,6 @@ class AgentService:
                         "description": m.description if hasattr(m, 'description') else "",
                     })
         return AgentDetailDTO(
-            recent_actions=recent_actions,
             id=agent.id,
             persona=agent.persona,
             traits=asdict(agent.traits),

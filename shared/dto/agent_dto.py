@@ -140,15 +140,31 @@ class AgentDetailDTO:
 class AgentListResponseDTO:
     """
     Response DTO for agent list queries.
-    
+
     Attributes:
         agents: List of agent summaries
         total: Total number of agents
         page: Current page number
         page_size: Number of agents per page
     """
-    
+
     agents: List[AgentSummaryDTO] = field(default_factory=list)
     total: int = 0
     page: int = 1
     page_size: int = 50
+
+
+@dataclass
+class AgentRecentActionDTO:
+    """
+    Single recent action entry for an agent.
+
+    Attributes:
+        tick: Simulation tick when the action occurred.
+        action: ActionType as string.
+        description: Human-readable description of the action.
+    """
+
+    tick: int = 0
+    action: str = ""
+    description: str = ""

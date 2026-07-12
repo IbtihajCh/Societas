@@ -168,6 +168,10 @@ def execute_action(
         score_delta={},
     )
 
+    # Snapshot agent state BEFORE action for world-side delta tracking
+    _money_before = agent.resources.money
+    _happiness_before = agent.emotions.happiness_score
+
     if action == ActionType.WORK:
         _do_work(agent, world, result)
     elif action == ActionType.BUY_FOOD:
@@ -226,7 +230,138 @@ def execute_action(
     # Update last action
     agent.last_action = action
 
+    # ── Phase 4: apply world-state side effects (organic whole) ─────
+    _apply_world_effects(agent, action, world, _money_before, _happiness_before)
+
     return result
+
+
+def _apply_world_effects(
+    agent: AgentState,
+    action: ActionType,
+    world: SimulationState,
+    money_before: float,
+    happiness_before: float,
+) -> None:
+    """Apply world-state side effects from agent actions. Makes actions ORGANIC.
+
+    Each action nudges world variables. The world then feeds back to agents
+    in the next tick via decision_engine and metrics_calculator. This creates
+    the agent → world → agent feedback loop that was missing in v1.
+    """
+    money_delta = agent.resources.money - money_before
+    happiness_delta = agent.emotions.happiness_score - happiness_before
+
+    if action == ActionType.WORK:
+        # Work: builds economy, GDP grows, tax revenue accumulates
+        world.economy.gdp += max(0.0, money_delta)
+        world.economy.tax_revenue += max(0.0, money_delta) * world.tax_rate
+        world.economy.employment_rate = min(1.0, world.economy.employment_rate + 0.001)
+        world.economy.consumer_confidence = min(1.0, world.economy.consumer_confidence + 0.0005)
+        world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0003)
+        # Work slightly reduces public_order loss (people are busy, less unrest)
+        world.public_order = min(1.0, world.public_order + 0.0005)
+
+    elif action == ActionType.BUY_FOOD:
+        # Market demand signals scarcity: aggregate demand pushes prices/food availability
+        if money_delta < 0:  # Money was spent
+            world.economy.gdp += abs(money_delta)
+            world.economy.trade_balance += abs(money_delta) * 0.01
+            # Buying reduces immediate scarcity by drawing down market supply
+            world.food_availability = max(0.0, world.food_availability - 0.0002)
+            world.water_availability = max(0.0, world.water_availability - 0.0001)
+        world.economy.inflation_rate = min(0.5, world.economy.inflation_rate + 0.0001)
+
+    elif action == ActionType.REST:
+        # Resting agents contribute to labor productivity, slight innovation boost
+        world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0001)
+
+    elif action == ActionType.BEFRIEND:
+        # Social bonds build social cohesion
+        world.social_cohesion = min(1.0, world.social_cohesion + 0.0008)
+        world.psychology.social_satisfaction = min(1.0, world.psychology.social_satisfaction + 0.001)
+
+    elif action == ActionType.CONSOLE:
+        # Comforting others reduces unlust at the society level
+        world.unlust = max(0.0, world.unlust - 0.0005)
+        world.social_cohesion = min(1.0, world.social_cohesion + 0.0005)
+
+    elif action == ActionType.SHARE:
+        # Sharing resources reduces inequality slightly
+        if money_delta < 0:
+            # Wealth transferred → lower gini (already tracked), slight cohesion gain
+            world.social_cohesion = min(1.0, world.social_cohesion + 0.0003)
+            world.economy.consumer_confidence = min(1.0, world.economy.consumer_confidence + 0.0002)
+
+    elif action == ActionType.STEAL or action == ActionType.HARM_OTHER or action == ActionType.FRAUD:
+        # Crime erodes public_order, social_cohesion, consumer confidence
+        world.crime.public_safety_index = max(0.0, world.crime.public_safety_index - 0.001)
+        world.economy.consumer_confidence = max(0.0, world.economy.consumer_confidence - 0.0008)
+        world.economy.market_stability = max(0.0, world.economy.market_stability - 0.0005)
+        world.public_order = max(0.0, world.public_order - 0.0003)
+
+    elif action == ActionType.PROTEST:
+        # Protest builds protest_intensity (already in metrics), erodes market stability
+        world.economy.market_stability = max(0.0, world.economy.market_stability - 0.001)
+        world.economy.consumer_confidence = max(0.0, world.economy.consumer_confidence - 0.0005)
+
+    elif action == ActionType.COMPLAIN:
+        # Complaining erodes satisfaction (already happens at agent level)
+        world.psychology.life_satisfaction = max(0.0, world.psychology.life_satisfaction - 0.0003)
+
+    elif action == ActionType.INVEST:
+        # Investment grows innovation and GDP
+        if money_delta < 0:
+            world.economy.gdp += abs(money_delta)
+            world.innovation_index = min(1.0, world.innovation_index + 0.001)
+            world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0005)
+
+    elif action == ActionType.BUY_PROPERTY:
+        # Property investment builds economy
+        world.economy.gdp += max(0.0, abs(money_delta))
+        world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0003)
+        world.economy.consumer_confidence = min(1.0, world.economy.consumer_confidence + 0.0005)
+
+    elif action == ActionType.TREAT or action == ActionType.COUNSEL:
+        # Healthcare improves mental health, reduces stress
+        world.psychology.mental_health_index = min(1.0, world.psychology.mental_health_index + 0.0005)
+        world.psychology.average_stress = max(0.0, world.psychology.average_stress - 0.0003)
+
+    elif action == ActionType.COMPLY:
+        # Compliance reinforces public order
+        world.public_order = min(1.0, world.public_order + 0.001)
+        world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0002)
+
+    elif action == ActionType.CAMPAIGN:
+        # Political campaigns polarize (slight morale shift)
+        if happiness_delta != 0:
+            world.psychology.life_satisfaction = max(0.0, min(1.0, world.psychology.life_satisfaction + happiness_delta * 0.01))
+
+    elif action == ActionType.HOBBY:
+        # Hobbies reduce stress
+        world.psychology.average_stress = max(0.0, world.psychology.average_stress - 0.0005)
+        world.psychology.life_satisfaction = min(1.0, world.psychology.life_satisfaction + 0.0003)
+
+    elif action == ActionType.SUPPORT_FAMILY:
+        # Family support strengthens social cohesion
+        world.social_cohesion = min(1.0, world.social_cohesion + 0.0003)
+
+    elif action == ActionType.SPREAD_RUMOR:
+        # Rumors affect media sentiment
+        if isinstance(world.media_state, dict):
+            world.media_state["fake_news_level"] = min(1.0, world.media_state.get("fake_news_level", 0.0) + 0.0005)
+            world.media_state["sentiment_economy"] = max(-1.0, min(1.0, world.media_state.get("sentiment_economy", 0.0) - 0.0005))
+
+    # Government spending: scales with tax revenue & welfare spending
+    world.economy.government_spending = (
+        world.economy.tax_revenue * 0.7
+        + (world.welfare_amount * world.welfare_enabled * alive_count_proxy(world))
+    )
+
+
+def alive_count_proxy(world: SimulationState) -> int:
+    """Lightweight alive count proxy for use in side-effect functions."""
+    return world.population
 
 
 def _do_work(agent: AgentState, world: SimulationState, result: AgentActionResult) -> None:

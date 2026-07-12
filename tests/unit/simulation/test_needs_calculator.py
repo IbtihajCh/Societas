@@ -341,50 +341,66 @@ class TestCheckDeath:
     """Death conditions: starvation, dehydration, health failure, despair."""
 
     def test_death_starvation(self) -> None:
-        """Food <= FOOD_DEATH_THRESHOLD triggers death."""
+        """Food at 0 (well below threshold) triggers death under smooth curve."""
         agent = _make_agent()
-        _set_need(agent, NeedType.FOOD, FOOD_DEATH_THRESHOLD)
-        rng = DeterministicRNG(42)
-
-        assert check_death(agent, rng) is True
-
-    def test_death_starvation_below_threshold(self) -> None:
-        """Food below threshold triggers death."""
-        agent = _make_agent()
-        _set_need(agent, NeedType.FOOD, FOOD_DEATH_THRESHOLD - 0.01)
-        rng = DeterministicRNG(42)
-
-        assert check_death(agent, rng) is True
-
-    def test_death_dehydration(self) -> None:
-        """Water <= WATER_DEATH_THRESHOLD triggers death."""
-        agent = _make_agent()
-        _set_need(agent, NeedType.WATER, WATER_DEATH_THRESHOLD)
-        rng = DeterministicRNG(42)
-
-        assert check_death(agent, rng) is True
-
-    def test_death_health(self) -> None:
-        """Health <= HEALTH_DEATH_THRESHOLD triggers death with 50% probability."""
-        agent = _make_agent(health=HEALTH_DEATH_THRESHOLD)
-
-        class _AlwaysDieRNG(DeterministicRNG):
+        _set_need(agent, NeedType.FOOD, 0.0)
+        # Phase 5: smooth curve. RNG returning 0.0 fires food death.
+        class _AlwaysZeroRNG(DeterministicRNG):
             def __init__(self) -> None:
                 super().__init__(0)
-
             def random(self) -> float:
                 return 0.0
+        assert check_death(agent, _AlwaysZeroRNG()) is True
+        assert agent.cause_of_death == "food_starvation"
 
-        assert check_death(agent, _AlwaysDieRNG()) is True
+    def test_death_starvation_below_threshold(self) -> None:
+        """Food mid-curve eventually triggers death with controlled RNG."""
+        agent = _make_agent()
+        _set_need(agent, NeedType.FOOD, FOOD_DEATH_THRESHOLD * 0.5)
+        class _AlwaysZeroRNG(DeterministicRNG):
+            def __init__(self) -> None:
+                super().__init__(0)
+            def random(self) -> float:
+                return 0.0
+        assert check_death(agent, _AlwaysZeroRNG()) is True
+        assert agent.cause_of_death == "food_starvation"
+
+    def test_death_dehydration(self) -> None:
+        """Water at 0 triggers death under smooth curve."""
+        agent = _make_agent()
+        _set_need(agent, NeedType.WATER, 0.0)
+        class _AlwaysZeroRNG(DeterministicRNG):
+            def __init__(self) -> None:
+                super().__init__(0)
+            def random(self) -> float:
+                return 0.0
+        assert check_death(agent, _AlwaysZeroRNG()) is True
+        assert agent.cause_of_death == "water_dehydration"
+
+    def test_death_health(self) -> None:
+        """Health at 0 triggers death with high probability."""
+        agent = _make_agent(health=0.0)
+        class _AlwaysZeroRNG(DeterministicRNG):
+            def __init__(self) -> None:
+                super().__init__(0)
+            def random(self) -> float:
+                return 0.0
+        assert check_death(agent, _AlwaysZeroRNG()) is True
+        assert agent.cause_of_death == "health_failure"
 
     def test_death_starvation_takes_precedence(self) -> None:
         """Starvation death is detected even if other conditions also hold."""
-        agent = _make_agent(health=HEALTH_DEATH_THRESHOLD)
-        _set_need(agent, NeedType.FOOD, FOOD_DEATH_THRESHOLD)
-        _set_need(agent, NeedType.WATER, WATER_DEATH_THRESHOLD)
-        rng = DeterministicRNG(42)
-
-        assert check_death(agent, rng) is True
+        agent = _make_agent(health=0.0)
+        _set_need(agent, NeedType.FOOD, 0.0)
+        _set_need(agent, NeedType.WATER, 0.0)
+        class _AlwaysZeroRNG(DeterministicRNG):
+            def __init__(self) -> None:
+                super().__init__(0)
+            def random(self) -> float:
+                return 0.0
+        assert check_death(agent, _AlwaysZeroRNG()) is True
+        # Should be food or water (food checked first)
+        assert agent.cause_of_death in ("food_starvation", "water_dehydration")
 
     def test_death_despair_mortality(self) -> None:
         """Despair emotion + lucky RNG roll (< DESPAIR_MORTALITY_RATE) causes death."""
@@ -1044,12 +1060,15 @@ class TestDeathAdditional:
     def test_death_starvation_precedence_over_economic(self) -> None:
         """Starvation is checked before economic hardship."""
         from simulation.agents.needs_calculator import check_death
-        from shared.constants.defaults import FOOD_DEATH_THRESHOLD
         agent = _make_agent()
-        _set_need(agent, NeedType.FOOD, FOOD_DEATH_THRESHOLD)
+        _set_need(agent, NeedType.FOOD, 0.0)
         _set_need(agent, NeedType.WATER, 0.5)
-        rng = DeterministicRNG(42)
-        assert check_death(agent, rng) is True
+        class _AlwaysZeroRNG(DeterministicRNG):
+            def __init__(self) -> None:
+                super().__init__(0)
+            def random(self) -> float:
+                return 0.0
+        assert check_death(agent, _AlwaysZeroRNG()) is True
         assert agent.cause_of_death == "food_starvation"
 
 
