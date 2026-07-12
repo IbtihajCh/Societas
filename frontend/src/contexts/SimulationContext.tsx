@@ -8,6 +8,8 @@ import {
   ReactNode,
 } from 'react';
 
+import Router from 'next/router';
+
 import { apiService } from '@/services/api';
 import {
   SimulationStateResponseDTO,
@@ -34,6 +36,7 @@ interface SimulationContextType {
   stopSimulation: () => Promise<void>;
   advanceTick: () => Promise<void>;
   refreshAgents: () => Promise<void>;
+  refreshState: () => Promise<void>;
 }
 
 const SimulationContext = createContext<SimulationContextType | undefined>(
@@ -66,6 +69,30 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     }
   }, []);
 
+  const fetchStatus = useCallback(async () => {
+    try {
+      const status = await apiService.getSimulationStatus();
+      setIsConnected(true);
+      setConnectionFailed(false);
+      setError(null);
+      setIsRunning(status.is_running);
+      if (status.population > 0) {
+        const simState = await apiService.getSimulationState();
+        setState(simState);
+        useSimulationStore.getState().appendTickData(simState);
+      }
+      await fetchAgents();
+    } catch (err) {
+      setIsConnected(false);
+      setConnectionFailed(true);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setError(msg);
+    }
+  }, [fetchAgents]);
+  const refreshState = useCallback(async () => {
+    await fetchStatus();
+  }, [fetchStatus]);
+
   useEffect(() => {
     const wsClient = new SimulationWebSocketClient();
     wsClientRef.current = wsClient;
@@ -76,7 +103,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       if (status === 'connected') {
         setIsConnected(true);
       }
-      // 'connecting' and 'disconnected' do NOT set isConnected=false —
+      // 'connecting' and 'disconnected' do NOT set isConnected=false -
       // the HTTP health poll handles that.
     });
 
@@ -116,26 +143,6 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
 
     wsClient.connect();
 
-    const fetchStatus = async () => {
-      try {
-        const status = await apiService.getSimulationStatus();
-        setIsConnected(true);
-        setConnectionFailed(false);
-        setError(null);
-        setIsRunning(status.is_running);
-        if (status.population > 0) {
-          const simState = await apiService.getSimulationState();
-          setState(simState);
-          useSimulationStore.getState().appendTickData(simState);
-        }
-        await fetchAgents();
-      } catch (err) {
-        setIsConnected(false);
-        setConnectionFailed(true);
-        const msg = err instanceof Error ? err.message : 'Unknown error';
-        setError(msg);
-      }
-    };
 
     fetchStatus();
 
@@ -159,6 +166,16 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       clearInterval(interval);
     };
   }, [fetchAgents, retryCount]);
+
+  useEffect(() => {
+    const onRouteChange = (url: string) => {
+      if (url.startsWith('/dashboard') && !stateRef.current) {
+        fetchStatus();
+      }
+    };
+    Router.events.on('routeChangeComplete', onRouteChange);
+    return () => Router.events.off('routeChangeComplete', onRouteChange);
+  }, [fetchStatus]);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -241,6 +258,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         stopSimulation,
         advanceTick,
         refreshAgents: fetchAgents,
+        refreshState,
       }}
     >
       {children}
