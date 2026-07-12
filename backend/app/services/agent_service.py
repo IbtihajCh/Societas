@@ -4,7 +4,6 @@ from typing import Optional
 from shared.dto.agent_dto import (
     AgentDetailDTO,
     AgentListResponseDTO,
-    AgentRecentActionDTO,
     AgentSummaryDTO,
 )
 from shared.interfaces.i_simulation_engine import ISimulationEngine
@@ -84,7 +83,6 @@ class AgentService:
             location=agent.location,
             last_action=agent.last_action.value if agent.last_action else None,
             last_reasoning=agent.last_reasoning or "",
-            recent_actions=self._recent_actions(agent),
             social_connections=len(agent.social_connections),
             gender=agent.gender.value if agent.gender else "male",
             culture=agent.culture.value if agent.culture else "A",
@@ -140,19 +138,6 @@ class AgentService:
                 result[dst] = float(levels[src])
         return result
 
-    def _recent_actions(self, agent: AgentState) -> list:
-        """Build a list of recent actions from the agent's episodic memories."""
-        actions = []
-        for memory in agent.memories[-10:]:
-            action = memory.action or memory.event_type
-            actions.append(
-                AgentRecentActionDTO(
-                    tick=memory.tick,
-                    action=action,
-                    description=memory.description,
-                )
-            )
-        return list(reversed(actions))
 
 
 def _memory_to_dict(mem: object) -> dict:
@@ -173,3 +158,4 @@ def _memory_to_dict(mem: object) -> dict:
         "involved_agents": getattr(mem, "involved_agents", []),
         "importance": getattr(mem, "importance", 0.0),
     }
+
