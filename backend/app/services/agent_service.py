@@ -68,6 +68,7 @@ class AgentService:
                         "description": m.description if hasattr(m, 'description') else "",
                     })
         return AgentDetailDTO(
+            recent_actions=recent_actions,
             id=agent.id,
             persona=agent.persona,
             traits=asdict(agent.traits),
@@ -137,6 +138,17 @@ class AgentService:
                 result[dst] = float(levels[src])
         return result
 
+    def _recent_actions(self, agent: AgentState) -> list:
+        """Build a list of recent actions from the agent's episodic memories."""
+        actions = []
+        for memory in agent.memories[-10:]:
+            action = memory.action if hasattr(memory, 'action') else memory.event_type if hasattr(memory, 'event_type') else ""
+            actions.append({
+                "tick": memory.tick if hasattr(memory, 'tick') else 0,
+                "action": str(action or ""),
+                "description": str(memory.description) if hasattr(memory, 'description') else "",
+            })
+        return list(reversed(actions))
 
 
 def _memory_to_dict(mem: object) -> dict:
@@ -157,4 +169,3 @@ def _memory_to_dict(mem: object) -> dict:
         "involved_agents": getattr(mem, "involved_agents", []),
         "importance": getattr(mem, "importance", 0.0),
     }
-

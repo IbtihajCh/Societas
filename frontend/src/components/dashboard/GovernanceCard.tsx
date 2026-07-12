@@ -4,9 +4,10 @@ import { PolicyCategory, SimulationStateResponseDTO } from '@/types/api';
 
 interface Props {
   state: SimulationStateResponseDTO | null;
+  onChange?: () => void;
 }
 
-export default function GovernanceCard({ state }: Props) {
+export default function GovernanceCard({ state, onChange }: Props) {
   const [taxRate, setTaxRate] = useState(state?.tax_rate ?? 0.15);
   const [welfareEnabled, setWelfareEnabled] = useState(state?.welfare_enabled ?? false);
   const [welfareAmount, setWelfareAmount] = useState(state?.welfare_amount ?? 8);
@@ -30,6 +31,7 @@ export default function GovernanceCard({ state }: Props) {
       });
       const c = (r as any).changes || r;
       setMsg(`Applied: tax=${c.tax_rate ?? '?'}, welfare=${c.welfare_enabled ?? '?'}`);
+      onChange?.();
     } catch (e: any) {
       setMsg(`Error: ${e.message}`);
     }
@@ -59,76 +61,71 @@ export default function GovernanceCard({ state }: Props) {
   };
 
   return (
-    <div className="panel" style={{ marginBottom: '20px' }}>
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Governance Controls</div>
-          <div className="panel-sub sc">policy management</div>
+    <>
+      <style>{`
+        .gov-card { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+        .gov-section-head { margin: 0 0 0.5rem; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+        .gov-input, .gov-select { flex: 1; padding: 0.4rem; font-size: 0.85rem; background: var(--parchment-2); color: var(--ink); border: 1px solid var(--rule); border-radius: 4px; }
+        .apply-btn { width: 100%; margin-top: 4px; }
+        .create-btn { padding: 0.4rem 0.8rem; font-size: 12px; }
+        .revoke-btn { padding: 0.2rem 0.6rem; font-size: 0.8rem; }
+        .gov-policy-list-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--rule); font-size: 0.85rem; color: var(--ink); }
+        .gov-policy-name { color: var(--gold); font-weight: 600; }
+        .gov-policy-category { color: var(--ink-soft); }
+      `}</style>
+      <div className="gov-card">
+        <div className="slider-group">
+          <div className="slider-top"><span>Tax Rate</span><span>{(taxRate * 100).toFixed(0)}%</span></div>
+          <input type="range" min={0} max={0.5} step={0.01} value={taxRate}
+            onChange={(e) => setTaxRate(Number(e.target.value))} />
+        </div>
+
+        <div className="slider-group">
+          <div className="slider-top">
+            <span>Welfare</span>
+            <span style={{ color: welfareEnabled ? 'var(--moss)' : 'var(--ink-soft)' }}>
+              {welfareEnabled ? `$${welfareAmount}/citizen · enabled` : 'disabled'}
+            </span>
+          </div>
+          <input type="range" min={0} max={50} step={1} value={welfareAmount}
+            onChange={(e) => { setWelfareAmount(Number(e.target.value)); setWelfareEnabled(Number(e.target.value) > 0); }} />
+        </div>
+
+        <div className="slider-group">
+          <div className="slider-top"><span>Food Subsidy</span><span>+{foodSubsidy}%</span></div>
+          <input type="range" min={0} max={50} step={5} value={foodSubsidy}
+            onChange={(e) => setFoodSubsidy(Number(e.target.value))} />
+        </div>
+
+        <button className="btn primary apply-btn" onClick={apply}>Apply Changes</button>
+        {msg && <p style={{ fontSize: '11px', marginTop: '6px', color: 'var(--moss)', fontFamily: 'var(--font-mono)' }}>{msg}</p>}
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--rule)', paddingTop: '0.75rem' }}>
+        <h4 className="gov-section-head">Create Policy</h4>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input className="gov-input" placeholder="Policy name" value={newName}
+            onChange={(e) => setNewName(e.target.value)} />
+          <select className="gov-select" value={newCategory} onChange={(e) => setNewCategory(Number(e.target.value))}>
+            <option value={1}>Economic</option>
+            <option value={2}>Social</option>
+            <option value={4}>Public Order</option>
+          </select>
+          <button className="btn primary create-btn" onClick={createPolicy}>Create</button>
         </div>
       </div>
-      <div className="panel-inner">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
-          <div className="slider-group">
-            <div className="slider-top"><span>Tax Rate</span><span>{(taxRate * 100).toFixed(0)}%</span></div>
-            <input type="range" min={0} max={0.5} step={0.01} value={taxRate}
-              onChange={(e) => setTaxRate(Number(e.target.value))} />
-          </div>
 
-          <div className="slider-group">
-            <div className="slider-top">
-              <span>Welfare</span>
-              <span style={{ color: welfareEnabled ? 'var(--moss)' : 'var(--ink-soft)' }}>
-                {welfareEnabled ? `$${welfareAmount}/citizen · enabled` : 'disabled'}
-              </span>
+      {policies.length > 0 && (
+        <div style={{ borderTop: '1px solid var(--rule)', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
+          <h4 className="gov-section-head">Active Policies ({policies.length})</h4>
+          {policies.map((p: any) => (
+            <div key={p.id} className="gov-policy-list-row">
+              <span><span className="gov-policy-name">{p.name}</span> — <span className="gov-policy-category">{p.category}</span></span>
+              <button className="btn revoke-btn" onClick={() => revoke(p.id)}>Revoke</button>
             </div>
-            <input type="range" min={0} max={50} step={1} value={welfareAmount}
-              onChange={(e) => { setWelfareAmount(Number(e.target.value)); setWelfareEnabled(Number(e.target.value) > 0); }} />
-          </div>
-
-          <div className="slider-group">
-            <div className="slider-top"><span>Food Subsidy</span><span>+{foodSubsidy}%</span></div>
-            <input type="range" min={0} max={50} step={5} value={foodSubsidy}
-              onChange={(e) => setFoodSubsidy(Number(e.target.value))} />
-          </div>
-
-          <button className="btn" style={{ width: '100%', marginTop: '4px' }} onClick={apply}>Apply Changes</button>
-          {msg && <p style={{ fontSize: '11px', marginTop: '6px', color: 'var(--moss)', fontFamily: 'var(--font-mono)' }}>{msg}</p>}
+          ))}
         </div>
-
-        <div style={{ borderTop: '1px solid var(--rule)', paddingTop: '0.75rem' }}>
-          <h4 style={{ margin: '0 0 0.5rem', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-soft)' }}>Create Policy</h4>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input placeholder="Policy name" value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem', background: 'var(--parchment-2)', color: 'var(--ink)', border: '1px solid var(--rule)', borderRadius: '4px' }} />
-            <select value={newCategory} onChange={(e) => setNewCategory(Number(e.target.value))}
-              style={{ padding: '0.4rem', fontSize: '0.85rem', background: 'var(--parchment-2)', color: 'var(--ink)', border: '1px solid var(--rule)', borderRadius: '4px' }}>
-              <option value={1}>Economic</option>
-              <option value={2}>Social</option>
-              <option value={4}>Public Order</option>
-            </select>
-            <button onClick={createPolicy}
-              style={{ padding: '0.4rem 0.8rem', background: 'var(--moss)', color: 'var(--cream)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}>
-              Create
-            </button>
-          </div>
-        </div>
-
-        {policies.length > 0 && (
-          <div style={{ borderTop: '1px solid var(--rule)', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
-            <h4 style={{ margin: '0 0 0.5rem', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-soft)' }}>Active Policies ({policies.length})</h4>
-            {policies.map((p: any) => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0', borderBottom: '1px solid var(--rule)', fontSize: '0.85rem', color: 'var(--ink)' }}>
-                <span><strong style={{ color: 'var(--gold)' }}>{p.name}</strong> — <span style={{ color: 'var(--ink-soft)' }}>{p.category}</span></span>
-                <button onClick={() => revoke(p.id)}
-                  style={{ padding: '0.2rem 0.5rem', background: 'var(--oxblood)', color: 'var(--cream)', border: 'none', borderRadius: '3px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                  Revoke
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </>
   );
 }

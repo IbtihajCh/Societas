@@ -1,457 +1,365 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface AgentData {
-  id: string;
-  grid_x?: number;
-  grid_y?: number;
-  emotion?: string;
-  is_alive?: boolean;
-  age?: number;
-  job_type?: string;
-  wealth_class?: string;
-  unlust?: number;
-}
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import type { AgentSummaryDTO } from '@/types/api';
 
 interface AgentGridProps {
-  gridRef?: React.RefObject<HTMLDivElement> | null;
-  agents: AgentData[];
+  agents: AgentSummaryDTO[];
   onAgentClick?: (agentId: string) => void;
   selectedAgent?: string | null;
+  showLegend?: boolean;
 }
 
 interface TooltipState {
   x: number;
   y: number;
-  agent: AgentData;
+  agent: AgentSummaryDTO;
 }
 
-// ---------------------------------------------------------------------------
-// Ledger palette & constants
-// ---------------------------------------------------------------------------
+const GRID = 30;
 
-const PARCHMENT = '#221c14';
-const GRID_LINE = '#3d3328';
-const INK = '#f0e8d0';
-const INK_SOFT = '#9a8a6a';
-const CREAM = '#1a1510';
-const HOVER_GOLD = '#e0b050';
-const GRID_SIZE = 20;
-
-const FACE_COLORS: Record<string, string> = {
-  happy: '#8aac4a',
-  neutral: '#9a8a6a',
-  sad: '#6d8aaa',
-  angry: '#c54a3f',
-  despair: '#d4a04a',
-  stressed: '#d4a04a',
+const WEALTH_FALLBACK: Record<string, string> = {
+  poor: '#4B4636',
+  middle: '#7D735A',
+  rich: '#E0B050',
+  business_owner: '#1F3D30',
 };
 
-const DOT_COLORS: Record<string, string> = {
-  happy: '#8aac4a',
-  neutral: '#9a8a6a',
-  sad: '#6d8aaa',
-  angry: '#c54a3f',
-  despair: '#d4a04a',
-  stressed: '#d4a04a',
-  dead: '#5a4e3a',
+const EMOTION_FALLBACK: Record<string, string> = {
+  happy: '#6B8E23',
+  neutral: '#C8B88A',
+  sad: '#5D4037',
+  angry: '#C75B39',
+  stressed: '#D4A017',
 };
 
-const FACE_DEFAULT = '#9a8a6a';
-const DOT_DEFAULT = '#9a8a6a';
+const GOLD_FALLBACK = '#E0B050';
+const INK_FALLBACK = '#F0E8D0';
+const RULE_FALLBACK = '#3D3328';
 
-// ---------------------------------------------------------------------------
-// Pixel-art face drawing (canvas)
-// ---------------------------------------------------------------------------
+function getCssVar(name: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return val || fallback;
+}
 
-function drawFace(
+function getEmotionColor(emotion?: string | null): string {
+  const e = (emotion || 'neutral').toLowerCase();
+  const cssMap: Record<string, string> = {
+    happy: getCssVar('--moss', EMOTION_FALLBACK.happy),
+    neutral: getCssVar('--ink-soft', EMOTION_FALLBACK.neutral),
+    sad: getCssVar('--slate', EMOTION_FALLBACK.sad),
+    angry: getCssVar('--oxblood', EMOTION_FALLBACK.angry),
+    stressed: getCssVar('--ochre', EMOTION_FALLBACK.stressed),
+  };
+  return cssMap[e] || cssMap.neutral;
+}
+
+function getWealthColor(wealthClass?: string | null): string {
+  const wc = (wealthClass || 'poor').toLowerCase();
+  const cssMap: Record<string, string> = {
+    poor: getCssVar('--wealth-poor', WEALTH_FALLBACK.poor),
+    middle: getCssVar('--wealth-middle', WEALTH_FALLBACK.middle),
+    rich: getCssVar('--wealth-rich', WEALTH_FALLBACK.rich),
+    business_owner: getCssVar('--wealth-owner-core', WEALTH_FALLBACK.business_owner),
+  };
+  return cssMap[wc] || cssMap.poor;
+}
+
+function drawAgent(
   ctx: CanvasRenderingContext2D,
+  agent: AgentSummaryDTO,
   cx: number,
   cy: number,
-  cellSize: number,
-  emotion: string,
-  color: string,
+  r: number,
+  isSelected: boolean,
+  isHovered: boolean
 ) {
-  const half = cellSize * 0.22;
-  const size = half * 2;
+  const wc = (agent.wealth_class || 'poor').toLowerCase();
+  const isRich = ['rich', 'business_owner'].includes(wc);
 
-  // Head — pixel-art rectangle fill
-  ctx.fillStyle = color;
-  ctx.fillRect(cx - half, cy - half, size, size);
-  ctx.strokeStyle = CREAM;
-  ctx.lineWidth = 0.8;
-  ctx.strokeRect(cx - half, cy - half, size, size);
-  // Glow
-  ctx.shadowBlur = 6;
-  ctx.shadowColor = color;
+  // Body fill (emotion color)
+  ctx.fillStyle = getEmotionColor(agent.emotion);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Eyes — pixel rects
-  const eyeW = Math.max(2, cellSize * 0.06);
-  const eyeH = Math.max(2, cellSize * 0.08);
-  const eyeSpacing = cellSize * 0.13;
-  const eyeY = cy - cellSize * 0.03;
+  // Outer ring (wealth color)
+  ctx.strokeStyle = getWealthColor(agent.wealth_class);
+  ctx.lineWidth = isRich ? 2 : 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
 
-  ctx.fillStyle = CREAM;
-  ctx.fillRect(
-    Math.round(cx - eyeSpacing - eyeW / 2),
-    Math.round(eyeY - eyeH / 2),
-    eyeW,
-    eyeH,
-  );
-  ctx.fillRect(
-    Math.round(cx + eyeSpacing - eyeW / 2),
-    Math.round(eyeY - eyeH / 2),
-    eyeW,
-    eyeH,
-  );
+  // Gold rim for business_owner
+  if (wc === 'business_owner') {
+    ctx.strokeStyle = getCssVar('--wealth-rich', GOLD_FALLBACK);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 1.5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 
-  // Mouth
-  const mouthY = cy + cellSize * 0.08;
-  const mouthR = cellSize * 0.1;
+  // Selection ring
+  if (isSelected) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 3, 0, Math.PI * 2);
+    ctx.strokeStyle = getCssVar('--wealth-rich', GOLD_FALLBACK);
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
-  ctx.strokeStyle = CREAM;
-  ctx.lineWidth = 1.2;
-  ctx.lineCap = 'round';
-
-  switch (emotion) {
-    case 'happy': {
-      // Upward smile arc
-      ctx.beginPath();
-      ctx.arc(cx, mouthY - cellSize * 0.02, mouthR, 0.2 * Math.PI, 0.8 * Math.PI);
-      ctx.stroke();
-      break;
-    }
-    case 'neutral': {
-      // Flat line
-      ctx.beginPath();
-      ctx.moveTo(cx - mouthR, mouthY);
-      ctx.lineTo(cx + mouthR, mouthY);
-      ctx.stroke();
-      break;
-    }
-    case 'sad': {
-      // Downward frown arc
-      ctx.beginPath();
-      ctx.arc(cx, mouthY + cellSize * 0.12, mouthR, 1.2 * Math.PI, 1.8 * Math.PI);
-      ctx.stroke();
-      break;
-    }
-    case 'angry': {
-      // Smaller arc mouth
-      ctx.beginPath();
-      ctx.arc(cx, mouthY - cellSize * 0.02, mouthR * 0.6, 0.2 * Math.PI, 0.8 * Math.PI);
-      ctx.stroke();
-      // Slanted brows above eyes
-      ctx.strokeStyle = CREAM;
-      ctx.lineWidth = 1.8;
-      const browY = eyeY - cellSize * 0.1;
-      ctx.beginPath();
-      ctx.moveTo(cx - eyeSpacing - cellSize * 0.04, browY);
-      ctx.lineTo(cx - eyeSpacing + cellSize * 0.07, browY + cellSize * 0.05);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(cx + eyeSpacing + cellSize * 0.04, browY);
-      ctx.lineTo(cx + eyeSpacing - cellSize * 0.07, browY + cellSize * 0.05);
-      ctx.stroke();
-      break;
-    }
-    case 'despair': {
-      // Open O mouth
-      ctx.beginPath();
-      ctx.arc(cx, mouthY + cellSize * 0.02, mouthR * 0.45, 0, Math.PI * 2);
-      ctx.stroke();
-      // Teardrop pixels
-      ctx.fillStyle = INK_SOFT;
-      const tearX = cx - eyeSpacing;
-      const tearY = eyeY + cellSize * 0.1;
-      ctx.fillRect(Math.round(tearX - 1), Math.round(tearY), 2, 3);
-      ctx.fillRect(Math.round(cx + eyeSpacing - 1), Math.round(tearY), 2, 3);
-      break;
-    }
-    default: {
-      // Fallback neutral line
-      ctx.beginPath();
-      ctx.moveTo(cx - mouthR, mouthY);
-      ctx.lineTo(cx + mouthR, mouthY);
-      ctx.stroke();
-      break;
-    }
+  // Hover ring
+  if (isHovered) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 1, 0, Math.PI * 2);
+    ctx.strokeStyle = getCssVar('--ink', INK_FALLBACK);
+    ctx.lineWidth = 1;
+    ctx.stroke();
   }
 }
 
-// ---------------------------------------------------------------------------
-// Tooltip DOM overlay
-// ---------------------------------------------------------------------------
-
-function AgentTooltip({ tooltip }: { tooltip: TooltipState }) {
-  const { x, y, agent } = tooltip;
-  const emotion = (agent.emotion || 'neutral').toLowerCase();
-  const dotColor = DOT_COLORS[emotion] ?? DOT_DEFAULT;
-
-  const pad = 14;
-  const width = 210;
-  const height = 190;
-
-  let left = x + pad;
-  let top = y + pad;
-  if (typeof window !== 'undefined') {
-    if (left + width > window.innerWidth) left = x - width - pad;
-    if (top + height > window.innerHeight) top = y - height - pad;
-    left = Math.max(8, left);
-    top = Math.max(8, top);
-  }
-
-  return (
-    <div className="agent-tooltip" style={{ left, top }}>
-      <div className="name">Agent {agent.id}</div>
-      <div className="grid">
-        <span className="label">ID</span>
-        <span className="value">{agent.id}</span>
-
-        <span className="label">Emotion</span>
-        <span>
-          <span style={{ color: dotColor }}>●</span>
-          {' '}
-          {agent.emotion || 'neutral'}
-        </span>
-
-        <span className="label">Age</span>
-        <span>{agent.age ?? '?'}</span>
-
-        <span className="label">Job</span>
-        <span>{(agent.job_type || 'none').replace(/_/g, ' ')}</span>
-
-        <span className="label">Class</span>
-        <span>
-          {(agent.wealth_class || 'unknown').replace(/_/g, ' ').toLowerCase()}
-        </span>
-
-        <span className="label">Grid</span>
-        <span>
-          ({agent.grid_x ?? '?'}, {agent.grid_y ?? '?'})
-        </span>
-
-        <span className="label">Unlust</span>
-        <span className="value">{(agent.unlust ?? 0).toFixed(3)}</span>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Agent grid component
-// ---------------------------------------------------------------------------
-
-const AgentGrid: React.FC<AgentGridProps> = ({
-  gridRef,
-  agents,
-  onAgentClick,
-  selectedAgent,
-}) => {
+const AgentGrid: React.FC<AgentGridProps> = ({ agents, onAgentClick, selectedAgent, showLegend }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const internalRef = useRef<HTMLDivElement>(null);
-  const containerRef = gridRef ?? internalRef;
-  const hoveredRef = useRef<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-  const [isHovering, setIsHovering] = useState(false);
+  const hoveredRef = useRef<string | null>(null);
+  const selectedAgentRef = useRef(selectedAgent);
+  const agentsRef = useRef<AgentSummaryDTO[]>([]);
 
-  // ---- Draw ----
+  agentsRef.current = agents;
+  selectedAgentRef.current = selectedAgent;
+
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-
-    const rect = container.getBoundingClientRect();
-    const w = Math.floor(rect.width);
-    const h = Math.floor(rect.height);
-    if (!w || !h) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, w, h);
-
-    // ── Background (parchment with radial gradient) ──
-    const radialGrad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) / 1.4);
-    radialGrad.addColorStop(0, '#2a2218');
-    radialGrad.addColorStop(1, '#15100a');
-    ctx.fillStyle = radialGrad;
-    ctx.fillRect(0, 0, w, h);
-
-    // ── Grid lines (subtle gold) ──
-    const cellW = w / GRID_SIZE;
-    const cellH = h / GRID_SIZE;
-
-    ctx.strokeStyle = GRID_LINE;
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    for (let i = 0; i <= GRID_SIZE; i++) {
-      const px = Math.round(i * cellW) + 0.5;
-      ctx.moveTo(px, 0);
-      ctx.lineTo(px, h);
-      const py = Math.round(i * cellH) + 0.5;
-      ctx.moveTo(0, py);
-      ctx.lineTo(w, py);
-    }
-    ctx.stroke();
-
-    // ── Agents ──
-    for (const agent of agents) {
-      if (agent.grid_x === undefined || agent.grid_y === undefined) continue;
-
-      const cx = (agent.grid_x + 0.5) * cellW;
-      const cy = (agent.grid_y + 0.5) * cellH;
-      const cellSize = Math.min(cellW, cellH);
-
-      // Dead: very small hollow circle in ink-soft
-      if (!agent.is_alive) {
-        ctx.strokeStyle = INK_SOFT;
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        ctx.arc(cx, cy, cellSize * 0.08, 0, Math.PI * 2);
-        ctx.stroke();
-        continue;
-      }
-
-      const emotion = (agent.emotion || 'neutral').toLowerCase();
-      const faceColor = FACE_COLORS[emotion] ?? FACE_DEFAULT;
-
-      // Hover ring (gold with glow)
-      if (hoveredRef.current === agent.id) {
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = HOVER_GOLD;
-        ctx.strokeStyle = HOVER_GOLD;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(cx, cy, cellSize * 0.28, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-      }
-
-      // Selected ring (dashed gold)
-      if (selectedAgent === agent.id) {
-        ctx.strokeStyle = HOVER_GOLD;
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.arc(cx, cy, cellSize * 0.32, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      drawFace(ctx, cx, cy, cellSize, emotion, faceColor);
-      ctx.shadowBlur = 0;
-    }
-  }, [agents, selectedAgent, gridRef]);
-
-  // Run draw on mount and when dependencies change
-  useEffect(() => {
-    draw();
-  }, [draw]);
-
-  // Re-draw on container resize
-  useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const observer = new ResizeObserver(() => draw());
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [containerRef, draw]);
+    const cssW = container.clientWidth;
+    const cssH = container.clientHeight;
 
-  // ── Hit testing ──
-  const hitTest = useCallback(
-    (clientX: number, clientY: number): AgentData | null => {
-      const container = containerRef.current;
-      if (!container) return null;
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.round(cssW * dpr);
+    const h = Math.round(cssH * dpr);
 
-      const rect = container.getBoundingClientRect();
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    const cellW = cssW / GRID;
+    const cellH = cssH / GRID;
+    const agentR = Math.min(cellW, cellH) * 0.32;
+
+    // Grid lines
+    ctx.strokeStyle = getCssVar('--rule', RULE_FALLBACK);
+    ctx.globalAlpha = 0.1;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i <= GRID; i++) {
+      const x = i * cellW;
+      ctx.moveTo(x + 0.5, 0);
+      ctx.lineTo(x + 0.5, cssH);
+      const y = i * cellH;
+      ctx.moveTo(0, y + 0.5);
+      ctx.lineTo(cssW, y + 0.5);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    const live = agentsRef.current.filter((a) => a.is_alive !== false);
+
+    for (let i = 0; i < live.length; i++) {
+      const a = live[i];
+      let cx: number;
+      let cy: number;
+
+      if (a.grid_x !== undefined && a.grid_y !== undefined) {
+        cx = a.grid_x * cellW + cellW / 2;
+        cy = a.grid_y * cellH + cellH / 2;
+      } else {
+        const col = i % GRID;
+        const row = Math.floor(i / GRID);
+        cx = col * cellW + cellW / 2;
+        cy = row * cellH + cellH / 2;
+      }
+
+      const isSelected = selectedAgentRef.current === a.id;
+      const isHovered = hoveredRef.current === a.id;
+
+      drawAgent(ctx, a, cx, cy, agentR, isSelected, isHovered);
+    }
+  }, []);
+
+  // Redraw on hover/selection changes and on resize
+  useEffect(() => {
+    draw();
+  }, [draw, selectedAgent, tooltip?.agent?.id]);
+
+  useEffect(() => {
+    const handleResize = () => draw();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [draw]);
+
+  const findAgentAtMouse = useCallback(
+    (clientX: number, clientY: number): AgentSummaryDTO | null => {
+      const el = containerRef.current;
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
       const mx = clientX - rect.left;
       const my = clientY - rect.top;
-      const w = rect.width;
-      const h = rect.height;
-      const cellW = w / GRID_SIZE;
-      const cellH = h / GRID_SIZE;
 
-      const gx = mx / cellW;
-      const gy = my / cellH;
+      const live = agentsRef.current.filter((a) => a.is_alive !== false);
+      const cssW = rect.width;
+      const cssH = rect.height;
+      const cellW = cssW / GRID;
+      const cellH = cssH / GRID;
+      const threshold = Math.min(cellW, cellH) * 0.5;
 
-      let best: AgentData | null = null;
-      let bestDist = 0.55;
+      let best: AgentSummaryDTO | null = null;
+      let bestDist = Infinity;
 
-      for (const a of agents) {
-        if (!a.is_alive) continue;
-        if (a.grid_x === undefined || a.grid_y === undefined) continue;
-        const dx = a.grid_x + 0.5 - gx;
-        const dy = a.grid_y + 0.5 - gy;
+      for (let i = 0; i < live.length; i++) {
+        const a = live[i];
+        let cx: number;
+        let cy: number;
+
+        if (a.grid_x !== undefined && a.grid_y !== undefined) {
+          cx = a.grid_x * cellW + cellW / 2;
+          cy = a.grid_y * cellH + cellH / 2;
+        } else {
+          const col = i % GRID;
+          const row = Math.floor(i / GRID);
+          cx = col * cellW + cellW / 2;
+          cy = row * cellH + cellH / 2;
+        }
+
+        const dx = cx - mx;
+        const dy = cy - my;
         const d = Math.sqrt(dx * dx + dy * dy);
-        if (d < bestDist) {
+        if (d < threshold && d < bestDist) {
           bestDist = d;
           best = a;
         }
       }
-
       return best;
     },
-    [agents, gridRef],
+    []
   );
 
-  // ── Event handlers ──
   const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const a = hitTest(e.clientX, e.clientY);
-      if (a) {
-        hoveredRef.current = a.id;
-        setIsHovering(true);
-        setTooltip({ x: e.clientX, y: e.clientY, agent: a });
-      } else {
-        hoveredRef.current = null;
-        setIsHovering(false);
-        setTooltip(null);
+    (e: React.MouseEvent) => {
+      const best = findAgentAtMouse(e.clientX, e.clientY);
+      const prev = hoveredRef.current;
+      const next = best?.id ?? null;
+      if (prev !== next) {
+        hoveredRef.current = next;
+        draw();
       }
-      draw();
+      setTooltip(best ? { x: e.clientX, y: e.clientY, agent: best } : null);
     },
-    [hitTest, draw],
+    [findAgentAtMouse, draw]
   );
 
   const handleMouseLeave = useCallback(() => {
     hoveredRef.current = null;
-    setIsHovering(false);
     setTooltip(null);
     draw();
   }, [draw]);
 
   const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const a = hitTest(e.clientX, e.clientY);
-      if (onAgentClick && a) {
-        onAgentClick(a.id);
+    (e: React.MouseEvent) => {
+      const best = findAgentAtMouse(e.clientX, e.clientY);
+      if (best && onAgentClick) {
+        onAgentClick(best.id);
       }
     },
-    [hitTest, onAgentClick],
+    [findAgentAtMouse, onAgentClick]
   );
 
   return (
     <div
       ref={containerRef}
-      className="grid-square"
-      style={{ cursor: isHovering ? 'pointer' : 'crosshair' }}
+      style={{ position: 'relative', width: '100%', height: '100%', padding: 0, margin: 0 }}
     >
       <canvas
         ref={canvasRef}
+        style={{ width: '100%', height: '100%', display: 'block' }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
       />
-      {tooltip && <AgentTooltip tooltip={tooltip} />}
+
+      {showLegend && (
+        <div
+          className="world-legend"
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 2,
+          }}
+        >
+          <span>Rings:</span>
+          <span className="legend-dot" style={{ background: getWealthColor('poor') }} />
+          <span>Poor</span>
+          <span className="legend-dot" style={{ background: getWealthColor('middle') }} />
+          <span>Middle</span>
+          <span className="legend-dot" style={{ background: getWealthColor('rich') }} />
+          <span>Rich</span>
+          <span className="legend-dot" style={{ background: getWealthColor('business_owner'), border: '1px solid var(--wealth-owner-rim)' }} />
+          <span>Owner</span>
+          <span style={{ marginLeft: 12 }}>Body:</span>
+          <span className="legend-dot" style={{ background: getEmotionColor('happy') }} />
+          <span>Happy</span>
+          <span className="legend-dot" style={{ background: getEmotionColor('neutral') }} />
+          <span>Neutral</span>
+          <span className="legend-dot" style={{ background: getEmotionColor('sad') }} />
+          <span>Sad</span>
+          <span className="legend-dot" style={{ background: getEmotionColor('angry') }} />
+          <span>Angry</span>
+          <span className="legend-dot" style={{ background: getEmotionColor('stressed') }} />
+          <span>Stressed</span>
+        </div>
+      )}
+
+      {tooltip && (
+        <div
+          className="agent-tooltip"
+          style={{
+            position: 'fixed',
+            left: Math.min(tooltip.x + 14, window.innerWidth - 210),
+            top: Math.min(tooltip.y + 14, window.innerHeight - 200),
+          }}
+        >
+          <div className="name">Agent {tooltip.agent.id}</div>
+          <div className="grid">
+            <span className="label">Emotion</span>
+            <span className="value">{tooltip.agent.emotion || 'neutral'}</span>
+            <span className="label">Wealth</span>
+            <span className="value">
+              {(tooltip.agent.wealth_class || 'unknown').replace(/_/g, ' ').toLowerCase()}
+            </span>
+            <span className="label">Age</span>
+            <span className="value">{tooltip.agent.age ?? '?'}</span>
+            <span className="label">Job</span>
+            <span className="value">
+              {(tooltip.agent.job_type || 'none').replace(/_/g, ' ')}
+            </span>
+            <span className="label">Unlust</span>
+            <span className="value">{(tooltip.agent.unlust ?? 0).toFixed(3)}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import Router from 'next/router';
 import {
   createContext,
   useContext,
@@ -7,8 +8,6 @@ import {
   useRef,
   ReactNode,
 } from 'react';
-
-import Router from 'next/router';
 
 import { apiService } from '@/services/api';
 import {
@@ -29,6 +28,7 @@ interface SimulationContextType {
   agents: AgentSummaryDTO[];
   isConnected: boolean;
   isRunning: boolean;
+  isAutoRunning: boolean;
   error: string | null;
   connectionFailed: boolean;
   retry: () => void;
@@ -36,7 +36,8 @@ interface SimulationContextType {
   stopSimulation: () => Promise<void>;
   advanceTick: () => Promise<void>;
   refreshAgents: () => Promise<void>;
-  refreshState: () => Promise<void>;
+  startAutoRun: (intervalMs?: number) => void;
+  stopAutoRun: () => void;
 }
 
 const SimulationContext = createContext<SimulationContextType | undefined>(
@@ -52,12 +53,14 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
   const [agents, setAgents] = useState<AgentSummaryDTO[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [isAutoRunning, setIsAutoRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionFailed, setConnectionFailed] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
   const wsClientRef = useRef<SimulationWebSocketClient | null>(null);
   const stateRef = useRef<SimulationStateResponseDTO | null>(null);
+  const autoRunRef = useRef<ReturnType<typeof setInterval> | null>(null);
   stateRef.current = state;
 
   const fetchAgents = useCallback(async () => {
@@ -69,30 +72,6 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     }
   }, []);
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const status = await apiService.getSimulationStatus();
-      setIsConnected(true);
-      setConnectionFailed(false);
-      setError(null);
-      setIsRunning(status.is_running);
-      if (status.population > 0) {
-        const simState = await apiService.getSimulationState();
-        setState(simState);
-        useSimulationStore.getState().appendTickData(simState);
-      }
-      await fetchAgents();
-    } catch (err) {
-      setIsConnected(false);
-      setConnectionFailed(true);
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      setError(msg);
-    }
-  }, [fetchAgents]);
-  const refreshState = useCallback(async () => {
-    await fetchStatus();
-  }, [fetchStatus]);
-
   useEffect(() => {
     const wsClient = new SimulationWebSocketClient();
     wsClientRef.current = wsClient;
@@ -103,7 +82,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       if (status === 'connected') {
         setIsConnected(true);
       }
-      // 'connecting' and 'disconnected' do NOT set isConnected=false -
+      // 'connecting' and 'disconnected' do NOT set isConnected=false —
       // the HTTP health poll handles that.
     });
 
@@ -143,6 +122,26 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
 
     wsClient.connect();
 
+    const fetchStatus = async () => {
+      try {
+        const status = await apiService.getSimulationStatus();
+        setIsConnected(true);
+        setConnectionFailed(false);
+        setError(null);
+        setIsRunning(status.is_running);
+        if (status.population > 0) {
+          const simState = await apiService.getSimulationState();
+          setState(simState);
+          useSimulationStore.getState().appendTickData(simState);
+        }
+        await fetchAgents();
+      } catch (err) {
+        setIsConnected(false);
+        setConnectionFailed(true);
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        setError(msg);
+      }
+    };
 
     fetchStatus();
 
@@ -166,16 +165,6 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       clearInterval(interval);
     };
   }, [fetchAgents, retryCount]);
-
-  useEffect(() => {
-    const onRouteChange = (url: string) => {
-      if (url.startsWith('/dashboard') && !stateRef.current) {
-        fetchStatus();
-      }
-    };
-    Router.events.on('routeChangeComplete', onRouteChange);
-    return () => Router.events.off('routeChangeComplete', onRouteChange);
-  }, [fetchStatus]);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -217,6 +206,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       setState(null);
       setAgents([]);
       useSimulationStore.getState().reset();
+      Router.push('/');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to stop: ${msg}`);
@@ -244,6 +234,45 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     setRetryCount((c) => c + 1);
   }, []);
 
+  const stopAutoRun = useCallback(() => {
+    if (autoRunRef.current !== null) {
+      clearInterval(autoRunRef.current);
+      autoRunRef.current = null;
+    }
+    setIsAutoRunning(false);
+  }, []);
+
+  const startAutoRun = useCallback(
+    (intervalMs: number = 1500) => {
+      if (autoRunRef.current !== null) {
+        clearInterval(autoRunRef.current);
+      }
+      // Run one tick immediately for responsiveness
+      apiService.advanceTick().catch(() => {});
+      autoRunRef.current = setInterval(async () => {
+        try {
+          const result = await apiService.advanceTick();
+          setState(result);
+          useSimulationStore.getState().appendTickData(result);
+        } catch {
+          // ignore
+        }
+      }, intervalMs);
+      setIsAutoRunning(true);
+    },
+    [],
+  );
+
+  // Stop auto-run on unmount
+  useEffect(() => {
+    return () => {
+      if (autoRunRef.current !== null) {
+        clearInterval(autoRunRef.current);
+        autoRunRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <SimulationContext.Provider
       value={{
@@ -251,6 +280,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         agents,
         isConnected,
         isRunning,
+        isAutoRunning,
         error,
         connectionFailed,
         retry,
@@ -258,7 +288,8 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         stopSimulation,
         advanceTick,
         refreshAgents: fetchAgents,
-        refreshState,
+        startAutoRun,
+        stopAutoRun,
       }}
     >
       {children}

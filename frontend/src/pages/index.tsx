@@ -29,11 +29,13 @@ export default function Home() {
   return (
     <div className="setup-screen">
       <div className="setup-hero">
-        <div className="crest">S</div>
+        <div style={{ marginBottom: 16 }}>
+          <img src="/societas_logo_v2.png" alt="SOCIETAS" style={{ height: 100, width: 100, objectFit: 'contain', display: 'block', margin: '0 auto' }} />
+        </div>
         <h1 className="setup-title">Societas</h1>
         <div className="setup-subtitle">World Ledger</div>
         <p className="setup-desc">
-          Agent-based civilisation simulation on a 20×20 toroidal grid.
+          Agent-based civilisation simulation on a 30x30 grid.
           Configure the founding population, seed the world, and start recording entries.
         </p>
 

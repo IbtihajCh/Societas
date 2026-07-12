@@ -249,6 +249,7 @@ export default function AgentDetailPanel({ agentId, onClose }: AgentDetailPanelP
         {/* Header */}
         <div className="agent-panel-header">
           <div>
+            <div className="agent-panel-dossier-badge sc">Dossier</div>
             {loading && <p className="agent-panel-title">Loading...</p>}
             {!loading && error && <p className="agent-panel-title">Error</p>}
             {!loading && !error && agent && (
