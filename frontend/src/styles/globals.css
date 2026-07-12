@@ -1564,3 +1564,34 @@ input[type=text]::placeholder, textarea::placeholder { color: var(--ink-soft); o
     animation: none !important;
   }
 }
+
+/* ============ MOUSE GLOW SPOTLIGHT ============ */
+.mouse-glow {
+  position: fixed;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center,
+    rgba(168, 110, 38, 0.06) 0%,
+    rgba(122, 116, 23, 0.03) 30%,
+    transparent 70%);
+  pointer-events: none;
+  z-index: 100;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.3s ease;
+  will-change: transform, left, top;
+}
+
+/* ============ CANVAS PARTICLE SYSTEM ============ */
+.bg-particle-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ============ PREFERS-REDUCED-MOTION FOR NEW EFFECTS ============ */
+@media (prefers-reduced-motion: reduce) {
+  .mouse-glow { display: none; }
+  .bg-particle-canvas { display: none; }
+}

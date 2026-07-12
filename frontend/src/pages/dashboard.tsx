@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSimulation } from '@/hooks/useSimulation';
 import { useSimulationStore } from '@/store/simulationStore';
 import { apiService } from '@/services/api';
@@ -56,6 +56,79 @@ export default function Dashboard() {
   const [showNotifs, setShowNotifs] = useState(false);
   const [now, setNow] = useState(new Date());
   const [autoSpeed, setAutoSpeed] = useState(1500);
+
+  /* ── Mouse glow spotlight ── */
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isMouseOnScreen, setIsMouseOnScreen] = useState(false);
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+      if (!isMouseOnScreen) setIsMouseOnScreen(true);
+    };
+    const handleLeave = () => setIsMouseOnScreen(false);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseleave', handleLeave);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseleave', handleLeave);
+    };
+  }, [isMouseOnScreen]);
+
+  /* ── Canvas particle system ── */
+  const particleCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = particleCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const particles: Array<{x: number; y: number; r: number; vx: number; vy: number; alpha: number; color: string}> = [];
+    const colors = ['rgba(168,110,38,', 'rgba(122,116,23,', 'rgba(120,35,29,'];
+    for (let i = 0; i < 40; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 2 + 1,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        alpha: Math.random() * 0.4 + 0.1,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
+
+    let animId: number;
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color + p.alpha + ')';
+        ctx.fill();
+      }
+      animId = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(animId);
+    };
+  }, []);
 
   const refreshGovernance = useCallback(() => {
     // Refresh governance data
@@ -334,6 +407,15 @@ export default function Dashboard() {
         <div className="dot" style={{ left: '85%', width: 4, height: 4, animationDelay: '6s' }} />
         <div className="dot" style={{ left: '95%', width: 3, height: 3, animationDelay: '7s' }} />
       </div>
+      <canvas ref={particleCanvasRef} className="bg-particle-canvas" />
+      <div
+        className="mouse-glow"
+        style={{
+          left: mousePos.x,
+          top: mousePos.y,
+          opacity: isMouseOnScreen ? 1 : 0,
+        }}
+      />
       <style jsx>{`
         .am-cat {
           padding: 6px 14px 2px;
