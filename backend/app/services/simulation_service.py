@@ -178,7 +178,7 @@ class SimulationService:
 
         return SimulationStateResponseDTO(
             tick=state.time_step,
-            population=state.population,
+            population=len([a for a in agents if a.is_alive]),
             economic_health=state.economic_health,
             social_cohesion=state.social_cohesion,
             environmental_quality=state.environmental_quality,
