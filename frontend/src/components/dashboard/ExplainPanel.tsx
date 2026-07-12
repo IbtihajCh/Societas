@@ -14,7 +14,11 @@ interface ExplainResponse {
   evidence: Record<string, unknown>;
 }
 
-export default function ExplainPanel() {
+interface ExplainPanelProps {
+  state?: any;
+}
+
+export default function ExplainPanel(_props: ExplainPanelProps) {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState<string | null>(null);
   const [evidence, setEvidence] = useState<Record<string, unknown> | null>(null);
@@ -40,81 +44,73 @@ export default function ExplainPanel() {
   };
 
   return (
-    <div className="panel explain-panel">
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Ask Why?</div>
-          <div className="panel-sub sc">LLM explainability ledger</div>
-        </div>
-      </div>
-      <div className="panel-inner">
-        <div className="explain-presets">
-          {PRESETS.map((p) => (
-            <button
-              key={p.label}
-              className="btn quiet"
-              onClick={() => ask(p.question)}
-              disabled={loading}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="explain-input-row">
-          <input
-            type="text"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && question.trim() && ask(question.trim())}
-            placeholder="Ask anything about the simulation…"
-            disabled={loading}
-          />
+    <div className="panel-inner">
+      <div className="explain-presets">
+        {PRESETS.map((p) => (
           <button
-            className={`btn primary ${loading ? 'loading' : ''}`}
-            onClick={() => question.trim() && ask(question.trim())}
-            disabled={loading || !question.trim()}
+            key={p.label}
+            className="btn quiet"
+            onClick={() => ask(p.question)}
+            disabled={loading}
           >
-            {loading ? 'Thinking' : 'Ask'}
+            {p.label}
           </button>
-        </div>
-
-        {error && (
-          <div className="explain-error">
-            {error}
-          </div>
-        )}
-
-        {answer && (
-          <div style={{ marginTop: '0.75rem' }}>
-            <div className="explain-answer">
-              {answer}
-            </div>
-            {evidence && (
-              <details style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
-                <summary style={{ cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>
-                  Show evidence data
-                </summary>
-                <pre
-                  style={{
-                    marginTop: '0.3rem',
-                    padding: '0.5rem',
-                    background: 'var(--cream)',
-                    border: '1px solid var(--rule)',
-                    borderRadius: '4px',
-                    fontSize: '0.75rem',
-                    overflow: 'auto',
-                    maxHeight: '200px',
-                    fontFamily: 'var(--font-mono)',
-                  }}
-                >
-                  {JSON.stringify(evidence, null, 2)}
-                </pre>
-              </details>
-            )}
-          </div>
-        )}
+        ))}
       </div>
+
+      <div className="explain-input-row">
+        <input
+          type="text"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && question.trim() && ask(question.trim())}
+          placeholder="Ask anything about the simulation…"
+          disabled={loading}
+        />
+        <button
+          className={`btn primary ${loading ? 'loading' : ''}`}
+          onClick={() => question.trim() && ask(question.trim())}
+          disabled={loading || !question.trim()}
+        >
+          {loading ? 'Thinking' : 'Ask'}
+        </button>
+      </div>
+
+      {error && (
+        <div className="explain-error">
+          {error}
+        </div>
+      )}
+
+      {answer && (
+        <div style={{ marginTop: '0.75rem' }}>
+          <div className="explain-answer">
+            {answer}
+          </div>
+          {evidence && (
+            <details style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
+              <summary style={{ cursor: 'pointer', color: 'var(--ink-soft)', fontFamily: 'var(--font-mono)' }}>
+                Show evidence data
+              </summary>
+              <pre
+                style={{
+                  marginTop: '0.3rem',
+                  padding: '0.5rem',
+                  background: 'var(--cream)',
+                  border: '1px solid var(--rule)',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  overflow: 'auto',
+                  maxHeight: '200px',
+                  fontFamily: 'var(--font-mono)',
+                }}
+              >
+                {JSON.stringify(evidence, null, 2)}
+              </pre>
+            </details>
+          )}
+        </div>
+      )}
     </div>
   );
 }

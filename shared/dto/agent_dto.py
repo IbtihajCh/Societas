@@ -134,6 +134,12 @@ class AgentDetailDTO:
     community_id: Optional[str] = None
     # Recent actions timeline
     recent_actions: List[Dict[str, Any]] = field(default_factory=list)
+    # Derived / optional fields
+    age_bracket: str = "adult"
+    debt: float = 0.0
+    parent_ids: List[str] = field(default_factory=list)
+    children_ids: List[str] = field(default_factory=list)
+    memories: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass

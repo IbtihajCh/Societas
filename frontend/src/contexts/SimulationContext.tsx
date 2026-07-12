@@ -27,6 +27,7 @@ interface SimulationContextType {
   agents: AgentSummaryDTO[];
   isConnected: boolean;
   isRunning: boolean;
+  isAutoRunning: boolean;
   error: string | null;
   connectionFailed: boolean;
   retry: () => void;
@@ -34,6 +35,8 @@ interface SimulationContextType {
   stopSimulation: () => Promise<void>;
   advanceTick: () => Promise<void>;
   refreshAgents: () => Promise<void>;
+  startAutoRun: (intervalMs?: number) => void;
+  stopAutoRun: () => void;
 }
 
 const SimulationContext = createContext<SimulationContextType | undefined>(
@@ -49,12 +52,14 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
   const [agents, setAgents] = useState<AgentSummaryDTO[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [isAutoRunning, setIsAutoRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionFailed, setConnectionFailed] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
   const wsClientRef = useRef<SimulationWebSocketClient | null>(null);
   const stateRef = useRef<SimulationStateResponseDTO | null>(null);
+  const autoRunRef = useRef<ReturnType<typeof setInterval> | null>(null);
   stateRef.current = state;
 
   const fetchAgents = useCallback(async () => {
@@ -227,6 +232,45 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
     setRetryCount((c) => c + 1);
   }, []);
 
+  const stopAutoRun = useCallback(() => {
+    if (autoRunRef.current !== null) {
+      clearInterval(autoRunRef.current);
+      autoRunRef.current = null;
+    }
+    setIsAutoRunning(false);
+  }, []);
+
+  const startAutoRun = useCallback(
+    (intervalMs: number = 1500) => {
+      if (autoRunRef.current !== null) {
+        clearInterval(autoRunRef.current);
+      }
+      // Run one tick immediately for responsiveness
+      apiService.advanceTick().catch(() => {});
+      autoRunRef.current = setInterval(async () => {
+        try {
+          const result = await apiService.advanceTick();
+          setState(result);
+          useSimulationStore.getState().appendTickData(result);
+        } catch {
+          // ignore
+        }
+      }, intervalMs);
+      setIsAutoRunning(true);
+    },
+    [],
+  );
+
+  // Stop auto-run on unmount
+  useEffect(() => {
+    return () => {
+      if (autoRunRef.current !== null) {
+        clearInterval(autoRunRef.current);
+        autoRunRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <SimulationContext.Provider
       value={{
@@ -234,6 +278,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         agents,
         isConnected,
         isRunning,
+        isAutoRunning,
         error,
         connectionFailed,
         retry,
@@ -241,6 +286,8 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         stopSimulation,
         advanceTick,
         refreshAgents: fetchAgents,
+        startAutoRun,
+        stopAutoRun,
       }}
     >
       {children}
