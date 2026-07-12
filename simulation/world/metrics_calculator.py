@@ -63,12 +63,58 @@ def update_world_metrics(
 
     # ── National debt accumulates when economy is weak ────────────────
     debt_servicing = world.national_debt * 0.005
-    world.national_debt = max(0.0, world.national_debt + economic_pressure * 0.002 - 0.001)
+    # Debt grows proportional to economic pressure, with minimum growth
+    # so a flat-pressure economy still accumulates some structural debt.
+    debt_growth = max(0.0, economic_pressure * 0.005 - 0.0005)
+    world.national_debt = max(0.0, world.national_debt + debt_growth)
+    # Cap debt at 100× initial to prevent runaway.
+    world.national_debt = min(world.national_debt, 1000.0)
 
-    # Energy price amplifies economic pressure (Pakistan-relevant)
+    # ── GDP: exponential moving average of system-wide money ──────────
+    # (Avoids double-counting; tracks actual currency in the system.)
+    total_money = sum(getattr(a.resources, "money", 0.0) for a in living)
+    if world.economy.gdp <= 0.0:
+        world.economy.gdp = total_money
+    else:
+        # α=0.05 gives ~20-tick memory. Decay toward current total_money
+        # so GDP can't run away.
+        world.economy.gdp = 0.95 * world.economy.gdp + 0.05 * total_money
+
+    # Tax revenue: rolling stock of recent tax income (EMA, no runaway decay).
+    # Tax revenue accumulates from WORK actions in action_executor (small
+    # additions per work). Here we apply gentle EMA so it tracks recent flow
+    # without exponential blow-up.
+    if world.economy.tax_revenue < 0.0:
+        world.economy.tax_revenue = 0.0
+    # Cap at a sensible multiple of GDP so it cannot exceed the economy.
+    world.economy.tax_revenue = min(world.economy.tax_revenue, world.economy.gdp * 0.5)
+
+    # Government spending: 70% of recent tax revenue.
+    world.economy.government_spending = world.economy.tax_revenue * 0.7
+
+    # ── Compute baseline metrics using CURRENT energy_price, BEFORE the
+    # random walk shifts it. This keeps tests deterministic. ─────
     energy_amplifier = 1.0 + world.energy_price * 0.5
     baseline_crime = 0.02 + 0.12 * world.unemployment_rate + 0.08 * economic_pressure * energy_amplifier + 0.05 * scarcity
     world.crime_rate = min(1.0, baseline_crime + agent_crime_rate * 0.5)
+
+    # ── Energy price: random walk with mean reversion to 0.6 ──────────
+    # Symmetric oscillation around 0.6. Sign alternates with tick parity,
+    # giving a bounded walk without monotonic drift.
+    target_energy = 0.6
+    noise_sign = 1.0 if (int(world.time_step) % 2 == 0) else -1.0
+    world.energy_price = max(
+        0.0,
+        min(2.0, world.energy_price + (target_energy - world.energy_price) * 0.01 + 0.005 * noise_sign),
+    )
+
+    # ── Remittance income: random walk with mean reversion to 0.08 ─────
+    target_remit = 0.08
+    noise_sign2 = 1.0 if (int(world.time_step) % 2 == 0) else -1.0
+    world.remittance_income = max(
+        0.0,
+        min(0.5, world.remittance_income + (target_remit - world.remittance_income) * 0.02 + 0.003 * noise_sign2),
+    )
 
     # Protest driven by discontent, joblessness, and inflation
     inflation_pressure = world.economy.inflation_rate * 0.5
@@ -82,7 +128,13 @@ def update_world_metrics(
         + (1.0 - world.crime_rate) * 0.002
         + (1.0 - world.unemployment_rate) * 0.001
     )
-    world.public_order = max(0.0, min(1.0, world.public_order - decay_order + recovery_order))
+    # Public order has friction: only recovers toward 0.9, not 1.0, so it
+    # can never pin at ceiling and the system stays sensitive.
+    target_order = 0.9
+    world.public_order = max(
+        0.0,
+        min(1.0, world.public_order - decay_order + recovery_order * (target_order - world.public_order) * 5.0),
+    )
 
     decay_cohesion = world.crime_rate * 0.01 + world.protest_intensity * 0.008 + inflation_pressure * 0.005
     recovery_cohesion = (
@@ -90,7 +142,11 @@ def update_world_metrics(
         + (1.0 - world.crime_rate) * 0.0015
         + world.morality * 0.001
     )
-    world.social_cohesion = max(0.0, min(1.0, world.social_cohesion - decay_cohesion + recovery_cohesion))
+    target_cohesion = 0.9
+    world.social_cohesion = max(
+        0.0,
+        min(1.0, world.social_cohesion - decay_cohesion + recovery_cohesion * (target_cohesion - world.social_cohesion) * 5.0),
+    )
 
     # Economic health: crime/unemployment/inflation/debt drag; work/wages/tax pull
     econ_decay = (

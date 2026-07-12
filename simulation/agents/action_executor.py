@@ -253,23 +253,23 @@ def _apply_world_effects(
     happiness_delta = agent.emotions.happiness_score - happiness_before
 
     if action == ActionType.WORK:
-        # Work: builds economy, GDP grows, tax revenue accumulates
-        world.economy.gdp += max(0.0, money_delta)
-        world.economy.tax_revenue += max(0.0, money_delta) * world.tax_rate
+        # Work: builds economy. GDP, gov_spending are FLOWS computed in
+        # metrics_calculator. Tax_revenue is a per-tick accumulator that
+        # receives small additions per WORK action (capped in metrics_calculator).
+        if money_delta > 0:
+            world.economy.tax_revenue += money_delta * world.tax_rate
         world.economy.employment_rate = min(1.0, world.economy.employment_rate + 0.001)
         world.economy.consumer_confidence = min(1.0, world.economy.consumer_confidence + 0.0005)
         world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0003)
-        # Work slightly reduces public_order loss (people are busy, less unrest)
-        world.public_order = min(1.0, world.public_order + 0.0005)
+        # (public_order / social_cohesion / economic_health are managed by
+        # metrics_calculator recovery/decay based on crime, protest, unlust.)
 
     elif action == ActionType.BUY_FOOD:
         # Market demand signals scarcity: aggregate demand pushes prices/food availability
-        if money_delta < 0:  # Money was spent
-            world.economy.gdp += abs(money_delta)
-            world.economy.trade_balance += abs(money_delta) * 0.01
-            # Buying reduces immediate scarcity by drawing down market supply
-            world.food_availability = max(0.0, world.food_availability - 0.0002)
-            world.water_availability = max(0.0, world.water_availability - 0.0001)
+        world.economy.trade_balance += max(0.0, -money_delta) * 0.01
+        # Buying reduces immediate scarcity by drawing down market supply
+        world.food_availability = max(0.0, world.food_availability - 0.0002)
+        world.water_availability = max(0.0, world.water_availability - 0.0001)
         world.economy.inflation_rate = min(0.5, world.economy.inflation_rate + 0.0001)
 
     elif action == ActionType.REST:
@@ -310,15 +310,12 @@ def _apply_world_effects(
         world.psychology.life_satisfaction = max(0.0, world.psychology.life_satisfaction - 0.0003)
 
     elif action == ActionType.INVEST:
-        # Investment grows innovation and GDP
-        if money_delta < 0:
-            world.economy.gdp += abs(money_delta)
-            world.innovation_index = min(1.0, world.innovation_index + 0.001)
-            world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0005)
+        # Investment grows innovation_index. (GDP is flow, managed elsewhere.)
+        world.innovation_index = min(1.0, world.innovation_index + 0.001)
+        world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0005)
 
     elif action == ActionType.BUY_PROPERTY:
-        # Property investment builds economy
-        world.economy.gdp += max(0.0, abs(money_delta))
+        # Property investment: bumps consumer confidence (GDP is flow elsewhere)
         world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0003)
         world.economy.consumer_confidence = min(1.0, world.economy.consumer_confidence + 0.0005)
 
