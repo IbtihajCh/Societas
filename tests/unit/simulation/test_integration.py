@@ -274,8 +274,12 @@ class TestParameterRoles:
         world1.welfare_enabled = False
         for tick in range(30):
             run_tick(tick, agents1, world1, rng1, [], None)
+        # Filter to established adults (age >= 5 ticks) so newborns with
+        # no money don't drag down the unemployed-money average.
         unemployed_money_no_welfare = [
-            a.resources.money for a in agents1 if a.is_alive and not a.resources.employed
+            a.resources.money
+            for a in agents1
+            if a.is_alive and not a.resources.employed and a.age >= 5
         ]
 
         rng2 = DeterministicRNG(seed=42)
@@ -285,7 +289,9 @@ class TestParameterRoles:
         for tick in range(30):
             run_tick(tick, agents2, world2, rng2, [], None)
         unemployed_money_with_welfare = [
-            a.resources.money for a in agents2 if a.is_alive and not a.resources.employed
+            a.resources.money
+            for a in agents2
+            if a.is_alive and not a.resources.employed and a.age >= 5
         ]
 
         if unemployed_money_no_welfare and unemployed_money_with_welfare:

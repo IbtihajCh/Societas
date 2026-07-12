@@ -115,6 +115,11 @@ def reputation_effects(agent: AgentState) -> None:
 
     - Low reputation (< 0.3): reduces self_esteem by 0.01.
     - High reputation (> 0.7): boosts self_esteem by 0.005.
+    - Gossip social proof: an agent's reputation is gently nudged toward
+      the average of what nearby agents think of them (stored in
+      ``agent.metadata["known_reputations"]``). This makes the gossip
+      mechanic (spread_reputation) actually influence reputation rather
+      than being a dead write.
 
     Args:
         agent: The agent to apply effects to (modified in place).
@@ -126,6 +131,20 @@ def reputation_effects(agent: AgentState) -> None:
         agent.needs.set_level(NeedType.SELF_ESTEEM, current_se - 0.01)
     elif rep > 0.7:
         agent.needs.set_level(NeedType.SELF_ESTEEM, current_se + 0.005)
+
+    # Social-proof nudge: converge rep toward the **maximum** perception others
+    # hold of this agent. Using max (not mean) makes this robust to the
+    # known_reputations values decaying to 0 over time (REPUTATION_KNOWN_DECAY
+    # in spread_reputation) — a 0 pulls the mean down but not the max.
+    # 2% pull per tick keeps it gentle so individual deeds still matter
+    # more than crowd opinion.
+    known = agent.metadata.get("known_reputations") if hasattr(agent, "metadata") else None
+    if known:
+        perceptions = [v for v in known.values() if v is not None and v > 0.0]
+        if perceptions:
+            best_perception = max(perceptions)
+            nudged = rep + 0.02 * (best_perception - rep)
+            agent.needs.set_level(NeedType.REPUTATION, max(0.0, min(1.0, nudged)))
 
 
 def apply_rumor_effects(

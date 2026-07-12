@@ -226,7 +226,16 @@ def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState
         return True
 
     if agent.age_bracket == "elderly":
-        mortality_chance = AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY
+        # Age-graded elderly mortality: lower for "young-elderly" (66-79),
+        # ramps up for 80-89, peaks for 90+. Without this gradient the
+        # entire initial cohort dies at the same time, causing a population
+        # crash before grandchildren can mature.
+        if agent.age < 80:
+            mortality_chance = AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY
+        elif agent.age < 90:
+            mortality_chance = AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY * 2.5
+        else:
+            mortality_chance = AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY * 5.0
         if rng.random() < mortality_chance:
             agent.cause_of_death = "old_age"
             return True

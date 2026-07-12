@@ -270,16 +270,22 @@ def create_agent(agent_id: int, rng: DeterministicRNG) -> AgentState:
 
     health = rng.uniform(0.7, 1.0)
 
-    # Initial age distribution: 80% young adult (19-40), 20% middle adult (41-55).
-    # Skip elderly starters to give the simulation a viable baseline. With
-    # AGE_PROGRESSION_INTERVAL=1, a 40-year-old becomes elderly by tick 26
-    # (age 66), so we cap middle adults at 55 to keep a 2-generation window
-    # before natural mortality kicks in.
+    # Initial age distribution: a true demographic pyramid rather than a
+    # cohort that all ages together. Without this, the initial 80 agents
+    # all become elderly at roughly the same time and die together, causing
+    # a population crash between tick 500-1000 before their grandchildren
+    # can mature. The pyramid below gives 50% young, 30% young-middle,
+    # 15% older-middle, 5% near-elderly so deaths are spread across the
+    # full 1000-tick horizon.
     age_roll = rng.random()
-    if age_roll < 0.8:
-        age = int(rng.uniform(19, 41))
+    if age_roll < 0.50:
+        age = int(rng.uniform(18, 30))
+    elif age_roll < 0.80:
+        age = int(rng.uniform(30, 42))
+    elif age_roll < 0.95:
+        age = int(rng.uniform(42, 52))
     else:
-        age = int(rng.uniform(41, 56))
+        age = int(rng.uniform(52, 62))
 
     age_bracket = get_age_bracket(age)
 

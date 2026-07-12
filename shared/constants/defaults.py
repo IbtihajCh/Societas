@@ -292,19 +292,22 @@ AGE_MORTALITY_BASE: float = 0.0001
 """Base per-tick mortality probability for all agents. Reduced from 0.001
 because 0.001/tick is ~36% per year which is far too high."""
 
-AGE_MORTALITY_ELDERLY: float = 0.001
-"""Additional per-tick mortality probability for elderly agents. Reduced
-from 0.008 (combined with base = 0.009/tick, ~97% per year).
-Tuned 2026-07-11 for population stability."""
+AGE_MORTALITY_ELDERLY: float = 0.0005
+"""Additional per-tick mortality probability for elderly agents. Halved
+from 0.001 to 0.0005 in v2 engine calibration 2026-07-12. With
+BIRTH_CHANCE_BASE=0.0115, this achieves long-run equilibrium (pop ~80
+stable at 2000t). Was 0.008 originally (combined with base = 0.009/tick
+= 97% per year, which is far too high)."""
 
 DEATH_INHERITANCE_FRACTION: float = 0.7
 """Fraction of a parent's wealth passed to children on death."""
 
-BIRTH_CHANCE_BASE: float = 0.009
-"""Goldilocks rate (v2 engine calibration 2026-07-12). Tuned for long-run stability:
-at 80 initial agents, 1000 ticks, AGE_PROGRESSION_INTERVAL=0.1, achieves ~60 survivors.
-Below 0.008 leads to extinction (45 at 1000t); above 0.010 leads to explosion (164 at 1000t).
-0.009 is the stable middle ground for 1000-tick horizons."""
+BIRTH_CHANCE_BASE: float = 0.0115
+"""Goldilocks rate (v2 engine calibration 2026-07-12, v2.2 update).
+At 80 initial agents, 2000 ticks, AGE_PROGRESSION_INTERVAL=0.1, AGE_MORTALITY_ELDERLY=0.0005,
+achieves ~79 survivors (target 60-100). Without this update, population
+goes extinct at ~1960t. Below 0.011 leads to extinction; above 0.012 leads
+to overgrowth. 0.0115 is the safe side of the knife-edge transition."""
 
 MIN_ADULT_AGE_FOR_BIRTH: int = 18
 """Minimum age for an agent to be eligible for reproduction."""
