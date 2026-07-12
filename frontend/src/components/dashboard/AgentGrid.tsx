@@ -5,6 +5,7 @@ interface AgentGridProps {
   agents: AgentSummaryDTO[];
   onAgentClick?: (agentId: string) => void;
   selectedAgent?: string | null;
+  showLegend?: boolean;
 }
 
 interface TooltipState {
@@ -118,7 +119,7 @@ function drawAgent(
   }
 }
 
-const AgentGrid: React.FC<AgentGridProps> = ({ agents, onAgentClick, selectedAgent }) => {
+const AgentGrid: React.FC<AgentGridProps> = ({ agents, onAgentClick, selectedAgent, showLegend }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -284,25 +285,11 @@ const AgentGrid: React.FC<AgentGridProps> = ({ agents, onAgentClick, selectedAge
     [findAgentAtMouse, onAgentClick]
   );
 
-  const legendItems = [
-    { label: 'Poor', color: getWealthColor('poor') },
-    { label: 'Middle', color: getWealthColor('middle') },
-    { label: 'Rich', color: getWealthColor('rich') },
-    { label: 'Owner', color: getWealthColor('business_owner') },
-  ];
-
   return (
     <div
       ref={containerRef}
-      className="world-frame"
       style={{ position: 'relative', width: '100%', height: '100%', padding: 0, margin: 0 }}
     >
-      {/* Corner brackets */}
-      <div className="corner tl" />
-      <div className="corner tr" />
-      <div className="corner bl" />
-      <div className="corner br" />
-
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block' }}
@@ -311,27 +298,39 @@ const AgentGrid: React.FC<AgentGridProps> = ({ agents, onAgentClick, selectedAge
         onClick={handleClick}
       />
 
-      {/* Legend */}
-      <div
-        className="world-legend"
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 2,
-        }}
-      >
-        {legendItems.map((item) => (
-          <div className="legend-item" key={item.label}>
-            <span
-              className="legend-dot"
-              style={{ backgroundColor: item.color }}
-            />
-            <span>{item.label}</span>
-          </div>
-        ))}
-      </div>
+      {showLegend && (
+        <div
+          className="world-legend"
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 2,
+          }}
+        >
+          <span>Rings:</span>
+          <span className="legend-dot" style={{ background: getWealthColor('poor') }} />
+          <span>Poor</span>
+          <span className="legend-dot" style={{ background: getWealthColor('middle') }} />
+          <span>Middle</span>
+          <span className="legend-dot" style={{ background: getWealthColor('rich') }} />
+          <span>Rich</span>
+          <span className="legend-dot" style={{ background: getWealthColor('business_owner'), border: '1px solid var(--wealth-owner-rim)' }} />
+          <span>Owner</span>
+          <span style={{ marginLeft: 12 }}>Body:</span>
+          <span className="legend-dot" style={{ background: getEmotionColor('happy') }} />
+          <span>Happy</span>
+          <span className="legend-dot" style={{ background: getEmotionColor('neutral') }} />
+          <span>Neutral</span>
+          <span className="legend-dot" style={{ background: getEmotionColor('sad') }} />
+          <span>Sad</span>
+          <span className="legend-dot" style={{ background: getEmotionColor('angry') }} />
+          <span>Angry</span>
+          <span className="legend-dot" style={{ background: getEmotionColor('stressed') }} />
+          <span>Stressed</span>
+        </div>
+      )}
 
       {tooltip && (
         <div

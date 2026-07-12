@@ -1,3 +1,4 @@
+import Router from 'next/router';
 import {
   createContext,
   useContext,
@@ -205,6 +206,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       setState(null);
       setAgents([]);
       useSimulationStore.getState().reset();
+      Router.push('/');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to stop: ${msg}`);

@@ -112,6 +112,7 @@ export default function Dashboard() {
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['','','']);
 
   const ALL_METRICS = [
+    { key: 'population', label: 'POPULATION' },
     { key: 'economic_health', label: 'ECONOMIC HEALTH' },
     { key: 'social_cohesion', label: 'SOCIAL COHESION' },
     { key: 'crime_rate', label: 'CRIME RATE' },
@@ -121,9 +122,26 @@ export default function Dashboard() {
     { key: 'public_order', label: 'PUBLIC ORDER' },
     { key: 'innovation_index', label: 'INNOVATION' },
     { key: 'food_availability', label: 'FOOD AVAILABILITY' },
+    { key: 'water_availability', label: 'WATER AVAILABILITY' },
     { key: 'protest_intensity', label: 'PROTEST INTENSITY' },
     { key: 'environmental_quality', label: 'ENVIRONMENT' },
-    { key: 'trust_in_govt', label: 'TRUST IN GOVT' },
+    { key: 'tax_rate', label: 'TAX RATE' },
+    { key: 'welfare_amount', label: 'WELFARE AMOUNT' },
+    { key: 'avg_happiness', label: 'AVG HAPPINESS' },
+    { key: 'avg_wealth', label: 'AVG WEALTH' },
+    { key: 'gini_coefficient', label: 'GINI COEFFICIENT' },
+    { key: 'life_expectancy', label: 'LIFE EXPECTANCY' },
+    { key: 'birth_rate', label: 'BIRTH RATE' },
+    { key: 'death_rate', label: 'DEATH RATE' },
+    { key: 'literacy_rate', label: 'LITERACY RATE' },
+    { key: 'avg_education', label: 'AVG EDUCATION' },
+    { key: 'property_ownership', label: 'PROPERTY OWNERSHIP' },
+    { key: 'business_count', label: 'BUSINESS COUNT' },
+    { key: 'avg_trust_govt', label: 'AVG TRUST GOVT' },
+    { key: 'good_acts_total', label: 'GOOD ACTS TOTAL' },
+    { key: 'crimes_total', label: 'CRIMES TOTAL' },
+    { key: 'divorce_rate', label: 'DIVORCE RATE' },
+    { key: 'avg_age', label: 'AVERAGE AGE' },
   ];
 
   const addCustomPanel = () => {
@@ -293,47 +311,7 @@ export default function Dashboard() {
     });
   };
 
-  const CATEGORIES: Category[] = ['Overview', 'Citizens', 'Governance', 'Economy', 'Model', 'Custom'];
-
-  const renderAddMenu = () => {
-    return (
-      <div className={`add-menu ${addMenuOpen ? 'open' : ''}`}>
-        {CATEGORIES.map(cat => {
-          const panelsInCat = PANEL_DEFS.filter(p => p.category === cat);
-          const available = panelsInCat.filter(p => !openPanels.includes(p.id));
-          if (available.length === 0) return null;
-          return (
-            <div key={cat} className="add-menu-group">
-              <div className="add-menu-group-lbl">{cat}</div>
-              {available.map(p => (
-                <button
-                  key={p.id}
-                  className="add-menu-item"
-                  onClick={() => addPanel(p.id)}
-                >
-                  + {p.title}
-                </button>
-              ))}
-            </div>
-          );
-        })}
-        {customPanels.length > 0 && (
-          <div className="add-menu-group">
-            <div className="add-menu-group-lbl">Custom</div>
-            {customPanels.filter(cp => !openPanels.includes(cp.id)).map(cp => (
-              <button
-                key={cp.id}
-                className="add-menu-item"
-                onClick={() => addPanel(cp.id)}
-              >
-                + {cp.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
+  const categories = ['Overview', 'Citizens', 'Governance', 'Economy', 'Model', 'Custom'];
 
   const renderEmpty = () => {
     if (openPanels.length > 0) return null;
@@ -346,6 +324,22 @@ export default function Dashboard() {
 
   return (
     <div className="shell">
+      <style jsx>{`
+        .am-cat {
+          padding: 6px 14px 2px;
+          font-size: 9px;
+          font-family: var(--font-mono);
+          color: var(--gold);
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+        .dock-toolbar-label {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          color: var(--ink-soft);
+          white-space: nowrap;
+        }
+      `}</style>
       <ToastStack />
 
       {!isConnected && (
@@ -403,9 +397,7 @@ export default function Dashboard() {
         <>
           {/* ── TOPBAR ── */}
           <header className="topbar">
-            <div className="crest">
-              <img src="/societas_logo_v2.png" alt="SOCIETAS" />
-            </div>
+            <img src="/societas_logo_v2.png" alt="SOCIETAS" style={{ height: 48, width: 48, objectFit: 'contain' }} />
             <div className="brand">
               <div>
                 <div className="brand-name">SOCIETAS</div>
@@ -500,68 +492,59 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ── TICKER ── */}
-          <div className="ticker">
-            <div className="ticker-label">LIVE</div>
-            <div className="ticker-track">
-              <div className="ticker-content">
-                {tickerHeadlines.map((h, i) => (
-                  <span key={i} className="ticker-item">{h}</span>
-                ))}
-                {tickerHeadlines.map((h, i) => (
-                  <span key={`dup-${i}`} className="ticker-item">{h}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-
           {/* ── APP BODY ── */}
           <div className="app-body">
             {/* WORLD PANE */}
             <div className="world-pane">
               <div className="world-head">
-                <h2 className="world-title">Citizen Census</h2>
-                <div className="world-tags">
-                  <span className={`tag ${(state as any)?.is_running ? 'rec' : 'paused'}`}>
-                    {(state as any)?.is_running ? '● recording' : '◌ paused'}
-                  </span>
-                  <span className="tag subtle">{agents.length} citizens</span>
-                </div>
-                <div className="world-sub">live positions · colour = wealth · face = emotion</div>
+                <h2>Citizen Census</h2>
+                <p className="world-sub">ring = wealth · body = emotion</p>
               </div>
-              <AgentGrid agents={agents} onAgentClick={handleAgentClick} selectedAgent={selectedAgent} />
-              <div className="world-legend">
-                {Object.entries(EMOTION_COLORS).map(([mood, color]) => (
-                  <span key={mood}>
-                    <span className="legend-dot" style={{ background: color }} />
-                    {mood}
-                  </span>
-                ))}
-                <span style={{ marginLeft: 'auto', color: 'var(--rule-strong)' }}>|</span>
-                <span><span className="legend-dot" style={{ background: WEALTH_DOT.poor }} />Poor</span>
-                <span><span className="legend-dot" style={{ background: WEALTH_DOT.middle }} />Middle</span>
-                <span><span className="legend-dot" style={{ background: WEALTH_DOT.rich }} />Rich</span>
-                <span><span className="legend-dot" style={{ background: WEALTH_DOT.business_owner }} />Owner</span>
+              <div className="world-frame" style={{ flex: 1 }}>
+                <AgentGrid agents={agents} onAgentClick={handleAgentClick} selectedAgent={selectedAgent} showLegend={true} />
+                <span className="corner tl" />
+                <span className="corner tr" />
+                <span className="corner bl" />
+                <span className="corner br" />
               </div>
             </div>
 
             {/* DOCK PANE */}
             <div className="dock-pane">
               <div className="dock-toolbar">
-                <div className="dock-toolbar-left">
-                  <span className="dock-toolbar-label">
-                    {openPanels.length === 1 ? '1 panel open' : `${openPanels.length} / ${PANEL_DEFS.length} panels`}
-                  </span>
-                </div>
-                <div className="add-panel-wrap">
-                  <button
-                    className="add-panel-btn gold"
-                    onClick={() => setAddMenuOpen(!addMenuOpen)}
-                  >
-                    + Add Panel
-                  </button>
-                  <button className="btn primary" style={{marginLeft: 8}} onClick={() => setShowBuilder(true)}>+ Custom</button>
-                  {renderAddMenu()}
+                <span className="dock-toolbar-label">{openPanels.length} panel{openPanels.length !== 1 ? 's' : ''} open</span>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <div className="add-panel-wrap">
+                    <button className="btn" onClick={() => setAddMenuOpen(!addMenuOpen)}>+ Add Panel</button>
+                    <div className={`add-menu${addMenuOpen ? ' show' : ''}`}>
+                      {categories.map((cat) => {
+                        const panels = PANEL_DEFS.filter((p) => !openPanels.includes(p.id) && p.id !== 'custom' && p.category === cat);
+                        if (panels.length === 0) return null;
+                        return (
+                          <div key={cat}>
+                            <div className="am-cat">{cat}</div>
+                            {panels.map((p) => (
+                              <div key={p.id} className="am-item" onClick={() => { addPanel(p.id); setAddMenuOpen(false); }}>
+                                {p.title}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                      {/* Custom panels */}
+                      {customPanels.length > 0 && (
+                        <div>
+                          <div className="am-cat">Custom</div>
+                          {customPanels.filter(cp => !openPanels.includes(cp.id)).map(cp => (
+                            <div key={cp.id} className="am-item" onClick={() => { setOpenPanels(prev => [...prev, cp.id]); setAddMenuOpen(false); }}>
+                              {cp.name}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <button className="btn" onClick={() => setShowBuilder(true)} style={{ whiteSpace: 'nowrap' }}>+ Custom Panel</button>
                 </div>
               </div>
               <div className="dock-content" onClick={() => setAddMenuOpen(false)}>
@@ -594,7 +577,7 @@ export default function Dashboard() {
                   </div>
                 ))}
                 {showBuilder && (
-                  <div className="panel">
+                  <div className="panel" style={{ marginBottom: 12 }}>
                     <div className="panel-head">
                       <div className="drag-dots"><span/><span/><span/><span/><span/><span/></div>
                       <h3>New Custom Panel</h3>
