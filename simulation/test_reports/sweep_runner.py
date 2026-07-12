@@ -30,6 +30,26 @@ from simulation.agents.agent_factory import create_initial_population
 from simulation.world.property_market import assign_initial_housing
 
 
+def compute_wealth_gini(agents) -> float:
+    """Compute Gini coefficient of wealth distribution across living agents."""
+    money_values = sorted(
+        getattr(a.resources, "money", 0.0)
+        for a in agents
+        if getattr(a, "is_alive", True)
+    )
+    n = len(money_values)
+    if n < 2:
+        return 0.0
+    total = sum(money_values)
+    if total <= 0.0:
+        return 0.0
+    cumulative = 0.0
+    weighted_diff = 0.0
+    for i, m in enumerate(money_values, start=1):
+        weighted_diff += (2 * i - n - 1) * m
+    return weighted_diff / (n * total)
+
+
 # ---------------------------------------------------------------------------
 # Patch table: for each constant, every module that imports it
 # Maps  module_path -> [const_name, ...]
@@ -403,12 +423,64 @@ def run_single(
         avg_u = sum(a.unlust for a in living) / max(1, len(living))
         unemployed = sum(1 for a in living if not getattr(a.resources, "employed", False)) / max(1, len(living))
 
-        per_tick.append({
-            "tick": tick, "alive": len(living), "dead": total_deaths,
+        # Sample per_tick every 5 ticks (plus tick 0 and final) to keep
+        # output size reasonable while preserving full trajectory shape.
+        if tick % 5 != 0 and tick != n_ticks - 1 and len(living) > 0:
+            pass  # skip detailed per-tick capture
+        else:
+            per_tick.append({
+                "tick": tick, "alive": len(living), "dead": total_deaths,
             "avg_happiness": round(avg_h, 4), "avg_unlust": round(avg_u, 4),
             "avg_unemployment": round(unemployed, 4),
             "crime_rate": world.crime_rate, "protest_intensity": world.protest_intensity,
             "food_availability": world.food_availability,
+            "water_availability": world.water_availability,
+            "economic_health": round(world.economic_health, 4),
+            "social_cohesion": round(world.social_cohesion, 4),
+            "environmental_quality": round(world.environmental_quality, 4),
+            "public_order": round(world.public_order, 4),
+            "innovation_index": round(world.innovation_index, 4),
+            "unlust_world": round(world.unlust, 4),
+            "morality_world": round(world.morality, 4),
+            "national_debt": round(world.national_debt, 4),
+            "remittance_income": round(world.remittance_income, 4),
+            "energy_price": round(world.energy_price, 4),
+            "tax_rate": round(world.tax_rate, 4),
+            "unemployment_rate": round(world.unemployment_rate, 4),
+            "welfare_enabled": world.welfare_enabled,
+            "welfare_amount": round(world.welfare_amount, 4),
+            "tax_revenue_pool": round(getattr(world, "tax_revenue_pool", 0.0), 4),
+            "salary_multiplier": round(getattr(world, "salary_multiplier", 1.0), 4),
+            "active_events": len(getattr(world, "active_events", [])),
+            "active_env_events": len(getattr(world, "active_env_events", [])),
+            "media_articles": len(world.media_state.get("articles", [])) if isinstance(world.media_state, dict) else 0,
+            "media_trust": world.media_state.get("trust_in_media", 0.6) if isinstance(world.media_state, dict) else 0.6,
+            "media_sensationalism": world.media_state.get("sensationalism", 0.3) if isinstance(world.media_state, dict) else 0.3,
+            "media_fake_news_level": world.media_state.get("fake_news_level", 0.0) if isinstance(world.media_state, dict) else 0.0,
+            "media_sentiment_gov": world.media_state.get("sentiment_gov", 0.0) if isinstance(world.media_state, dict) else 0.0,
+            "media_sentiment_economy": world.media_state.get("sentiment_economy", 0.0) if isinstance(world.media_state, dict) else 0.0,
+            "economy_gdp": round(getattr(world.economy, "gdp", 0.0), 4),
+            "economy_inflation": round(getattr(world.economy, "inflation_rate", 0.02), 4),
+            "economy_employment": round(getattr(world.economy, "employment_rate", 0.9), 4),
+            "economy_consumer_confidence": round(getattr(world.economy, "consumer_confidence", 0.5), 4),
+            "economy_market_stability": round(getattr(world.economy, "market_stability", 0.5), 4),
+            "economy_tax_revenue": round(getattr(world.economy, "tax_revenue", 0.0), 4),
+            "economy_government_spending": round(getattr(world.economy, "government_spending", 0.0), 4),
+            "economy_trade_balance": round(getattr(world.economy, "trade_balance", 0.0), 4),
+            "crime_overall_rate": round(getattr(world.crime, "overall_crime_rate", 0.05), 4),
+            "crime_enforcement": round(getattr(world.crime, "enforcement_effectiveness", 0.7), 4),
+            "crime_incarceration": round(getattr(world.crime, "incarceration_rate", 0.01), 4),
+            "crime_public_safety": round(getattr(world.crime, "public_safety_index", 0.8), 4),
+            "crime_victims": getattr(world.crime, "crime_victims_total", 0),
+            "crimes_reported": getattr(world.crime, "crimes_reported", 0),
+            "crimes_resolved": getattr(world.crime, "crimes_resolved", 0),
+            "psych_morality": round(getattr(world.psychology, "average_morality", 0.5), 4),
+            "psych_happiness": round(getattr(world.psychology, "average_happiness", 0.5), 4),
+            "psych_stress": round(getattr(world.psychology, "average_stress", 0.3), 4),
+            "psych_mental_health": round(getattr(world.psychology, "mental_health_index", 0.5), 4),
+            "psych_social_satisfaction": round(getattr(world.psychology, "social_satisfaction", 0.5), 4),
+            "psych_life_satisfaction": round(getattr(world.psychology, "life_satisfaction", 0.5), 4),
+            "wealth_gini": round(compute_wealth_gini(agents), 4) if len(living) > 1 else 0.0,
         })
 
         if len(living) == 0:
@@ -434,6 +506,7 @@ def run_single(
         "final_avg_unlust": per_tick[-1]["avg_unlust"] if per_tick else 0,
         "per_tick_stats": per_tick,
     }
+
 
 
 def run_sweep(
@@ -587,7 +660,7 @@ def main():
         for group_name in SWEEP_GROUPS:
             sweep_group(group_name, output_dir)
 
-    print("\nDone.")
+        print("\nDone.")
 
 
 if __name__ == "__main__":

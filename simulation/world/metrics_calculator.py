@@ -75,21 +75,37 @@ def update_world_metrics(
     baseline_protest = world.unlust * 0.25 + world.unemployment_rate * 0.35 + inflation_pressure
     world.protest_intensity = min(1.0, baseline_protest + agent_protest_rate * 0.5)
 
-    # Crime erodes public order — no recovery (order only decays)
+    # Crime erodes public order — also has positive recovery from peace
     decay_order = world.crime_rate * 0.015 + world.protest_intensity * 0.005 + inflation_pressure * 0.01
-    world.public_order = max(0.0, min(1.0, world.public_order - decay_order))
+    recovery_order = (
+        0.001
+        + (1.0 - world.crime_rate) * 0.002
+        + (1.0 - world.unemployment_rate) * 0.001
+    )
+    world.public_order = max(0.0, min(1.0, world.public_order - decay_order + recovery_order))
 
     decay_cohesion = world.crime_rate * 0.01 + world.protest_intensity * 0.008 + inflation_pressure * 0.005
-    world.social_cohesion = max(0.0, min(1.0, world.social_cohesion - decay_cohesion))
+    recovery_cohesion = (
+        0.001
+        + (1.0 - world.crime_rate) * 0.0015
+        + world.morality * 0.001
+    )
+    world.social_cohesion = max(0.0, min(1.0, world.social_cohesion - decay_cohesion + recovery_cohesion))
 
-    # Economic health: crime, unemployment, inflation, debt all drag
+    # Economic health: crime/unemployment/inflation/debt drag; work/wages/tax pull
     econ_decay = (
         world.crime_rate * 0.005
         + world.unemployment_rate * 0.005
         + world.economy.inflation_rate * 0.01
         + debt_servicing * 0.1
     )
-    world.economic_health = max(0.01, min(1.0, world.economic_health - econ_decay))
+    econ_recovery = (
+        0.001
+        + (1.0 - world.unemployment_rate) * 0.002
+        + (1.0 - world.crime_rate) * 0.001
+        + world.food_availability * 0.0005
+    )
+    world.economic_health = max(0.01, min(1.0, world.economic_health - econ_decay + econ_recovery))
 
     # ── Population and time ──────────────────────────────────────────
     world.population = alive_count
@@ -99,6 +115,52 @@ def update_world_metrics(
     # apply_environmental_tick, but ensure bounds here too).
     world.food_availability = max(0.0, min(1.0, world.food_availability))
     world.water_availability = max(0.0, min(1.0, world.water_availability))
+
+    # ── Wire previously-dead top-level world fields ─────────────
+    # Environmental quality tracks food/water availability average
+    world.environmental_quality = max(0.0, min(1.0, (world.food_availability + world.water_availability) / 2.0))
+
+    # Innovation index: gradual drift with R&D proxy (work actions)
+    # Currently constant; will be wired to action counts in Phase 4
+    work_count = sum(getattr(a, "last_action", None) == "WORK" for a in living)
+    if hasattr(world, "_last_innovation_update_tick") and int(world.time_step) - world._last_innovation_update_tick >= 10:
+        # Slow drift: innovation rises with employment, falls with unrest
+        target = 0.5 + (1.0 - world.unemployment_rate) * 0.2 - world.protest_intensity * 0.15
+        world.innovation_index = max(0.0, min(1.0, world.innovation_index + (target - world.innovation_index) * 0.05))
+        world._last_innovation_update_tick = int(world.time_step)
+    elif not hasattr(world, "_last_innovation_update_tick"):
+        world._last_innovation_update_tick = int(world.time_step)
+
+    # Remittance income: random walk with mean reversion
+    world.remittance_income = max(0.0, min(1.0, world.remittance_income + (0.08 - world.remittance_income) * 0.01))
+
+    # ── Wired sub-state writers (Phase 2: kill the dead fields) ───
+    avg_morality = world.morality
+    avg_happiness = world.unlust and (1.0 - world.unlust) or 0.5  # placeholder
+    if living:
+        avg_happiness = sum(a.emotions.happiness_score for a in living) / alive_count
+    avg_unlust_world = world.unlust
+
+    # EconomyState: track actual economy activity
+    employed_count = sum(1 for a in living if a.resources.employed)
+    world.economy.employment_rate = employed_count / alive_count
+    world.economy.consumer_confidence = max(0.0, min(1.0, 0.5 + (avg_happiness - 0.5) * 0.6 - avg_unlust_world * 0.3))
+    world.economy.market_stability = max(0.0, min(1.0, 1.0 - world.crime_rate * 0.5 - world.protest_intensity * 0.4 - world.economy.inflation_rate * 0.3))
+
+    # CrimeState: track actual crime dynamics
+    world.crime.overall_crime_rate = world.crime_rate
+    world.crime.public_safety_index = max(0.0, min(1.0, 1.0 - world.crime_rate * 1.5 - world.protest_intensity * 0.5))
+    world.crime.crime_victims_total = int(total_crimes)
+    world.crime.crimes_reported = int(total_crimes)
+    world.crime.crimes_resolved = int(total_crimes * world.crime.enforcement_effectiveness)
+
+    # PsychologyState: aggregate psychological well-being
+    world.psychology.average_morality = avg_morality
+    world.psychology.average_happiness = avg_happiness
+    world.psychology.average_stress = max(0.0, min(1.0, avg_unlust_world * 0.7 + (1.0 - world.economic_health) * 0.3))
+    world.psychology.mental_health_index = max(0.0, min(1.0, avg_happiness * 0.6 + (1.0 - avg_unlust_world) * 0.4))
+    world.psychology.social_satisfaction = max(0.0, min(1.0, world.social_cohesion * 0.5 + avg_happiness * 0.3 + (1.0 - avg_unlust_world) * 0.2))
+    world.psychology.life_satisfaction = max(0.0, min(1.0, avg_happiness * 0.4 + world.economic_health * 0.3 + world.public_order * 0.2 + (1.0 - avg_unlust_world) * 0.1))
 
 
 def compute_wealth_stratified_metrics(
