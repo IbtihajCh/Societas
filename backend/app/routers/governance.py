@@ -45,7 +45,7 @@ async def apply_governance(request: GovernanceChangeRequest, service: Simulation
     if request.food_availability is not None:
         state.food_availability = request.food_availability
     state_dto = await service.get_state()
-    return {"status": "applied", "changes": request.model_dump(exclude_none=True), "state": state_dto}
+    return state_dto
 
 @router.post("/apply-suggestion", status_code=201)
 async def apply_suggestion(
