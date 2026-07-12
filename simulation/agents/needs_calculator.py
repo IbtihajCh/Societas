@@ -171,7 +171,7 @@ def progress_age(agent: AgentState) -> None:
     Args:
         agent: The agent to age (modified in place).
     """
-    agent.age += AGE_PROGRESSION_INTERVAL
+    agent.age = int(agent.age + AGE_PROGRESSION_INTERVAL)
     agent.age_bracket = get_age_bracket(agent.age)
 
 
@@ -348,3 +348,4 @@ def maybe_lose_job(agent: AgentState, rng: DeterministicRNG, world: SimulationSt
         agent.resources.base_salary = 0.0
         return True
     return False
+
