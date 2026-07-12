@@ -91,7 +91,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
       const store = useSimulationStore.getState();
       if (isTickCompleted(message)) {
         store.addEvent({
-          id: `ws-tc-${message.tick}`,
+          id: `ws-tc-${message.tick}-${Date.now()}`,
           tick: message.tick,
           event_type: 'tick_completed',
           data: {
@@ -271,7 +271,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
           setState(result);
           useSimulationStore.getState().appendTickData(result);
         } catch {
-          // ignore
+          stopAutoRun();
         }
       }, intervalMs);
       setIsAutoRunning(true);
