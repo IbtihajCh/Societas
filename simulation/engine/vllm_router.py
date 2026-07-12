@@ -9,20 +9,18 @@ Falls back to 31B for all tasks when E2B/26B are unavailable.
 """
 
 import json
-import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import requests
 
-from shared.types.enums import WealthClass
-from shared.utilities.deterministic_rng import DeterministicRNG
+from shared.interfaces.i_ai_router import IAIRouter
 from shared.schemas.agent_state import AgentState
 from shared.schemas.decision import DecisionRequest, DecisionResponse
-from shared.schemas.policy import GovernmentPolicy, ImpactDelta, PolicyWeights
 from shared.schemas.news_event import NewsEvent, SpotlightNarration
+from shared.schemas.policy import GovernmentPolicy, ImpactDelta, PolicyWeights
 from shared.schemas.simulation_state import SimulationState
-from shared.interfaces.i_ai_router import IAIRouter
-from shared.constants.defaults import BASE_FOOD_COST, SCARCITY_BASE
+from shared.types.enums import WealthClass
+from shared.utilities.deterministic_rng import DeterministicRNG
 
 __all__ = ["VLLMRouter"]
 
@@ -55,20 +53,34 @@ class VLLMRouter(IAIRouter):
         self._timeout = timeout
         self._fallback_to_31b = fallback_to_31b
         self._call_count = 0
+
     def is_available(self) -> bool:
         return True
 
-    def _call_llm(self, prompt: str, model: str = "google/gemma-4-31B-it",
-                  url: Optional[str] = None, api_key: Optional[str] = None,
-                  temperature: float = 0.0, max_tokens: int = 256) -> str:
+    def _call_llm(
+        self,
+        prompt: str,
+        model: str = "google/gemma-4-31B-it",
+        url: str | None = None,
+        api_key: str | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 256,
+    ) -> str:
         url = url or self._gov_url
         api_key = api_key or self._gov_key
         try:
-            payload = {"model": model, "messages": [{"role": "user", "content": prompt}],
-                       "temperature": temperature, "max_tokens": max_tokens}
-            r = requests.post(f"{url}/chat/completions",
-                              headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                              json=payload, timeout=self._timeout)
+            payload = {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            r = requests.post(
+                f"{url}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=payload,
+                timeout=self._timeout,
+            )
             if r.status_code == 200:
                 return r.json()["choices"][0]["message"]["content"]
         except Exception:
@@ -77,23 +89,29 @@ class VLLMRouter(IAIRouter):
 
     def _mock_decide(self, prompt: str, agent: AgentState, world: SimulationState) -> str:
         """Deterministic fallback when no AI server is available."""
-        from simulation.agents.decision_engine import build_agent_prompt, deterministic_fallback
+        from simulation.agents.decision_engine import deterministic_fallback
         from simulation.agents.emotion_engine import compute_happiness
-        hap = compute_happiness(agent)
-        action = deterministic_fallback(agent, world, DeterministicRNG(seed=int(agent.age + agent.unlust * 100)))
+
+        hap = compute_happiness(agent, world)
+        action = deterministic_fallback(
+            agent, world, DeterministicRNG(seed=int(agent.age + agent.unlust * 100))
+        )
         feelings = ["happy", "neutral", "worried", "determined", "tired"]
         import random
+
         rng = random.Random(agent.age * 1000 + int(agent.unlust * 100))
         feeling = feelings[rng.randint(0, len(feelings) - 1)]
-        return json.dumps({"action": action.value if hasattr(action, "value") else str(action),
-                           "reason": f"My current state (needs={agent.needs.levels.get('survival', 0):.2f}, "
-                                     f"happiness={hap:.2f}, unlust={agent.unlust:.2f}) "
-                                     f"led me to choose {action}.",
-                           "feeling": feeling})
+        return json.dumps(
+            {
+                "action": action.value if hasattr(action, "value") else str(action),
+                "reason": f"My current state (needs={agent.needs.levels.get('survival', 0):.2f}, "
+                f"happiness={hap:.2f}, unlust={agent.unlust:.2f}) "
+                f"led me to choose {action}.",
+                "feeling": feeling,
+            }
+        )
 
-    def agent_decide(
-        self, prompt: str, agent: AgentState, world: SimulationState
-    ) -> str:
+    def agent_decide(self, prompt: str, agent: AgentState, world: SimulationState) -> str:
         self._call_count += 1
         result = self._call_llm(
             prompt,
@@ -109,21 +127,24 @@ class VLLMRouter(IAIRouter):
     def agent_decide_batch(
         self, prompts: list[str], agents: list[AgentState], world: SimulationState
     ) -> list[str]:
-        return [self.agent_decide(p, a, world) for p, a in zip(prompts, agents)]
+        return [self.agent_decide(p, a, world) for p, a in zip(prompts, agents, strict=False)]
 
     def _mock_moral(self, prompt: str, agent: AgentState, world: SimulationState) -> str:
         from simulation.agents.decision_engine import deterministic_fallback
-        action = deterministic_fallback(agent, world, DeterministicRNG(seed=agent.age + agent.unlust * 50))
-        return json.dumps({
-            "action": action.value if hasattr(action, "value") else str(action),
-            "reason": f"Moral deliberation: my morality is {agent.traits.morality:.2f}, "
-                      f"unlust is {agent.unlust:.2f}. I chose {action}.",
-            "feeling": "concerned",
-        })
 
-    def moral_reasoning(
-        self, prompt: str, agent: AgentState, world: SimulationState
-    ) -> str:
+        action = deterministic_fallback(
+            agent, world, DeterministicRNG(seed=agent.age + agent.unlust * 50)
+        )
+        return json.dumps(
+            {
+                "action": action.value if hasattr(action, "value") else str(action),
+                "reason": f"Moral deliberation: my morality is {agent.traits.morality:.2f}, "
+                f"unlust is {agent.unlust:.2f}. I chose {action}.",
+                "feeling": "concerned",
+            }
+        )
+
+    def moral_reasoning(self, prompt: str, agent: AgentState, world: SimulationState) -> str:
         self._call_count += 1
         result = self._call_llm(
             prompt,
@@ -139,14 +160,14 @@ class VLLMRouter(IAIRouter):
     def moral_reasoning_batch(
         self, prompts: list[str], agents: list[AgentState], world: SimulationState
     ) -> list[str]:
-        return [self.moral_reasoning(p, a, world) for p, a in zip(prompts, agents)]
+        return [self.moral_reasoning(p, a, world) for p, a in zip(prompts, agents, strict=False)]
 
     def translate_policy(
         self,
         policy_text: str,
         existing_weights: PolicyWeights,
         world_state: SimulationState,
-    ) -> Tuple[PolicyWeights, Dict[WealthClass, ImpactDelta], Dict[str, Any]]:
+    ) -> tuple[PolicyWeights, dict[WealthClass, ImpactDelta], dict[str, Any]]:
         prompt = (
             f"Translate this policy into structured effects: {policy_text}\n\n"
             f"Current weights: economic_freedom={existing_weights.economic_freedom}, "
@@ -163,12 +184,24 @@ class VLLMRouter(IAIRouter):
         try:
             data = json.loads(response)
             new_weights = PolicyWeights(
-                economic_freedom=data.get("new_weights", {}).get("economic_freedom", existing_weights.economic_freedom),
-                social_welfare=data.get("new_weights", {}).get("social_welfare", existing_weights.social_welfare),
-                environmental_protection=data.get("new_weights", {}).get("environmental_protection", existing_weights.environmental_protection),
-                public_order=data.get("new_weights", {}).get("public_order", existing_weights.public_order),
-                innovation=data.get("new_weights", {}).get("innovation", existing_weights.innovation),
-                cultural_preservation=data.get("new_weights", {}).get("cultural_preservation", existing_weights.cultural_preservation),
+                economic_freedom=data.get("new_weights", {}).get(
+                    "economic_freedom", existing_weights.economic_freedom
+                ),
+                social_welfare=data.get("new_weights", {}).get(
+                    "social_welfare", existing_weights.social_welfare
+                ),
+                environmental_protection=data.get("new_weights", {}).get(
+                    "environmental_protection", existing_weights.environmental_protection
+                ),
+                public_order=data.get("new_weights", {}).get(
+                    "public_order", existing_weights.public_order
+                ),
+                innovation=data.get("new_weights", {}).get(
+                    "innovation", existing_weights.innovation
+                ),
+                cultural_preservation=data.get("new_weights", {}).get(
+                    "cultural_preservation", existing_weights.cultural_preservation
+                ),
             )
             deltas = {}
             for cls_str, delta_data in data.get("impact_deltas", {}).items():
@@ -247,8 +280,8 @@ class VLLMRouter(IAIRouter):
             return SpotlightNarration(narration=response, emotional_state="neutral", highlights=[])
 
     def governance_advisory(
-        self, world_state: SimulationState, active_policies: List[GovernmentPolicy]
-    ) -> Dict[str, Any]:
+        self, world_state: SimulationState, active_policies: list[GovernmentPolicy]
+    ) -> dict[str, Any]:
         policies_summary = [
             {"name": p.name, "category": str(p.category), "status": p.status}
             for p in active_policies

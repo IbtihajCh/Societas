@@ -36,22 +36,36 @@ def apply_rent(agent: AgentState) -> float:
 
 
 def apply_welfare(agent: AgentState, world: SimulationState) -> float:
-    """Apply welfare payment if enabled and agent is unemployed.
+    """Apply welfare payment if enabled and agent is unemployed OR poor.
+
+    Welfare is funded from world.economy.tax_revenue (which accumulates
+    from WORK action tax payments). When the pool is empty, no welfare
+    is paid — welfare is bounded by what the rich (and others) actually
+    paid in tax this tick. This makes welfare cost visible on the
+    rich/middle class money, not minted from nothing.
 
     Args:
         agent: The agent to apply welfare to (modified in place).
-        world: World state (checks welfare_enabled and welfare_amount).
+        world: World state (checks welfare_enabled, welfare_amount, and
+            economy.tax_revenue for funding).
 
     Returns:
-        The welfare amount received (0.0 if not eligible).
+        The welfare amount received (0.0 if not eligible or pool empty).
     """
     if not world.welfare_enabled:
         return 0.0
-    if agent.resources.employed:
+    # Welfare for unemployed OR poor agents (the working poor get help too)
+    if agent.resources.employed and agent.wealth_class != WealthClass.POOR:
         return 0.0
-    amount = world.welfare_amount
+    # Cap welfare at the available pool — no free money
+    pool_available = max(0.0, world.economy.tax_revenue)
+    amount = min(world.welfare_amount, pool_available)
+    if amount <= 0.0:
+        return 0.0
     agent.resources.money += amount
     agent.resources.wealth = agent.resources.money
+    # Deduct from the pool so it can't be double-spent
+    world.economy.tax_revenue -= amount
     return amount
 
 

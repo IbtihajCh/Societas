@@ -110,21 +110,21 @@ WEALTH_CLASS_MONEY_RANGES: dict[WealthClass, tuple[float, float]] = {
     WealthClass.POOR: (100.0, 800.0),
     WealthClass.MIDDLE: (2000.0, 8000.0),
     WealthClass.RICH: (15000.0, 80000.0),
-    WealthClass.BUSINESS_OWNER: (80000.0, 200000.0),
 }
 
+# Target distribution: 55% middle, 20% poor, 15% rich (sums to 90%).
+# The remaining 10% is applied as per-agent randomness in agent_factory
+# so the population is not identical across runs.
 WEALTH_CLASS_DISTRIBUTION: dict[WealthClass, Percentage] = {
-    WealthClass.POOR: Percentage(50.0),
-    WealthClass.MIDDLE: Percentage(35.0),
+    WealthClass.POOR: Percentage(20.0),
+    WealthClass.MIDDLE: Percentage(55.0),
     WealthClass.RICH: Percentage(15.0),
-    WealthClass.BUSINESS_OWNER: Percentage(0.0),
 }
 
 WEALTH_CLASS_THRESHOLDS: dict[WealthClass, tuple[float, float]] = {
     WealthClass.POOR: (0.0, 1000.0),
     WealthClass.MIDDLE: (1000.0, 15000.0),
-    WealthClass.RICH: (15000.0, 80000.0),
-    WealthClass.BUSINESS_OWNER: (80000.0, float("inf")),
+    WealthClass.RICH: (15000.0, float("inf")),
 }
 
 # Education probability by wealth class
@@ -144,11 +144,6 @@ EDUCATION_BY_WEALTH: dict[WealthClass, dict[EducationLevel, float]] = {
         EducationLevel.SECONDARY: 0.35,
         EducationLevel.HIGHER: 0.60,
     },
-    WealthClass.BUSINESS_OWNER: {
-        EducationLevel.PRIMARY: 0.02,
-        EducationLevel.SECONDARY: 0.18,
-        EducationLevel.HIGHER: 0.80,
-    },
 }
 
 # Property ownership probability by wealth class
@@ -156,7 +151,6 @@ PROPERTY_OWNERSHIP: dict[WealthClass, float] = {
     WealthClass.POOR: 0.10,
     WealthClass.MIDDLE: 0.60,
     WealthClass.RICH: 0.90,
-    WealthClass.BUSINESS_OWNER: 0.98,
 }
 
 # Rent cost per tick by wealth class
@@ -164,7 +158,6 @@ RENT_COST: dict[WealthClass, float] = {
     WealthClass.POOR: 5.0,
     WealthClass.MIDDLE: 25.0,
     WealthClass.RICH: 80.0,
-    WealthClass.BUSINESS_OWNER: 120.0,
 }
 
 # === BETA DISTRIBUTION PARAMETERS ===

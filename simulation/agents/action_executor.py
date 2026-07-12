@@ -231,7 +231,7 @@ def execute_action(
     agent.last_action = action
 
     # ── Phase 4: apply world-state side effects (organic whole) ─────
-    _apply_world_effects(agent, action, world, _money_before, _happiness_before)
+    _apply_world_effects(agent, action, world, _money_before, _happiness_before, result)
 
     return result
 
@@ -242,6 +242,7 @@ def _apply_world_effects(
     world: SimulationState,
     money_before: float,
     happiness_before: float,
+    result: AgentActionResult = None,
 ) -> None:
     """Apply world-state side effects from agent actions. Makes actions ORGANIC.
 
@@ -254,10 +255,14 @@ def _apply_world_effects(
 
     if action == ActionType.WORK:
         # Work: builds economy. GDP, gov_spending are FLOWS computed in
-        # metrics_calculator. Tax_revenue is a per-tick accumulator that
-        # receives small additions per WORK action (capped in metrics_calculator).
-        if money_delta > 0:
-            world.economy.tax_revenue += money_delta * world.tax_rate
+        # metrics_calculator. The actual tax paid this WORK action is
+        # stored in result.score_delta['tax_paid'] by _do_work — accumulate
+        # it into world.economy.tax_revenue (the one and only tax sink).
+        tax_paid = 0.0
+        if result is not None and result.score_delta is not None:
+            tax_paid = result.score_delta.get("tax_paid", 0.0)
+        if tax_paid > 0:
+            world.economy.tax_revenue += tax_paid
         world.economy.employment_rate = min(1.0, world.economy.employment_rate + 0.001)
         world.economy.consumer_confidence = min(1.0, world.economy.consumer_confidence + 0.0005)
         world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0003)
@@ -374,14 +379,35 @@ def _do_work(agent: AgentState, world: SimulationState, result: AgentActionResul
         salary_mult = SALARY_MULTIPLIER_RICH
     income = salary * productivity * creativity_mod * salary_mult
 
+    # Tax paid this WORK action: pre-tax salary * tax_rate * modifiers.
+    # (The salary above was pre-multiplied by (1 - tax_rate) so we recover
+    # the actual tax amount here. This is the only place tax is tracked.)
+    tax_paid = agent.resources.base_salary * world.tax_rate * productivity * creativity_mod * salary_mult
+
     agent.resources.money += income
     agent.resources.wealth = agent.resources.money
+
+    # Work produces food: each WORK action adds a small amount to world
+    # food availability. Scales with creativity (research efficiency) and
+    # innovation (technological progress); dampened by inflation. This is
+    # the work-driven food production the user requested — a real economy
+    # where working generates food rather than just income.
+    if hasattr(world, "innovation_index"):
+        innovation_factor = 1.0 + getattr(world, "innovation_index", 0.0)
+    else:
+        innovation_factor = 1.0
+    if hasattr(world, "inflation_rate"):
+        inflation_dampen = 1.0 - min(0.5, world.inflation_rate)
+    else:
+        inflation_dampen = 1.0
+    food_produced = 0.001 * agent.traits.creativity * innovation_factor * inflation_dampen
+    world.food_availability = min(1.0, world.food_availability + food_produced)
 
     social = agent.needs.get_level(NeedType.SOCIAL_CONNECTION)
     agent.needs.set_level(NeedType.SOCIAL_CONNECTION, social + 0.015)
 
     result.outcome = f"earned £{income:.2f}"
-    result.score_delta = {"money": income}
+    result.score_delta = {"money": income, "tax_paid": tax_paid, "food_produced": food_produced}
 
 
 def _do_buy_food(agent: AgentState, world: SimulationState, result: AgentActionResult) -> None:
@@ -1003,9 +1029,6 @@ def _do_invest(
     return_amount = invest_amount * multiplier
     agent.resources.money += return_amount
     agent.resources.wealth = agent.resources.money
-    if agent.wealth_class == WealthClass.BUSINESS_OWNER:
-        growth = rng.uniform(0.0, 0.02)
-        agent.business_value *= (1.0 + growth)
     result.outcome = f"invested_{invest_amount:.2f}_returned_{return_amount:.2f}"
     result.score_delta = {"money": return_amount - invest_amount}
 

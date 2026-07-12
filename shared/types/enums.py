@@ -12,6 +12,7 @@ from enum import Enum, IntEnum, auto
 if sys.version_info >= (3, 11):
     from enum import StrEnum
 else:
+
     class StrEnum(str, Enum):
         """Backport of Python 3.11's StrEnum for compatibility."""
 
@@ -83,7 +84,6 @@ class WealthClass(StrEnum):
     POOR = "poor"
     MIDDLE = "middle"
     RICH = "rich"
-    BUSINESS_OWNER = "business_owner"
 
 
 class Gender(StrEnum):

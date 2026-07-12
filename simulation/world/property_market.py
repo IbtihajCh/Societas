@@ -51,7 +51,6 @@ def assign_initial_housing(agent: AgentState) -> None:
       POOR:          20% homeless, 40% slum, 30% standard, 10% premium
       MIDDLE:         5% homeless, 25% slum, 50% standard, 20% premium
       RICH:           0% homeless, 10% slum, 30% standard, 60% premium
-      BUSINESS_OWNER: 0% homeless,  5% slum, 25% standard, 70% premium
 
     Args:
         agent: Agent to assign housing to (modified in place).
@@ -69,8 +68,6 @@ def assign_initial_housing(agent: AgentState) -> None:
         tier_probs = {0: 0.05, 1: 0.25, 2: 0.50, 3: 0.20}
     elif wc == WealthClass.RICH:
         tier_probs = {0: 0.00, 1: 0.10, 2: 0.30, 3: 0.60}
-    elif wc == WealthClass.BUSINESS_OWNER:
-        tier_probs = {0: 0.00, 1: 0.05, 2: 0.25, 3: 0.70}
     else:
         tier_probs = {0: 0.10, 1: 0.30, 2: 0.40, 3: 0.20}
 
