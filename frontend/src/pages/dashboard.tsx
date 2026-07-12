@@ -27,7 +27,7 @@ function fmtPct(v: number | undefined | null, d = '—') {
 const NAV_ITEMS = ['overview', 'citizens', 'governance', 'communities', 'economy', 'life cycle', 'model log'];
 
 export default function Dashboard() {
-  const { state, agents, isConnected, isRunning, startSimulation, advanceTick, refreshAgents } = useSimulation();
+  const { state, agents, isConnected, isRunning, startSimulation, advanceTick, refreshAgents, stopSimulation } = useSimulation();
   const logs = useSimulationStore((s) => s.llmLog);
   const events = useSimulationStore((s) => s.events);
   const actionHistory = useSimulationStore((s) => s.actionHistory);
@@ -251,12 +251,12 @@ export default function Dashboard() {
                   <span className="stamp-dot" style={{ background: isRunning ? 'var(--moss)' : 'var(--ink-soft)' }}></span>
                   {isRunning ? 'running' : 'paused'}
                 </span>
-                <button className="btn quiet" onClick={() => apiService.resetSimulation()}>reset</button>
-                <button className="btn" onClick={advanceTick}>tick +1</button>
+                <button className="btn quiet" onClick={async () => { await apiService.resetSimulation(); await refreshAgents(); }}>reset</button>
+                <button className="btn" onClick={advanceTick} disabled={!isRunning}>tick +1</button>
                 <button className={`btn primary ${starting ? 'loading' : ''}`} onClick={startSim} disabled={starting}>
                   {starting ? 'starting' : isRunning ? 'restart' : 'start'}
                 </button>
-                <button className="btn quiet" onClick={() => apiService.stopSimulation()}>stop</button>
+                <button className="btn quiet" onClick={stopSimulation}>stop</button>
               </div>
             </div>
 
@@ -595,3 +595,4 @@ function StatBox({ label, value, delta, color, history, historyKey }: {
     </div>
   );
 }
+
