@@ -324,6 +324,16 @@ export default function Dashboard() {
 
   return (
     <div className="shell">
+      <div className="bg-particles">
+        <div className="dot" style={{ left: '10%', width: 3, height: 3, animationDelay: '0s' }} />
+        <div className="dot" style={{ left: '25%', width: 2, height: 2, animationDelay: '1s' }} />
+        <div className="dot" style={{ left: '35%', width: 4, height: 4, animationDelay: '2s' }} />
+        <div className="dot" style={{ left: '50%', width: 2, height: 2, animationDelay: '3s' }} />
+        <div className="dot" style={{ left: '60%', width: 3, height: 3, animationDelay: '4s' }} />
+        <div className="dot" style={{ left: '75%', width: 2, height: 2, animationDelay: '5s' }} />
+        <div className="dot" style={{ left: '85%', width: 4, height: 4, animationDelay: '6s' }} />
+        <div className="dot" style={{ left: '95%', width: 3, height: 3, animationDelay: '7s' }} />
+      </div>
       <style jsx>{`
         .am-cat {
           padding: 6px 14px 2px;
