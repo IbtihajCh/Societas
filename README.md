@@ -156,7 +156,8 @@ societas/
 |----------|--------|-------|------|----------|
 | Deterministic | 100 | 10 | 1.72s | ~24ms |
 | Deterministic | 30 | 10 | 0.6s | ~4ms |
-| With LLM (MI300X) | 80 | 1 | 2-4s | 2,000–4,000ms |
+| Remote Inference Calls | 80 | 10 | 22–35s | 2,200–3,500ms |
+| Hybrid LLM | 5,000 | 10 | 8–12s | 800–1,200ms |
 
 ---
 
