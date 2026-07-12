@@ -231,7 +231,7 @@ def execute_action(
     agent.last_action = action
 
     # ── Phase 4: apply world-state side effects (organic whole) ─────
-    _apply_world_effects(agent, action, world, _money_before, _happiness_before)
+    _apply_world_effects(agent, action, world, _money_before, _happiness_before, result)
 
     return result
 
@@ -242,6 +242,7 @@ def _apply_world_effects(
     world: SimulationState,
     money_before: float,
     happiness_before: float,
+    result: AgentActionResult = None,
 ) -> None:
     """Apply world-state side effects from agent actions. Makes actions ORGANIC.
 
@@ -253,23 +254,27 @@ def _apply_world_effects(
     happiness_delta = agent.emotions.happiness_score - happiness_before
 
     if action == ActionType.WORK:
-        # Work: builds economy, GDP grows, tax revenue accumulates
-        world.economy.gdp += max(0.0, money_delta)
-        world.economy.tax_revenue += max(0.0, money_delta) * world.tax_rate
+        # Work: builds economy. GDP, gov_spending are FLOWS computed in
+        # metrics_calculator. The actual tax paid this WORK action is
+        # stored in result.score_delta['tax_paid'] by _do_work — accumulate
+        # it into world.economy.tax_revenue (the one and only tax sink).
+        tax_paid = 0.0
+        if result is not None and result.score_delta is not None:
+            tax_paid = result.score_delta.get("tax_paid", 0.0)
+        if tax_paid > 0:
+            world.economy.tax_revenue += tax_paid
         world.economy.employment_rate = min(1.0, world.economy.employment_rate + 0.001)
         world.economy.consumer_confidence = min(1.0, world.economy.consumer_confidence + 0.0005)
         world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0003)
-        # Work slightly reduces public_order loss (people are busy, less unrest)
-        world.public_order = min(1.0, world.public_order + 0.0005)
+        # (public_order / social_cohesion / economic_health are managed by
+        # metrics_calculator recovery/decay based on crime, protest, unlust.)
 
     elif action == ActionType.BUY_FOOD:
         # Market demand signals scarcity: aggregate demand pushes prices/food availability
-        if money_delta < 0:  # Money was spent
-            world.economy.gdp += abs(money_delta)
-            world.economy.trade_balance += abs(money_delta) * 0.01
-            # Buying reduces immediate scarcity by drawing down market supply
-            world.food_availability = max(0.0, world.food_availability - 0.0002)
-            world.water_availability = max(0.0, world.water_availability - 0.0001)
+        world.economy.trade_balance += max(0.0, -money_delta) * 0.01
+        # Buying reduces immediate scarcity by drawing down market supply
+        world.food_availability = max(0.0, world.food_availability - 0.0002)
+        world.water_availability = max(0.0, world.water_availability - 0.0001)
         world.economy.inflation_rate = min(0.5, world.economy.inflation_rate + 0.0001)
 
     elif action == ActionType.REST:
@@ -310,15 +315,12 @@ def _apply_world_effects(
         world.psychology.life_satisfaction = max(0.0, world.psychology.life_satisfaction - 0.0003)
 
     elif action == ActionType.INVEST:
-        # Investment grows innovation and GDP
-        if money_delta < 0:
-            world.economy.gdp += abs(money_delta)
-            world.innovation_index = min(1.0, world.innovation_index + 0.001)
-            world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0005)
+        # Investment grows innovation_index. (GDP is flow, managed elsewhere.)
+        world.innovation_index = min(1.0, world.innovation_index + 0.001)
+        world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0005)
 
     elif action == ActionType.BUY_PROPERTY:
-        # Property investment builds economy
-        world.economy.gdp += max(0.0, abs(money_delta))
+        # Property investment: bumps consumer confidence (GDP is flow elsewhere)
         world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0003)
         world.economy.consumer_confidence = min(1.0, world.economy.consumer_confidence + 0.0005)
 
@@ -377,14 +379,36 @@ def _do_work(agent: AgentState, world: SimulationState, result: AgentActionResul
         salary_mult = SALARY_MULTIPLIER_RICH
     income = salary * productivity * creativity_mod * salary_mult
 
+    # Tax paid this WORK action: pre-tax salary * tax_rate * modifiers.
+    # (The salary above was pre-multiplied by (1 - tax_rate) so we recover
+    # the actual tax amount here. This is the only place tax is tracked.)
+    tax_paid = agent.resources.base_salary * world.tax_rate * productivity * creativity_mod * salary_mult
+
     agent.resources.money += income
     agent.resources.wealth = agent.resources.money
+
+    # Work produces food: each WORK action adds a small amount to world
+    # food availability. Scales with creativity (research efficiency) and
+    # innovation (technological progress); dampened by inflation. Has
+    # diminishing returns at high food availability so production plateaus
+    # (famines still bite) but never drains to zero (societies do harvest).
+    innovation_factor = 1.0 + getattr(world, "innovation_index", 0.0)
+    inflation_dampen = 1.0 - min(0.5, world.economy.inflation_rate)
+    scarcity_room = max(0.0, 1.0 - world.food_availability)
+    food_produced = (
+        0.00005
+        * agent.traits.creativity
+        * innovation_factor
+        * inflation_dampen
+        * (0.4 + 0.6 * scarcity_room)
+    )
+    world.food_availability = min(1.0, world.food_availability + food_produced)
 
     social = agent.needs.get_level(NeedType.SOCIAL_CONNECTION)
     agent.needs.set_level(NeedType.SOCIAL_CONNECTION, social + 0.015)
 
     result.outcome = f"earned £{income:.2f}"
-    result.score_delta = {"money": income}
+    result.score_delta = {"money": income, "tax_paid": tax_paid, "food_produced": food_produced}
 
 
 def _do_buy_food(agent: AgentState, world: SimulationState, result: AgentActionResult) -> None:
@@ -1006,9 +1030,6 @@ def _do_invest(
     return_amount = invest_amount * multiplier
     agent.resources.money += return_amount
     agent.resources.wealth = agent.resources.money
-    if agent.wealth_class == WealthClass.BUSINESS_OWNER:
-        growth = rng.uniform(0.0, 0.02)
-        agent.business_value *= (1.0 + growth)
     result.outcome = f"invested_{invest_amount:.2f}_returned_{return_amount:.2f}"
     result.score_delta = {"money": return_amount - invest_amount}
 

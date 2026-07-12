@@ -159,8 +159,16 @@ def decay_needs(
     # Gradual health decay each tick.
     agent.resources.health = max(0.0, agent.resources.health - 0.001)
 
-    # Derive wealth class from current money each tick.
-    agent.wealth_class = derive_wealth_class(agent.resources.money)
+    # Derive wealth class from a smoothed money EMA (slow time constant)
+    # to give the class hysteresis against momentary wealth spikes from
+    # alone. Prevents the simulation degenerating into all-RICH when WORK
+    # stably pushes agents past the 5000 MIDDLE/RICH boundary.
+    ema_rate = 0.02
+    agent.metadata["_avg_money"] = (
+        (1.0 - ema_rate) * agent.metadata.get("_avg_money", agent.resources.money)
+        + ema_rate * agent.resources.money
+    )
+    agent.wealth_class = derive_wealth_class(agent.metadata["_avg_money"])
     # Keep legacy wealth field in sync with money.
     agent.resources.wealth = agent.resources.money
 

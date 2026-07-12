@@ -6,8 +6,6 @@ Timers use hysteresis — once in a state with a timer, agent is locked until ti
 Resilience shortens timers: timer = base * (1 - resilience * 0.5).
 """
 
-from shared.types.enums import EmotionType, NeedType
-from shared.schemas.agent_state import AgentState
 from shared.constants.defaults import (
     ANGRY_TENDENCY_THRESHOLD,
     ANGRY_TIMER,
@@ -31,6 +29,8 @@ from shared.constants.defaults import (
     SLEEP_HALF_TIMER_THRESHOLD,
     SLEEP_RESET_THRESHOLD,
 )
+from shared.schemas.agent_state import AgentState
+from shared.types.enums import EmotionType, NeedType
 from shared.utilities.deterministic_rng import DeterministicRNG
 
 __all__ = [
@@ -43,14 +43,20 @@ __all__ = [
 ]
 
 
-def compute_happiness(agent: AgentState) -> float:
+def compute_happiness(agent: AgentState, world: object = None) -> float:
     """Compute the composite happiness score (0.0-1.0).
 
     Weighted sum of need satisfaction, Unlust inverse, health, and employment.
     Weights reflect Maslow priority — physiological needs weighted highest.
 
+    Optional `world` (a SimulationState) is consulted for:
+      - Wealth-based happiness bonus (peaks at 50k money)
+      - Tax pain for rich when tax_rate > 0.2
+
     Args:
         agent: The agent to compute happiness for.
+        world: Optional world state (for tax_rate, etc.). If None, no
+            wealth or tax adjustments applied (backwards compatible).
 
     Returns:
         Happiness score in [0.0, 1.0].
@@ -70,6 +76,26 @@ def compute_happiness(agent: AgentState) -> float:
         + (1.0 - agent.unlust) * HAPPINESS_UNLUST_WEIGHT
         + (HAPPINESS_EMPLOYED_BONUS if agent.resources.employed else 0.0)
     )
+
+    # Wealth-based happiness bonus: peaks at £50k money, with diminishing
+    # returns. Being rich is positive but doesn't dominate. Uses 0.05 max
+    # so it can't override physiological needs. Threshold of £100 to avoid
+    # rounding artifacts at near-zero money (e.g. destitute agents).
+    money = getattr(agent.resources, "money", 0.0)
+    wealth_bonus = 0.05 * min(1.0, max(0.0, money - 100.0) / 49900.0)
+    score += wealth_bonus
+
+    # Tax pain: rich agents suffer when tax_rate is high (>0.2). Linear
+    # ramp from 0 at tax=0.2 to -0.15 at tax=0.9. Only applied to RICH
+    # class (the user wants being rich to be good but taxes to hurt).
+    if world is not None and getattr(agent, "wealth_class", None) is not None:
+        from shared.types.enums import WealthClass
+
+        if agent.wealth_class == WealthClass.RICH:
+            tax_rate = getattr(world, "tax_rate", 0.0)
+            if tax_rate > 0.2:
+                tax_pain = -0.15 * (tax_rate - 0.2) / 0.7
+                score += tax_pain
 
     return min(1.0, max(0.0, score))
 
@@ -103,21 +129,15 @@ def update_emotion(agent: AgentState, rng: DeterministicRNG) -> None:
     if unlust > DESPAIR_UNLUST_THRESHOLD:
         emotions.primary = EmotionType.DESPAIR
         base_timer = DESPAIR_TIMER
-        emotions.emotion_timer = max(
-            1, int(base_timer * (1.0 - resilience * 0.5))
-        )
+        emotions.emotion_timer = max(1, int(base_timer * (1.0 - resilience * 0.5)))
     elif unlust > ANGRY_UNLUST_THRESHOLD and anger_tendency > ANGRY_TENDENCY_THRESHOLD:
         emotions.primary = EmotionType.ANGRY
         base_timer = ANGRY_TIMER
-        emotions.emotion_timer = max(
-            1, int(base_timer * (1.0 - resilience * 0.5))
-        )
+        emotions.emotion_timer = max(1, int(base_timer * (1.0 - resilience * 0.5)))
     elif happiness < SAD_THRESHOLD:
         emotions.primary = EmotionType.SAD
         base_timer = SAD_TIMER
-        emotions.emotion_timer = max(
-            1, int(base_timer * (1.0 - resilience * 0.5))
-        )
+        emotions.emotion_timer = max(1, int(base_timer * (1.0 - resilience * 0.5)))
     elif happiness > HAPPY_THRESHOLD:
         emotions.primary = EmotionType.HAPPY
         emotions.emotion_timer = 0
@@ -150,9 +170,7 @@ def apply_sleep_reset(agent: AgentState) -> None:
         return
 
     sleep_quality = (
-        agent.needs.get_level(NeedType.SAFETY)
-        * (1.0 - agent.unlust)
-        * agent.traits.resilience
+        agent.needs.get_level(NeedType.SAFETY) * (1.0 - agent.unlust) * agent.traits.resilience
     )
 
     if sleep_quality > SLEEP_RESET_THRESHOLD:

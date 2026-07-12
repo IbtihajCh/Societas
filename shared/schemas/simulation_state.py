@@ -9,6 +9,13 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from shared.types.aliases import TickNumber
+from shared.constants.defaults import (
+    BASE_UNEMPLOYMENT_RATE,
+    DEFAULT_TAX_RATE,
+    DEFAULT_WELFARE_AMOUNT,
+    ENV_FOOD_DEFAULT,
+    ENV_WATER_DEFAULT,
+)
 from shared.schemas.economy_state import EconomyState
 from shared.schemas.crime_state import CrimeState
 from shared.schemas.needs_state import NeedsState
@@ -57,14 +64,14 @@ class SimulationState:
     active_policy_ids: List[str] = field(default_factory=list)
     metadata: Dict[str, object] = field(default_factory=dict)
     # Extended world state fields per Project Guide and ADR-005:
-    food_availability: float = 0.85
-    water_availability: float = 0.90
+    food_availability: float = ENV_FOOD_DEFAULT
+    water_availability: float = ENV_WATER_DEFAULT
     crime_rate: float = 0.05
     protest_intensity: float = 0.0
-    unemployment_rate: float = 0.10
-    tax_rate: float = 0.15
+    unemployment_rate: float = BASE_UNEMPLOYMENT_RATE
+    tax_rate: float = DEFAULT_TAX_RATE
     welfare_enabled: bool = False
-    welfare_amount: float = 8.0
+    welfare_amount: float = DEFAULT_WELFARE_AMOUNT
     national_debt: float = 0.0
     remittance_income: float = 0.08
     energy_price: float = 0.60

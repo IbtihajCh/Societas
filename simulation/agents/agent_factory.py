@@ -1,23 +1,5 @@
 """Agent factory — creates agents with Beta-distributed traits and socioeconomic status."""
 
-from shared.types.aliases import AgentId
-from shared.types.enums import (
-    Culture,
-    EducationLevel,
-    EmploymentStatus,
-    Gender,
-    JobType,
-    NeedType,
-    WealthClass,
-)
-from shared.schemas.agent_state import (
-    AgentEmotions,
-    AgentNeeds,
-    AgentResources,
-    AgentState,
-    AgentTraits,
-    get_age_bracket,
-)
 from shared.constants.defaults import GRID_SIZE
 from shared.constants.simulation_constants import (
     BETA_PARAMS,
@@ -30,6 +12,24 @@ from shared.constants.simulation_constants import (
     SALARY_RANGES,
     WEALTH_CLASS_DISTRIBUTION,
     WEALTH_CLASS_MONEY_RANGES,
+)
+from shared.schemas.agent_state import (
+    AgentEmotions,
+    AgentNeeds,
+    AgentResources,
+    AgentState,
+    AgentTraits,
+    get_age_bracket,
+)
+from shared.types.aliases import AgentId
+from shared.types.enums import (
+    Culture,
+    EducationLevel,
+    EmploymentStatus,
+    Gender,
+    JobType,
+    NeedType,
+    WealthClass,
 )
 from shared.utilities.deterministic_rng import DeterministicRNG
 
@@ -51,20 +51,12 @@ def _generate_traits(rng: DeterministicRNG) -> AgentTraits:
     return AgentTraits(
         creativity=rng.beta(BETA_PARAMS["creativity"][0], BETA_PARAMS["creativity"][1]),
         morality=rng.beta(BETA_PARAMS["morality"][0], BETA_PARAMS["morality"][1]),
-        anger_tendency=rng.beta(
-            BETA_PARAMS["anger_tendency"][0], BETA_PARAMS["anger_tendency"][1]
-        ),
-        extraversion=rng.beta(
-            BETA_PARAMS["extraversion"][0], BETA_PARAMS["extraversion"][1]
-        ),
+        anger_tendency=rng.beta(BETA_PARAMS["anger_tendency"][0], BETA_PARAMS["anger_tendency"][1]),
+        extraversion=rng.beta(BETA_PARAMS["extraversion"][0], BETA_PARAMS["extraversion"][1]),
         ambition=rng.beta(BETA_PARAMS["ambition"][0], BETA_PARAMS["ambition"][1]),
         resilience=rng.beta(BETA_PARAMS["resilience"][0], BETA_PARAMS["resilience"][1]),
-        dominance_urge=rng.beta(
-            BETA_PARAMS["dominance_urge"][0], BETA_PARAMS["dominance_urge"][1]
-        ),
-        risk_tolerance=rng.beta(
-            BETA_PARAMS["risk_tolerance"][0], BETA_PARAMS["risk_tolerance"][1]
-        ),
+        dominance_urge=rng.beta(BETA_PARAMS["dominance_urge"][0], BETA_PARAMS["dominance_urge"][1]),
+        risk_tolerance=rng.beta(BETA_PARAMS["risk_tolerance"][0], BETA_PARAMS["risk_tolerance"][1]),
     )
 
 
@@ -73,15 +65,24 @@ def _generate_socioeconomic(
 ) -> tuple[WealthClass, float, bool, EducationLevel, bool]:
     """Generate initial socioeconomic status.
 
+    90% of agents are sampled from WEALTH_CLASS_DISTRIBUTION (weighted).
+    The remaining 10% get a uniformly-random class assignment so the
+    population is not identical across runs and high-mix scenarios exist.
+
     Args:
         rng: Deterministic RNG instance.
 
     Returns:
         Tuple of (wealth_class, money, employed, education, property_owned).
     """
-    wealth_classes = list(WEALTH_CLASS_DISTRIBUTION.keys())
-    weights = list(WEALTH_CLASS_DISTRIBUTION.values())
-    wealth_class = rng.weighted_choice(wealth_classes, weights)
+    if rng.random() < 0.10:
+        wealth_class_list = [WealthClass.POOR, WealthClass.MIDDLE, WealthClass.RICH]
+        idx = int(rng._rng.integers(0, len(wealth_class_list)))
+        wealth_class = wealth_class_list[idx]
+    else:
+        wealth_classes = list(WEALTH_CLASS_DISTRIBUTION.keys())
+        weights = list(WEALTH_CLASS_DISTRIBUTION.values())
+        wealth_class = rng.weighted_choice(wealth_classes, weights)
 
     low, high = WEALTH_CLASS_MONEY_RANGES[wealth_class]
     money = rng.uniform(low, high)
@@ -97,9 +98,7 @@ def _generate_socioeconomic(
     return wealth_class, money, employed, education, property_owned
 
 
-def _generate_needs(
-    rng: DeterministicRNG, property_owned: bool
-) -> AgentNeeds:
+def _generate_needs(rng: DeterministicRNG, property_owned: bool) -> AgentNeeds:
     """Generate initial needs for a new agent.
 
     All needs start at moderately satisfied levels.
@@ -128,9 +127,7 @@ def _generate_needs(
     return needs
 
 
-def _assign_job_by_education(
-    education: EducationLevel, rng: DeterministicRNG
-) -> JobType:
+def _assign_job_by_education(education: EducationLevel, rng: DeterministicRNG) -> JobType:
     """Assign a job type based on education level.
 
     Args:
@@ -165,7 +162,9 @@ def _get_salary_for_job(job_type: JobType, rng: DeterministicRNG) -> float:
     return annual_salary / 365.0
 
 
-def _generate_persona(age: int, gender: Gender, wealth_class: WealthClass, job_type: JobType, traits: AgentTraits) -> str:
+def _generate_persona(
+    age: int, gender: Gender, wealth_class: WealthClass, job_type: JobType, traits: AgentTraits
+) -> str:
     """Generate a rule-based persona description from agent attributes."""
     parts = []
     if age >= 66:
@@ -199,8 +198,6 @@ def _generate_persona(age: int, gender: Gender, wealth_class: WealthClass, job_t
         parts.append("with a stable middle-class income")
     elif wealth_class == WealthClass.RICH:
         parts.append("enjoying comfortable wealth")
-    elif wealth_class == WealthClass.BUSINESS_OWNER:
-        parts.append("running their own business")
 
     if traits.creativity > 0.7:
         parts.append("curious and open to new experiences")
@@ -333,7 +330,8 @@ def _assign_community_leader(
         rng: Deterministic RNG instance.
     """
     candidates = [
-        a for a in agents
+        a
+        for a in agents
         if a.is_alive
         and a.needs.get_level(NeedType.REPUTATION) > LEADER_MIN_REPUTATION
         and a.traits.morality > LEADER_MIN_MORALITY
@@ -346,9 +344,7 @@ def _assign_community_leader(
     leader.resources.base_salary = _get_salary_for_job(JobType.COMMUNITY_LEADER, rng)
 
 
-def create_initial_population(
-    n_agents: int, rng: DeterministicRNG
-) -> list[AgentState]:
+def create_initial_population(n_agents: int, rng: DeterministicRNG) -> list[AgentState]:
     """Create the initial population of agents.
 
     After creation, up to one agent with high reputation and morality

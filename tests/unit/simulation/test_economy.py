@@ -106,16 +106,27 @@ class TestApplyWelfare:
         assert apply_welfare(agent, world) == 0.0
 
     def test_apply_welfare_eligible(self) -> None:
-        """Unemployed, welfare enabled → receives default 8.0."""
+        """Unemployed, welfare enabled, pool funded → receives default 8.0."""
         agent = _make_agent(employed=False, money=0.0)
         world = _make_world(welfare_enabled=True)
+        # Welfare is now funded by world.economy.tax_revenue pool.
+        # Seed the pool so the agent can actually receive welfare.
+        world.economy.tax_revenue = 100.0
         assert apply_welfare(agent, world) == 8.0
 
     def test_apply_welfare_custom_amount(self) -> None:
-        """Custom welfare_amount is respected."""
+        """Custom welfare_amount is respected when pool has funds."""
         agent = _make_agent(employed=False, money=0.0)
         world = _make_world(welfare_enabled=True, welfare_amount=20.0)
+        world.economy.tax_revenue = 100.0
         assert apply_welfare(agent, world) == 20.0
+
+    def test_apply_welfare_no_pool(self) -> None:
+        """Welfare enabled but pool empty → 0 (no free money)."""
+        agent = _make_agent(employed=False, money=0.0)
+        world = _make_world(welfare_enabled=True)
+        world.economy.tax_revenue = 0.0
+        assert apply_welfare(agent, world) == 0.0
 
     def test_apply_welfare_wealth_mirrors(self) -> None:
         """wealth is kept in sync with money after welfare."""
@@ -141,10 +152,12 @@ class TestProcessEconomyTick:
             _make_agent(wealth_class=WealthClass.RICH, property=True, employed=True),
         ]
         world = _make_world(welfare_enabled=True)
+        # Welfare is now funded from world.economy.tax_revenue pool.
+        world.economy.tax_revenue = 100.0
         result = process_economy_tick(agents, world)
 
         # Agent 0 (poor, renter, unemployed): pays 5 rent, gets 8 welfare
-        # Agent 1 (middle, renter, employed): pays 25 rent, no welfare
+        # Agent 1 (middle, renter, employed): no welfare
         # Agent 2 (rich, owner, employed): no rent, no welfare
         assert result["total_rent"] == 30.0
         assert result["total_welfare"] == 8.0

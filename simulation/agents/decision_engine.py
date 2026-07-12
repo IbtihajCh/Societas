@@ -8,21 +8,23 @@ import json
 import math
 from typing import Any
 
-from shared.types.enums import ActionType, EmotionType, JobType, NeedType, WealthClass
-from shared.schemas.agent_state import AgentState
-from shared.schemas.simulation_state import SimulationState
 from shared.constants.defaults import (
     ANGRY_UNLUST_THRESHOLD,
     BASE_FOOD_COST,
-    DESPAIR_UNLUST_THRESHOLD,
+    DECISION_STAGGER_INTERVAL,
     MORAL_DILEMMA_FOOD_THRESHOLD,
     MORAL_DILEMMA_MORALITY_THRESHOLD,
     MORAL_DILEMMA_UNLUST_THRESHOLD,
     SCARCITY_BASE,
 )
+from shared.schemas.agent_state import AgentState
+from shared.schemas.policy import PolicyWeights
+from shared.schemas.simulation_state import SimulationState
+from shared.types.enums import ActionType, EmotionType, JobType, NeedType, WealthClass
 from shared.utilities.deterministic_rng import DeterministicRNG
 from simulation.agents.memory_system import compute_memory_prompt
 from simulation.agents.unlust_engine import morality_active
+from simulation.policies.policy_effects import apply_policy_weights
 
 __all__ = [
     "build_agent_prompt",
@@ -48,7 +50,7 @@ def should_evaluate_this_tick(agent: AgentState, current_tick: int) -> bool:
     Returns:
         True if this agent should re-evaluate this tick.
     """
-    return current_tick % 3 == int(agent.id) % 3
+    return current_tick % DECISION_STAGGER_INTERVAL == int(agent.id) % DECISION_STAGGER_INTERVAL
 
 
 def build_agent_prompt(
@@ -182,10 +184,7 @@ def is_moral_dilemma(agent: AgentState, world: SimulationState) -> bool:
         return True
 
     # Dilemma 3: Despair with resources — give up vs persevere
-    if (
-        agent.emotions.primary == EmotionType.DESPAIR
-        and agent.resources.money > 100
-    ):
+    if agent.emotions.primary == EmotionType.DESPAIR and agent.resources.money > 100:
         return True
 
     # Dilemma 4: High unlust + high dominance — power grab vs accept position
@@ -491,17 +490,68 @@ def deterministic_fallback(
             agent.traits.ambition <= 0.5 or agent.notoriety <= 0.4 or agent.resources.money <= 100
         ):
             continue
-        if action_name == "COMPLY" and (agent.traits.anger_tendency > 0.4 or agent.trust_in_govt < 0.3):
+        if action_name == "COMPLY" and (
+            agent.traits.anger_tendency > 0.4 or agent.trust_in_govt < 0.3
+        ):
             continue
         if action_name == "SPREAD_RUMOR" and agent.traits.dominance_urge <= 0.6:
             continue
         if action_name == "SUPPORT_FAMILY" and agent.resources.money <= 20:
             continue
-        if action_name == "INVEST" and (agent.resources.money <= 200 or agent.traits.ambition <= 0.4):
+        if action_name == "INVEST" and (
+            agent.resources.money <= 200 or agent.traits.ambition <= 0.4
+        ):
             continue
-        if action_name == "BUY_PROPERTY" and (agent.resources.money <= 500 or agent.wealth_class == WealthClass.POOR):
+        if action_name == "BUY_PROPERTY" and (
+            agent.resources.money <= 500 or agent.wealth_class == WealthClass.POOR
+        ):
             continue
         valid_actions[action_name] = score
+
+    # Apply policy weights to valid action scores. Policies like
+    # economic_freedom boost WORK; social_welfare boosts SHARE/CONSOLE
+    # and reduces STEAL; public_order reduces crime. This is where
+    # governance actually influences agent decisions.
+    policy_weights = (
+        world.metadata.get("aggregate_policy_weights") if hasattr(world, "metadata") else None
+    )
+    if policy_weights is not None and isinstance(policy_weights, PolicyWeights):
+        # Map string action name -> ActionType enum for apply_policy_weights.
+        policy_input: dict[ActionType, float] = {}
+        str_to_action_map = {
+            "WORK": ActionType.WORK,
+            "REST": ActionType.REST,
+            "BEFRIEND": ActionType.BEFRIEND,
+            "CONSOLE": ActionType.CONSOLE,
+            "SHARE": ActionType.SHARE,
+            "COMPLAIN": ActionType.COMPLAIN,
+            "ISOLATE": ActionType.ISOLATE,
+            "STEAL": ActionType.STEAL,
+            "BEG": ActionType.BEG,
+            "HARM_OTHER": ActionType.HARM_OTHER,
+            "PROTEST": ActionType.PROTEST,
+            "FRAUD": ActionType.FRAUD,
+            "TREAT": ActionType.TREAT,
+            "COUNSEL": ActionType.COUNSEL,
+            "CAMPAIGN": ActionType.CAMPAIGN,
+            "COMPLY": ActionType.COMPLY,
+            "SPREAD_RUMOR": ActionType.SPREAD_RUMOR,
+            "SUPPORT_FAMILY": ActionType.SUPPORT_FAMILY,
+            "INVEST": ActionType.INVEST,
+            "BUY_PROPERTY": ActionType.BUY_PROPERTY,
+            "HOBBY": ActionType.HOBBY,
+            "IDLE": ActionType.IDLE,
+        }
+        for name_str, score in valid_actions.items():
+            act = str_to_action_map.get(name_str)
+            if act is not None:
+                policy_input[act] = score
+        if policy_input:
+            policy_output = apply_policy_weights(policy_input, policy_weights)
+            for name_str, score in valid_actions.items():
+                act = str_to_action_map.get(name_str)
+                if act is not None and act in policy_output:
+                    valid_actions[name_str] = max(0.01, policy_output[act])
 
     # If no valid actions, default to IDLE
     if not valid_actions:

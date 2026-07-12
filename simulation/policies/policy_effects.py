@@ -5,12 +5,11 @@ Dual model:
 2. PolicyWeights: modify utility scores for action selection
 """
 
-from typing import Any
 
-from shared.types.enums import ActionType, NeedType, WealthClass
 from shared.schemas.agent_state import AgentState
+from shared.schemas.policy import GovernmentPolicy, PolicyWeights
 from shared.schemas.simulation_state import SimulationState
-from shared.schemas.policy import GovernmentPolicy, ImpactDelta, PolicyWeights
+from shared.types.enums import ActionType, NeedType
 
 __all__ = [
     "apply_policy_effects",
@@ -79,6 +78,9 @@ def apply_policy_weights(
     - economic_freedom > 0: boosts WORK
     - social_welfare > 0: boosts SHARE, CONSOLE, reduces STEAL
     - public_order > 0: reduces PROTEST, STEAL, HARM_OTHER
+    - environmental_protection > 0: boosts HOBBY, reduces STEAL/HARM_OTHER
+    - innovation > 0: boosts WORK, INVEST
+    - cultural_preservation > 0: boosts HOBBY, CONSOLE
 
     Args:
         base_scores: Base utility scores per action.
@@ -92,17 +94,26 @@ def apply_policy_weights(
         modifier = 0.0
         if action == ActionType.WORK:
             modifier += policy_weights.economic_freedom * 0.1
+            modifier += policy_weights.innovation * 0.08
         elif action == ActionType.SHARE:
             modifier += policy_weights.social_welfare * 0.15
         elif action == ActionType.CONSOLE:
             modifier += policy_weights.social_welfare * 0.1
+            modifier += policy_weights.cultural_preservation * 0.06
         elif action == ActionType.STEAL:
             modifier -= policy_weights.social_welfare * 0.1
             modifier -= policy_weights.public_order * 0.15
+            modifier -= policy_weights.environmental_protection * 0.05
         elif action == ActionType.HARM_OTHER:
             modifier -= policy_weights.public_order * 0.2
+            modifier -= policy_weights.environmental_protection * 0.05
         elif action == ActionType.PROTEST:
             modifier -= policy_weights.public_order * 0.1
+        elif action == ActionType.HOBBY:
+            modifier += policy_weights.environmental_protection * 0.1
+            modifier += policy_weights.cultural_preservation * 0.12
+        elif action == ActionType.INVEST:
+            modifier += policy_weights.innovation * 0.12
         modified[action] = score + modifier
     return modified
 

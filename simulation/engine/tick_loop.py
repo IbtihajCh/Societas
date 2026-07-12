@@ -16,8 +16,8 @@ Steps:
 10. State hash + TickCompletedEvent
 """
 
-from collections import Counter
 import time
+from collections import Counter
 from typing import Any
 
 from shared.interfaces.i_ai_router import IAIRouter
@@ -33,16 +33,9 @@ from simulation.agents.action_executor import (
     execute_action,
     move_agent,
 )
-from simulation.agents.memory_system import collect_tick_memories
 from simulation.agents.community_system import (
     community_effects,
     update_communities,
-)
-from simulation.agents.gang_system import (
-    apply_gang_effects,
-    process_gang_actions,
-    try_form_gangs,
-    update_gang_power,
 )
 from simulation.agents.decision_engine import (
     build_agent_prompt,
@@ -60,11 +53,14 @@ from simulation.agents.emotion_engine import (
 )
 from simulation.agents.family_support import process_family_support
 from simulation.agents.family_system import try_form_marriages
-from simulation.agents.sibling_system import (
-    maybe_sibling_support,
-    update_sibling_dynamics,
+from simulation.agents.gang_system import (
+    apply_gang_effects,
+    process_gang_actions,
+    try_form_gangs,
+    update_gang_power,
 )
 from simulation.agents.lifecycle import try_birth
+from simulation.agents.memory_system import collect_tick_memories
 from simulation.agents.needs_calculator import (
     check_death,
     decay_needs,
@@ -90,6 +86,10 @@ from simulation.agents.reputation_system import (
     spread_reputation,
     update_reputation,
 )
+from simulation.agents.sibling_system import (
+    maybe_sibling_support,
+    update_sibling_dynamics,
+)
 from simulation.agents.unlust_engine import compute_unlust
 from simulation.events.inter_community_conflict import (
     check_conflict_events,
@@ -100,8 +100,7 @@ from simulation.events.riot_events import (
     trigger_riot,
 )
 from simulation.policies.policy_effects import apply_all_policies
-from simulation.world.economy import process_economy_tick, apply_debt_interest
-from simulation.world.property_market import assign_initial_housing, update_property_market
+from simulation.world.economy import apply_debt_interest, process_economy_tick
 from simulation.world.environmental_events import (
     apply_environmental_tick,
     environmental_effects_on_agents,
@@ -110,6 +109,7 @@ from simulation.world.metrics_calculator import (
     compute_state_hash,
     update_world_metrics,
 )
+from simulation.world.property_market import update_property_market
 
 __all__ = ["run_tick"]
 
@@ -183,13 +183,13 @@ def run_tick(
 
     # Step 3b: Environmental event processing
     new_env_events, remaining_events = apply_environmental_tick(
-        world, tick_number, rng, world.active_env_events,
+        world,
+        tick_number,
+        rng,
+        world.active_env_events,
     )
     world.active_env_events = remaining_events
-    env_event_ids: list[str] = [
-        f"env_event:{e['type']}@tick={tick_number}"
-        for e in new_env_events
-    ]
+    env_event_ids: list[str] = [f"env_event:{e['type']}@tick={tick_number}" for e in new_env_events]
 
     # 2.6 Marriage formation for eligible adults
     marriage_count = try_form_marriages(living_agents, rng, world)
@@ -210,7 +210,7 @@ def run_tick(
     # Step 5: Update emotions
     for agent in living_agents:
         agent.unlust = compute_unlust(agent)
-        agent.emotions.happiness_score = compute_happiness(agent)
+        agent.emotions.happiness_score = compute_happiness(agent, world)
         apply_sleep_reset(agent)
         update_emotion(agent, rng)
 
@@ -328,7 +328,7 @@ def run_tick(
         action_results = [None] * len(living_agents)
 
         model_type = "agent_decide"
-        for (idx, _), response in zip(normal_prompts, normal_responses):
+        for (idx, _), response in zip(normal_prompts, normal_responses, strict=False):
             agent = living_agents[idx]
             parsed = parse_llm_response(response)
             if parsed:
@@ -341,27 +341,35 @@ def run_tick(
                         "feeling": parsed.get("feeling", ""),
                     }
                     if len(llm_log) < 50:
-                        llm_log.append({
-                            "tick": tick_number,
-                            "agent_id": str(agent.id),
-                            "model_type": model_type,
-                            "action": str(validated),
-                            "reason": str(parsed.get("reason", ""))[:200],
-                            "feeling": str(parsed.get("feeling", ""))[:100],
-                        })
+                        llm_log.append(
+                            {
+                                "tick": tick_number,
+                                "agent_id": str(agent.id),
+                                "model_type": model_type,
+                                "action": str(validated),
+                                "reason": str(parsed.get("reason", ""))[:200],
+                                "feeling": str(parsed.get("feeling", ""))[:100],
+                            }
+                        )
                 else:
                     action = deterministic_fallback(agent, world, rng)
-                    metadata = {"source": "deterministic_fallback", "reasoning": "Invalid LLM action"}
+                    metadata = {
+                        "source": "deterministic_fallback",
+                        "reasoning": "Invalid LLM action",
+                    }
             else:
                 action = deterministic_fallback(agent, world, rng)
-                metadata = {"source": "deterministic_fallback", "reasoning": "Unparseable LLM response"}
+                metadata = {
+                    "source": "deterministic_fallback",
+                    "reasoning": "Unparseable LLM response",
+                }
             result = execute_action(agent, action, world, living_agents, rng)
             result.metadata = metadata
             action_results[idx] = result
             collect_tick_memories(agent, result, world, tick_number)
 
         model_type = "moral_reasoning"
-        for (idx, _), response in zip(dilemma_prompts, dilemma_responses):
+        for (idx, _), response in zip(dilemma_prompts, dilemma_responses, strict=False):
             agent = living_agents[idx]
             parsed = parse_llm_response(response)
             if parsed:
@@ -374,20 +382,28 @@ def run_tick(
                         "feeling": parsed.get("feeling", ""),
                     }
                     if len(llm_log) < 50:
-                        llm_log.append({
-                            "tick": tick_number,
-                            "agent_id": str(agent.id),
-                            "model_type": model_type,
-                            "action": str(validated),
-                            "reason": str(parsed.get("reason", ""))[:200],
-                            "feeling": str(parsed.get("feeling", ""))[:100],
-                        })
+                        llm_log.append(
+                            {
+                                "tick": tick_number,
+                                "agent_id": str(agent.id),
+                                "model_type": model_type,
+                                "action": str(validated),
+                                "reason": str(parsed.get("reason", ""))[:200],
+                                "feeling": str(parsed.get("feeling", ""))[:100],
+                            }
+                        )
                 else:
                     action = deterministic_fallback(agent, world, rng)
-                    metadata = {"source": "deterministic_fallback", "reasoning": "Invalid LLM action"}
+                    metadata = {
+                        "source": "deterministic_fallback",
+                        "reasoning": "Invalid LLM action",
+                    }
             else:
                 action = deterministic_fallback(agent, world, rng)
-                metadata = {"source": "deterministic_fallback", "reasoning": "Unparseable LLM response"}
+                metadata = {
+                    "source": "deterministic_fallback",
+                    "reasoning": "Unparseable LLM response",
+                }
             result = execute_action(agent, action, world, living_agents, rng)
             result.metadata = metadata
             action_results[idx] = result
@@ -433,7 +449,7 @@ def run_tick(
 
     action_counts_result = Counter()
     for agent in living_agents:
-        if hasattr(agent, 'last_action') and agent.last_action:
+        if hasattr(agent, "last_action") and agent.last_action:
             action_counts_result[str(agent.last_action)] += 1
     result_action_counts = dict(action_counts_result)
 
@@ -453,9 +469,7 @@ def run_tick(
 
     # Step 8: Death check
     for agent in living_agents:
-        if check_death(agent, rng, world):
-            agent.is_alive = False
-        elif check_self_actualization_death(agent, rng):
+        if check_death(agent, rng, world) or check_self_actualization_death(agent, rng):
             agent.is_alive = False
 
     # Step 8.5: Birth — eligible living agents may produce offspring
@@ -473,18 +487,26 @@ def run_tick(
     # Step 10: State hash + TickCompletedEvent
     # Media engine — generate news and apply effects
     from simulation.events.media_engine import process_media_tick
+
     news_articles = process_media_tick(world, tick_number, living_agents, rng)
     if news_articles:
         articles_list = world.media_state.setdefault("articles", [])
         articles_list.extend(
-            [{"tick": a.tick, "headline": a.headline, "body": a.body, "category": a.category, "is_fake": a.is_fake} for a in news_articles]
+            [
+                {
+                    "tick": a.tick,
+                    "headline": a.headline,
+                    "body": a.body,
+                    "category": a.category,
+                    "is_fake": a.is_fake,
+                }
+                for a in news_articles
+            ]
         )
         # Keep only the last 200 articles to prevent unbounded growth
         while len(articles_list) > 200:
             articles_list.pop(0)
-    env_event_ids.extend(
-        f"news:{a.headline[:40]}" for a in news_articles
-    )
+    env_event_ids.extend(f"news:{a.headline[:40]}" for a in news_articles)
     state_hash = compute_state_hash(world, agents)
     duration_ms = (time.time() - start_time) * 1000.0
 

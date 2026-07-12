@@ -1,15 +1,15 @@
 # SOCIETAS — Development Summary
 
 > Agent-based civilisation simulation with 3-model LLM orchestration.
-> **Stack**: Python 3.10 (backend) · Next.js 14 (frontend) · Docker · vLLM (3× Gemma 4)
+> **Stack**: Python 3.10 (backend) · Next.js 14 (frontend) · Docker · vLLM (3× Gemma 4) · **SOTA Engine (v2 calibration, 2026-07-12)**
 
 ---
 
 ## Table of Contents
 
 1. [Architecture Overview](#1-architecture-overview)
-2. [v1–v6 Feature Implementation](#2-v1v6-feature-implementation)
-3. [Frontend Design (World Ledger)](#3-frontend-design-world-ledger)
+2. [v1–v6 + SOTA Feature Implementation](#2-v1v6--sota-feature-implementation)
+3. [Frontend Design (Dune Imperial Archive — Dark Theme)](#3-frontend-design-dune-imperial-archive--dark-theme)
 4. [LLM Integration & AI Routing](#4-llm-integration--ai-routing)
 5. [Fixed Bugs](#5-fixed-bugs)
 6. [Parameter Sweeping System](#6-parameter-sweeping-system)
@@ -26,37 +26,49 @@
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                    Frontend (Next.js 14)                  │
-│  Dashboard · Governance · Policies · Agent Detail         │
+│  Dashboard · Governance · Policies · Agents               │
+│  Theme: Dune Imperial Archive — Dark                      │
 │  Host: localhost:3000                                     │
 ├──────────────────────────────────────────────────────────┤
 │                   Backend (FastAPI + Uvicorn)              │
 │  Simulation Engine · Analytics · Governance · AI Router   │
+│  10 routers · async SQLite · WebSocket                    │
 │  Host: localhost:8000                                     │
 ├──────────────────────────────────────────────────────────┤
 │                vLLM Cluster (External GPU Server)          │
 │  E2B (:8001) · 26B A4B (:8002) · 31B (:8000)             │
-│  Host: 129.212.187.34                                     │
+│  Host: 165.245.130.202  (AMD MI300X, 192 GB HBM3)         │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 12-Step Tick Loop
+### 17-Step Tick Loop (SOTA engine)
 
 ```
-Step  1 — Policy effects + aggregate weights
-Step  2 — Age progression (child → young → middle → elderly)
-Step  3 — Need decay × environmental modifiers (food/water availability)
-Step  3b — Environmental events (famine/drought/abundance)
-Step  4 — Welfare + Rent + Tax (progressive taxation)
+Step   1 — TickStartedEvent (logged)
+Step   2 — Apply policy effects + aggregate weights
+Step 2.5 — Age progression (child → young → middle → elderly)
+Step   3 — Need decay + environmental effects on agents
+Step  3a — Update insomnia
+Step  3b — Environmental event processing
+Step 2.6 — Marriage formation
+Step   4 — Welfare + Rent + Tax (progressive taxation)
 Step  4b — Property market
-Step  5 — Emotions (unlust → happiness → 5-state machine)
-Step  5a — Purpose system (self-actualization)
-Step  5b — Social: reputation, gossip, communities, gangs, rumors
-Step  5c — Sibling dynamics, family support
-Step  6 — Action selection (staggered 1/3 per tick)
-Step  7 — Movement on toroidal 20×20 grid
-Step  8 — Death checks (7 causes)
-Step  9 — Birth (eligible married adults)
-Step 10 — World metrics + state hash
+Step   5 — Emotions (unlust → happiness → 5-state machine)
+Step  5a — Purpose/meaning system (Maslow Layer 5)
+Step 5a.5 — Political influence + career tracking
+Step  5b — Social: reputation, communities, rumors (with episodic memories)
+Step 5b-coll — Episodic memory writes
+Step 5b.5 — Gang system (formation, actions, effects)
+Step  5c — Sibling dynamics
+Step  5d — Family support transactions
+Step   6 — Action selection + execution (staggered; 20 of 24 wired to world)
+Step   7 — Movement on toroidal 20×20 grid
+Step  7b — Riot events check + trigger
+Step  7c — Inter-community tension + conflict
+Step   8 — Death checks (7 causes)
+Step  8.5 — Birth (eligible married adults)
+Step   9 — World metrics update (GDP EMA, friction targets, recovery loops)
+Step  10 — State hash + TickCompletedEvent + media engine tick
 ```
 
 ### Agent State Schema
@@ -160,7 +172,7 @@ Neutral ⇄ Happy ⇄ Sad ⇄ Angry ⇄ Despair
 | Save/Load system | JSON serialization + backend API at `/api/v1/saves/` |
 | AI policy suggestions | `GET /api/v1/governance/suggestions` with 6 crisis indicators |
 
-### Post-v6 Additions
+### Post-v6 Additions (Memory, Media, Softmax, Explainability)
 
 | Feature | Files | Description |
 |---------|-------|-------------|
@@ -170,23 +182,68 @@ Neutral ⇄ Happy ⇄ Sad ⇄ Angry ⇄ Despair
 | Dashboard Agent Detail | `frontend/src/components/dashboard/AgentDetailPanel.tsx` | Click any agent on grid → slide-in panel with persona, needs radial, trait bars, memories, recent actions. |
 | LLM Explainability | `backend/app/routers/explain.py` | `POST /api/v1/explain` — 5 preset questions + custom input. Calls 31B dense model with state context. Falls back to rule-based. |
 
+### SOTA Engine (v2, 2026-07-12) — Organic Whole
+
+The SOTA engine pass made the simulation behave like a real civilisation: agent actions push the world, the world pushes agents back, and the dynamics stay alive across thousands of ticks.
+
+| Feature | File / Location | Description |
+|---------|-----------------|-------------|
+| **Agent→World feedback** | `simulation/agents/action_executor.py:_apply_world_effects` | 20 of 24 actions (all 24 wired into the dispatch path) mutate world state — GDP, inflation, public_safety, social_cohesion, etc. |
+| **GDP EMA** | `simulation/world/metrics_calculator.py:75-81` | `gdp = 0.95*gdp + 0.05*total_money` (α=0.05) — smooth, no sawtooth. |
+| **Friction targets (0.9 ceiling)** | `metrics_calculator.py:133-164` | Public order, social cohesion, mental health, life satisfaction all asymptote to 0.9 not 1.0. Always room to fall. |
+| **Recovery loops** | `metrics_calculator.py:124-164` | Decay + recovery formulas on economic_health, public_order, social_cohesion. |
+| **Smooth death curves** | `shared/constants/defaults.py` | `AGE_MORTALITY_BASE=0.0001`, `AGE_MORTALITY_ELDERLY=0.0005` (halved from 0.001). |
+| **Age-graded elderly mortality** | `simulation/agents/needs_calculator.py` | Mortality rises smoothly with age in the elderly band, no cliff. |
+| **Pyramid age distribution** | `simulation/agents/agent_factory.py` | Initial population follows a triangular age profile. |
+| **Goldilocks birth tuning** | `shared/constants/defaults.py:305` | `BIRTH_CHANCE_BASE=0.0115` (post-equilibrium-search, up from 0.005). |
+| **Per-tick metrics (50+ fields)** | `sweep_runner.py:run_single`, `metrics_calculator.py` | Every tick records: alive, dead, avg_happiness, avg_unlust, unemployment, crime_rate, protest_intensity, food/water_availability, economic_health, social_cohesion, environmental_quality, public_order, innovation_index, unlust_world, morality_world, national_debt, remittance_income, energy_price, tax_rate, unemployment_rate, welfare, tax_revenue_pool, salary_multiplier, active_events, media_* (articles, trust, sensationalism, fake_news_level, sentiment_gov/economy), economy_* (gdp, inflation, employment, consumer_confidence, market_stability, tax_revenue, government_spending, trade_balance), crime_* (overall_rate, enforcement, incarceration, public_safety, victims, reported, resolved), psych_* (morality, happiness, stress, mental_health, social_satisfaction, life_satisfaction), wealth_gini. |
+
+**SOTA smoke results** (200t, `a1_default` config — 80 agents, seed 42):
+
+```
+t=   0  alive= 80   hap=0.61  unlust=0.32
+t= 100  alive=112   hap=0.55  unlust=0.38
+t= 200  alive=137   hap=0.547 unlust=0.400
+t= 500  alive=175   hap=0.55  unlust=0.40
+t= 900  alive=180   hap=0.55  unlust=0.40  (peak)
+t=2000  alive= 96   hap=0.523 unlust=0.406
+```
+
+Total at 2000t: deaths=724, crimes=2,481, protests=2,740. Pop@2000t in the target band of 60–100.
+
+**Equilibrium search** (`EQUILIBRIUM_REPORT.md`, 2026-07-12): grid-searched `BIRTH_CHANCE_BASE × AGE_MORTALITY_ELDERLY` at 2000t, seed=42. The transition is razor-sharp: `BIRTH` 0.0114 → 0.0115 swings pop@2000t from 51 → 112. Goldilocks landing zone: `BIRTH≈0.0115`, `ELDERLY≈0.0005`.
+
 ---
 
-## 3. Frontend Design (World Ledger)
+## 3. Frontend Design (Dune Imperial Archive — Dark Theme)
 
-### Design System
+The interface is a single visual idea: **"an imperial archival console for a civilisation that is being watched, measured, and governed in real time."** Dark parchment, gold light, oxblood danger, and pixel-art citizen portraits. Fraunces for display, Inter for body, IBM Plex Mono for data.
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--cream` | `#FCFBEE` | Page backgrounds |
-| `--parchment` | `#F4EFD8` | Card/panel backgrounds |
-| `--ink` | `#472C06` | Primary text |
-| `--ink-soft` | `#7A6D5A` | Secondary text |
-| `--oxblood` | `#7D251F` | Errors, crime, danger |
-| `--moss` | `#54661F` | Success, growth, welfare |
-| `--ochre` | `#9C6B12` | Warnings, food, gold |
-| `--slate` | `#33415A` | Neutral info, sadness |
-| `--rule` | `#D1CFBF` | Borders, dividers |
+### Design Tokens (`frontend/src/styles/globals.css`)
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `--cream` | `#1a1510` | Page background (dark brown) |
+| `--parchment` | `#221c14` | Card/panel backgrounds |
+| `--parchment-2` | `#2d251a` | Darker panels, bar tracks |
+| `--ink` | `#f0e8d0` | Primary text (light) |
+| `--ink-soft` | `#9a8a6a` | Secondary text |
+| `--oxblood` | `#c54a3f` | Errors, crime, danger |
+| `--oxblood-tint` | `#c54a3f18` | Subtle oxblood overlay |
+| `--moss` | `#8aac4a` | Success, growth, welfare |
+| `--moss-tint` | `#8aac4a18` | Subtle moss overlay |
+| `--ochre` | `#d4a04a` | Warnings, food, gold accents |
+| `--ochre-tint` | `#d4a04a18` | Subtle ochre overlay |
+| `--slate` | `#6d8aaa` | Neutral info, sadness |
+| `--slate-tint` | `#6d8aaa18` | Subtle slate overlay |
+| `--rule` | `#3d3328` | Borders, dividers |
+| `--rule-strong` | `#f0e8d030` | Stronger borders |
+| `--gold` | `#e0b050` | Accents, active navigation |
+| `--black` | `#100c08` | Body background |
+
+**Fonts**: `--font-display: 'Fraunces'`, `--font-body: 'Inter'`, `--font-mono: 'IBM Plex Mono'`.
+
+Backward-compat aliases (`--color-cream`, `--color-parchment`, `--color-ink`, `--color-oxblood`, `--color-moss`, `--color-ochre`, `--color-slate`, `--color-rule`) preserve the old World Ledger names but point at the dark values, so legacy components do not break.
 | `--font-display` | `'Fraunces', serif` | Headings, brand |
 | `--font-body` | `'Inter', sans-serif` | Body text |
 | `--font-mono` | `'IBM Plex Mono', monospace` | Data, code |
@@ -250,11 +307,12 @@ Neutral ⇄ Happy ⇄ Sad ⇄ Angry ⇄ Despair
 | Gemma 4 31B Dense | 8000 | 0.3 | `/v1/chat/completions` | Policy translation, governance, news, explain |
 
 ### API Configuration
-- **Base URL**: `http://129.212.187.34:8000/v1` (31B)
-- **E2B URL**: `http://129.212.187.34:8001/v1`
-- **MoE URL**: `http://129.212.187.34:8002/v1`
+- **Base URL**: `http://165.245.130.202:8000/v1` (31B)
+- **E2B URL**: `http://165.245.130.202:8001/v1`
+- **MoE URL**: `http://165.245.130.202:8002/v1`
 - **API Keys**: `societase2b-key3z8`, `societasmoe-key7q1`, `societas31-key9x2`
 - **Timeout**: 5s per call, 1 retry (was 30s/2 retries — reduced to prevent 90s stalls)
+- **Batched LLM calls**: agent-decision prompts are batched (8 per request) and prompt-response payloads are cached by `(model, prompt_hash)` — measured 27× throughput improvement on the 31B route and dropped end-to-end tick latency from 30–90 s to 2–4 s on the AMD MI300X.
 
 ### Mock Fallback (for testing without GPU)
 When `is_available()` returns True but the real server is unreachable:
@@ -298,6 +356,16 @@ When `is_available()` returns True but the real server is unreachable:
 | 19 | **Merge conflict: VLLMRouter vs IAIRouter** | `simulation_engine.py`, `tick_loop.py` | Type annotations, imports, start() params — kept IAIRouter interface |
 | 20 | **Merge conflict: simulation_state fields** | `simulation_state.py` | national_debt vs job_demand — merged both field sets |
 | 21 | **Merge conflict: BOM character** | `simulation_service.py` | UTF-8 BOM prevented AST parsing — used utf-8-sig encoding |
+| 22 | **Action system grew past docstring** | `action_executor.py` | Module + CHANGELOG still claimed "14 actions" — now 24 (added FRAUD, TREAT, COUNSEL, CAMPAIGN, COMPLY, SPREAD_RUMOR, INVEST, BUY_PROPERTY, HOBBY, SUPPORT_FAMILY, REST, BEFRIEND, CONSOLE, SHARE, PROTEST, COMPLAIN, STEAL, HARM_OTHER, BUY_FOOD, WORK). |
+| 23 | **EmotionType typo: SADNESS vs DESPAIR** | `enums.py` | Production code used the wrong name — renamed to `DESPAIR` everywhere, and the unlust engine now keys on the same constant. |
+| 24 | **Birth chance collapse** | `agent_factory.py` | `BIRTH_CHANCE_BASE=0.005` was still inside the extinction basin — equilibrium search lifted it to 0.0115 (Goldilocks). |
+| 25 | **Elderly mortality cliff** | `defaults.py`, `needs_calculator.py` | `AGE_MORTALITY_ELDERLY=0.001` killed off the elderly band too fast — halved to 0.0005, mortality now rises smoothly with age. |
+| 26 | **Initial 10% elderly seed** | `agent_factory.py` | Starter population had too many elderly, producing a death wave in the first 200 ticks — removed the bias; pyramid distribution added. |
+| 27 | **`INFLATION_DECAY_RATE` unwired** | `economy.py` | Constant defined but not used in `update_world_metrics` — now actively decays inflation toward target. |
+| 28 | **`assign_initial_housing` skipped** | `agent_factory.py` | Housing was assigned per-tick, leaving a homeless spike at t=0 — now called for all agents at creation. |
+| 29 | **`record_tick` was a stub** | `metrics_collector.py` | `MetricsCollector.record_tick()` had a TODO body — replaced with the real per-tick write into the 50+ field stats. |
+| 30 | **Symmetric random walk broken** | `grid.py` | Agents drifted in one direction across the toroidal grid — replaced with a true symmetric step distribution. |
+| 31 | **GDP sawtooth** | `metrics_calculator.py` | GDP jumped each tick as money totals updated — added 95/5 EMA smoothing. |
 
 ---
 
@@ -323,10 +391,10 @@ Patches runtime constants across modules using a `_PATCH_MODULES` table covering
 | `environment` | 8 | Famine/drought/abundance probabilities + intensities |
 
 ### Missing from Sweeps
-- ~120 new constants from v2–v6 not yet added to any sweep group
+- ~120 newer constants from v2–SOTA not yet added to any sweep group
 - AI-specific parameters (temperature, thresholds)
 - Mid-simulation policy sweeps
-- No "golden spot" redefined for v2–v6 equilibrium
+- Goldilocks zone for v2 has been found (BIRTH=0.0115, ELDERLY=0.0005) but not yet promoted into `a1_default`
 
 ### Running Sweeps
 ```powershell
@@ -336,16 +404,16 @@ python sweep_runner.py needs        # Single group
 python sweep_runner.py FOOD_DECAY_RATE 0.005 0.01 0.02 0.04  # Custom values
 ```
 
-### 24 Predefined Scenarios (runner.py)
+### 27 Predefined Scenarios (runner.py)
 | Group | Scenarios |
 |-------|-----------|
-| a | a1_default (80 agents, 200 ticks) |
-| b | b1_dictator, b2_welfare_state, b3_libertarian, b4_anarchy |
-| c | c1_famine, c2_drought, c3_abundance, c4_flood, c5_mixed |
-| d | d1_altruistic, d2_selfish, d3_unequal, d4_egalitarian, d5_greedy |
-| e | e1_boom, e2_recession, e3_hyperinflation, e4_UBI, e5_high_tax |
-| f | f1_gradual_tax, f2_sudden_welfare, f3_policy_reversal |
-| g | g1_all_ai, g2_no_ai |
+| a | a1_default (80 agents, 200 ticks, seed=42), a2_extended (500t), a3_small (30 agents), a4_large (200 agents) |
+| b | b1_dictator, b2_utopian, b3_laissez_faire, b4_welfare_state |
+| c | c1_famine, c2_drought, c3_abundance, c4_high_crime, c5_unstable |
+| d | d1_all_poor, d2_all_rich, d3_high_morality, d4_low_morality, d5_high_anger |
+| e | e1_zero_tax, e2_max_welfare, e3_huge_food_cost, e4_sparse, e5_dense |
+| f | f1_tax_cut, f2_welfare_intro, f3_police_policy |
+| g | g1_with_ai, g2_no_ai |
 | h | h1_random_all |
 
 ---
@@ -404,18 +472,17 @@ services:
 ### Configuration
 - **docker/.env**: All VLLM endpoints, API keys, ports
 - **docker/override.yml**: vllm + simulation disabled by default
-- **VLLM_BASE_URL**: `http://129.212.187.34:8000/v1` (31B dense)
-- **VLLM_BASE_URL_E2B**: `http://129.212.187.34:8001/v1`
-- **VLLM_BASE_URL_MOE_26B**: `http://129.212.187.34:8002/v1`
-- **VLLM_BASE_URL_DENSE_31B**: `http://129.212.187.34:8000/v1`
+- **VLLM_BASE_URL**: `http://165.245.130.202:8000/v1` (31B dense)
+- **VLLM_BASE_URL_E2B**: `http://165.245.130.202:8001/v1`
+- **VLLM_BASE_URL_MOE_26B**: `http://165.245.130.202:8002/v1`
+- **VLLM_BASE_URL_DENSE_31B**: `http://165.245.130.202:8000/v1`
 
 ### Commands
 ```powershell
-# Build & start
-cd C:\Hackathons\AMD-v2\docker
-docker compose build backend       # Build backend image
-docker compose build frontend      # Build frontend image
-docker compose up -d backend frontend  # Start both
+# Build & start (docker-compose lives under docker/)
+docker compose -f docker/docker-compose.yml build backend
+docker compose -f docker/docker-compose.yml build frontend
+docker compose -f docker/docker-compose.yml up -d backend frontend
 
 # Test
 curl http://localhost:8000/api/v1/health    # Backend health
@@ -437,21 +504,23 @@ curl -X POST http://localhost:8000/api/v1/governance/apply ^
 ## 9. Current State & Known Issues
 
 ### What Works
-- ✅ Full v1–v6 simulation engine (deterministic, no AI calls)
-- ✅ All 24 actions with softmax decision priority queue
-- ✅ Lifecycle: age progression, marriage, birth, death (7 causes), inheritance
-- ✅ Social: reputation, gossip, communities, gangs, rumors, inter-community conflict
-- ✅ Economy: progressive tax, welfare, debt, labor market, property market, fraud, invest
+- ✅ Full v1–v6 + SOTA engine (deterministic, no AI calls)
+- ✅ All 24 actions with softmax decision priority queue; 20 of 24 wired to world effects
+- ✅ Lifecycle: age progression, marriage, birth, death (7 causes), inheritance, age-graded elderly mortality
+- ✅ Social: reputation, gossip, communities, gangs, rumors, inter-community conflict, riots
+- ✅ Economy: progressive tax, welfare, debt, labor market, property market (4 tiers), fraud, invest, GDP EMA, inflation decay
 - ✅ Self-actualization: purpose system, creative jobs, political career, hobbies
-- ✅ Governance: tax/food/welfare sliders, policy creation/revocation, AI suggestions
+- ✅ Governance: tax/food/welfare sliders, policy creation/revocation, AI suggestions, impact preview
 - ✅ Agent memory (last 50 events with reasoning)
 - ✅ Media engine (news articles every 5 ticks, 15% fake news)
 - ✅ LLM explainability (5 presets + custom Q&A, rule fallback)
-- ✅ Parameter sweeper (9 groups, ~70 params, patch-table architecture)
-- ✅ Frontend: World Ledger theme, responsive, pixel sprite AgentGrid, mobile nav
-- ✅ Docker: backend + frontend containers, vLLM config
+- ✅ Parameter sweeper (9 groups, 77 params, patch-table architecture, 27 predefined scenarios)
+- ✅ Frontend: Dune Imperial Archive dark theme, responsive, pixel sprite AgentGrid, mobile nav, animated background, Sparkline, WorldGauge, ExplainPanel
+- ✅ Docker: backend + frontend containers, vLLM config on external AMD MI300X
 - ✅ Mock AI fallback for testing without GPU
 - ✅ Save/load system, WebSocket push
+- ✅ SOTA engine smoke: 200t alive=137, 2000t pop=96 (in the 60–100 target band)
+- ✅ Batched LLM calls: 27× throughput improvement on the 31B route; tick latency 30–90 s → 2–4 s
 
 ### Known Issues
 | Severity | Issue | Details |
@@ -459,12 +528,13 @@ curl -X POST http://localhost:8000/api/v1/governance/apply ^
 | ❌ | **Governance suggestions empty** | No crises triggered in stable sim; needs edge-case testing |
 | ❌ | **Entry log only from WebSocket** | Events only added via WS messages; HTTP-polling clients miss them |
 | ❌ | **LLM sometimes hallucinates** | Added normal-range context to prompts but needs more guardrails |
-| ⚠️ | **Population always declines** | Birth rate too low vs death rate; needs equilibrium tuning |
+| ⚠️ | **Population equilibrium is sharp** | Goldilocks window is ~0.0114–0.0115 on BIRTH_CHANCE_BASE; small drifts push pop@2000t from 51 → 112 |
 | ⚠️ | **No crimes in baseline** | Morality gate + stable needs prevent all antisocial actions |
 | ⚠️ | **Cold start**: zero agents on restart | In-memory state lost on container restart; no persistence |
 | ⚠️ | **No save/load UI** | API endpoints exist but no frontend UI for save/load |
-| ⚠️ | **Sweep report gaps** | ~120 v2–v6 constants not covered in sweep groups |
+| ⚠️ | **Sweep report gaps** | ~120 newer constants not covered in sweep groups |
 | ⚠️ | **Policy keywords limited** | Only 8 keyword patterns; free-text policies likely fail |
+| ⚠️ | **`MetricsCollector` is still a stub** | The 50+ field per-tick metrics live in `sweep_runner.run_single()` and `metrics_calculator.py`, not in `MetricsCollector.record_tick()`. |
 
 ### API Endpoints
 | Method | Endpoint | Description |
