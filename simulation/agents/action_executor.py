@@ -389,18 +389,19 @@ def _do_work(agent: AgentState, world: SimulationState, result: AgentActionResul
 
     # Work produces food: each WORK action adds a small amount to world
     # food availability. Scales with creativity (research efficiency) and
-    # innovation (technological progress); dampened by inflation. This is
-    # the work-driven food production the user requested — a real economy
-    # where working generates food rather than just income.
-    if hasattr(world, "innovation_index"):
-        innovation_factor = 1.0 + getattr(world, "innovation_index", 0.0)
-    else:
-        innovation_factor = 1.0
-    if hasattr(world, "inflation_rate"):
-        inflation_dampen = 1.0 - min(0.5, world.inflation_rate)
-    else:
-        inflation_dampen = 1.0
-    food_produced = 0.001 * agent.traits.creativity * innovation_factor * inflation_dampen
+    # innovation (technological progress); dampened by inflation. Has
+    # diminishing returns at high food availability so production plateaus
+    # (famines still bite) but never drains to zero (societies do harvest).
+    innovation_factor = 1.0 + getattr(world, "innovation_index", 0.0)
+    inflation_dampen = 1.0 - min(0.5, world.economy.inflation_rate)
+    scarcity_room = max(0.0, 1.0 - world.food_availability)
+    food_produced = (
+        0.00005
+        * agent.traits.creativity
+        * innovation_factor
+        * inflation_dampen
+        * (0.4 + 0.6 * scarcity_room)
+    )
     world.food_availability = min(1.0, world.food_availability + food_produced)
 
     social = agent.needs.get_level(NeedType.SOCIAL_CONNECTION)
