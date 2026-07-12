@@ -1,46 +1,111 @@
 # SOCIETAS
 
-**AI-Powered Governance & Society Simulation Platform**
+> AI-Powered Governance & Society Simulation Platform
+>
+> **AMD Hackathon 2026 — Track 3: Unicorn Pre-Screening**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![AMD Hackathon](https://img.shields.io/badge/AMD-Hackathon-red.svg)](https://lablab.ai)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-
-SOCIETAS is a real-time, explainable, large-scale governance simulator that models how policy decisions cascade through an artificial society of autonomous individuals with realistic psychological, economic, and social behavior.
-
-Unlike traditional simulations, SOCIETAS combines rule-based Agent Based Modeling (ABM), cognitive psychology, behavioral economics, emergent social systems, Large Language Models (Gemma), and explainable AI into a single hybrid cognitive architecture.
+SOCIETAS is a real-time, large-scale agent-based civilisation simulator that models how policy decisions cascade through an artificial society of autonomous individuals with realistic psychological, economic, and social behavior. 1000+ agents live, work, trade, marry, protest, commit crimes, and die on a toroidal grid — governed by a 17-step tick engine, 24 actions, 13 needs across 5 Maslow layers, and an optional 3-model LLM reasoning layer running on AMD MI300X GPUs.
 
 ---
 
-## Core Philosophy
+## Quick Start
 
-> **Deterministic systems should model reality. LLMs should model human reasoning.**
+```bash
+# Build and start
+docker compose -f docker/docker-compose.yml -p societas up -d --build
 
-The simulation engine remains fully deterministic, explainable, and mathematically grounded. Gemma operates as a reasoning layer — not the simulation itself — augmenting deterministic decisions only when ambiguity exceeds a configurable threshold.
+# Verify
+curl http://localhost:8000/api/v1/health       # {"status":"healthy"}
 
-See [Architecture Overview](docs/references/architecture-overview.md) and [AI Philosophy](docs/references/glossary.md).
+# Start simulation (100 agents, deterministic)
+curl -X POST http://localhost:8000/api/v1/simulation/start \
+  -H "Content-Type: application/json" \
+  -d '{"population_size":100,"seed":42,"enable_ai":false}'
+
+# Run ticks
+curl -X POST http://localhost:8000/api/v1/simulation/tick
+
+# Open dashboard
+open http://localhost:3000/dashboard
+```
 
 ---
 
-## System Architecture
+## AMD Resource Usage
+
+SOCIETAS leverages **AMD MI300X GPUs** for three-tier LLM reasoning:
+
+| Model | GPU | Purpose | Endpoint |
+|-------|-----|---------|----------|
+| **Gemma 4 E2B** | MI300X | Agent decision-making (~7–20 calls/tick) | Port 8001 |
+| **Gemma 4 26B A4B** | MI300X | Moral reasoning, ethical dilemmas | Port 8002 |
+| **Gemma 4 31B Dense** | MI300X | Policy translation, governance, explainability | Port 8000 |
+
+**Batched inference**: Prompt-response payloads are batched (8 agents/request) and cached by `(model, prompt_hash)`, achieving **27× throughput improvement** on the 31B route. End-to-end tick latency with LLM: 2–4 seconds on AMD MI300X (down from 30–90 seconds unbatched).
+
+**Fallback mode**: When LLM endpoints are unavailable, the simulation runs entirely deterministically — all 24 actions, emotions, economy, and governance continue without interruption.
+
+---
+
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   Layer 3 — Presentation                │
-│  Dashboard · Charts · News Feed · Agent Stories · UI    │
-├─────────────────────────────────────────────────────────┤
-│                   Layer 2 — Cognitive Reasoning         │
-│  Gemma LLM · Tie-Breaking · Policy Translation ·        │
-│  Narrative Generation · Advisory                        │
-├─────────────────────────────────────────────────────────┤
-│                   Layer 1 — Deterministic Simulation    │
-│  World · Agents · Economy · Needs · Psychology ·        │
-│  Emotions · Policies · Environment · Crime · Tick       │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  Frontend: Next.js 14 · Dune Imperial Dark Theme     │
+│  Dashboard · Agents · Governance · Policies          │
+├──────────────────────────────────────────────────────┤
+│  Backend: FastAPI · Uvicorn · WebSocket · SQLite      │
+│  Simulation Engine · Analytics · Governance · AI     │
+├──────────────────────────────────────────────────────┤
+│  LLM Layer: vLLM on AMD MI300X (3× Gemma 4)          │
+│  E2B (8001) · 26B A4B (8002) · 31B Dense (8000)     │
+└──────────────────────────────────────────────────────┘
 ```
 
-Each layer is independently owned, tested, and deployable. See [docs/references/architecture-overview.md](docs/references/architecture-overview.md).
+**17-step tick loop**: Age progression → Marriage → Needs decay → Economy (welfare, rent, tax) → Emotions (5-state machine) → Purpose system → Social systems (reputation, gossip, gangs, riots) → Action selection (softmax priority queue across 24 actions) → Grid movement → Death (7 causes) → Birth → World metrics → State hash.
+
+---
+
+## Features
+
+### Simulation Engine
+- **1000+ agents** with 8 beta-distributed personality traits
+- **13 needs** across 5 Maslow layers (physiological, safety, love, esteem, self-actualization)
+- **24 actions**: work, seek_job, befriend, steal, protest, fraud, invest, buy_property, campaign, counsel, treat, hobby, and more
+- **3-level decision priority queue**: critical survival → stability → softmax probabilistic choice
+- **5-state emotion machine**: Neutral ⇄ Happy ⇄ Sad ⇄ Angry ⇄ Despair
+- **Full lifecycle**: birth, aging (child → adult → elderly), marriage, disease, death (7 causes), inheritance
+
+### Economy
+- Progressive taxation (poor 0.5×, middle 1.0×, rich 1.5×)
+- Welfare system, debt with interest, labor market with supply/demand salaries
+- Property market (4 tiers: homeless → basic → standard → premium), rent, eviction
+- GDP calculation with 95/5 EMA smoothing, inflation decay
+- White-collar crime (fraud with detection probability), business ownership
+
+### Social Systems
+- Reputation tracking with decay and gossip propagation
+- Communities (BFS clustering), inter-community tension and conflict
+- Organized crime gangs (formation, extortion, fights)
+- Rumor propagation through social networks
+- Riot events triggered by protest intensity + food scarcity
+- Political influence and campaigning
+
+### Frontend Dashboard
+- **Dark Dune Imperial theme** with Fraunces/Inter/IBM Plex Mono typography
+- **30×30 agent grid**: each agent = colored circle (ring = wealth class, body = emotion state)
+- **Smooth lerp animation**: agents visibly glide between grid positions
+- **10 interactive panels**: Metrics & Gauges, Governance, Wealth Stratification, Entry Log, Model Log, Explain, Diagnostics, Environmental Events, Community Status, Self-Actualization
+- **Custom panel builder**: create panels with any 3 of 30+ metrics, each with sparkline charts
+- **LLM explainability**: Ask natural language questions about the simulation state
+- **LLM fallback indicator**: visible badge when running in deterministic mode
+
+### AI & LLM Integration
+- 3-model routing: E2B (decisions), 26B (moral reasoning), 31B (governance/explain)
+- Batched prompt requests with caching for 27× throughput
+- Mock/deterministic fallback when GPU unavailable
+- Explainability endpoint with natural language Q&A
+- News generation (media engine with 7 categories, 15% fake news)
 
 ---
 
@@ -48,88 +113,57 @@ Each layer is independently owned, tested, and deployable. See [docs/references/
 
 ```
 societas/
-├── backend/          # FastAPI server, vLLM router, API layer
-├── frontend/         # Dashboard, visualization, user interaction
+├── backend/          # FastAPI server, routers, services, dependencies
+├── frontend/         # Next.js 14 dashboard, components, store
 ├── simulation/       # Core deterministic simulation engine
-├── docs/             # Project documentation, ADRs, guides
-├── vault/            # Obsidian vault (version-controlled knowledge base)
-├── prompts/          # AI prompts organized by purpose
-├── scripts/          # Build, deploy, and utility scripts
-├── presentation/     # Competition materials and slides
-├── docker/           # Container definitions and orchestration
-├── tests/            # Cross-cutting integration and E2E tests
-├── tools/            # Developer tooling configuration
-└── .github/          # Issue/PR templates, CI/CD, CODEOWNERS
+│   ├── agents/       # Agent state, decision engine, needs, memory
+│   ├── engine/       # Tick loop, simulation engine
+│   ├── world/        # Economy, metrics, governance
+│   └── events/       # Event bus, media engine
+├── shared/           # Shared types, DTOs, constants, schemas
+├── docker/           # Dockerfiles, compose, .env
+├── docs/             # ADRs, guides, reference architecture
+├── tests/            # Integration and regression tests
+├── prompts/          # AI prompt templates by purpose
+├── models/           # LLM routing and configuration
+└── scripts/          # Utility and build scripts
 ```
 
-Each directory includes a `README.md` explaining its purpose, ownership, and conventions.
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/health` | Backend health check |
+| POST | `/api/v1/simulation/start` | Start simulation (configurable pop, seed, AI) |
+| POST | `/api/v1/simulation/tick` | Advance one tick |
+| POST | `/api/v1/simulation/stop` | Stop simulation |
+| GET | `/api/v1/simulation/state` | Full world state (50+ metrics) |
+| GET | `/api/v1/agents` | Agent list with filters |
+| GET | `/api/v1/agents/{id}` | Agent detail with traits, needs, memories |
+| POST | `/api/v1/governance/apply` | Apply tax, welfare, food policies |
+| GET/POST | `/api/v1/policies` | Create and list policies |
+| POST | `/api/v1/explain` | LLM explainability (rule fallback) |
+| GET | `/api/v1/ai/status` | LLM availability check |
+| WS | `/ws` | Real-time event stream |
 
 ---
 
-## Team
+## Performance
 
-| Role | Focus |
-|------|-------|
-| **Technical Lead** | Architecture, coordination, code review |
-| **Simulation Engineer** | Deterministic engine, ABM, economy |
-| **AI Systems Engineer** | Gemma integration, vLLM, prompt engineering |
-| **Backend Engineer** | API server, data layer, model routing |
-| **Frontend Engineer** | Dashboard, visualization, UX |
-| **Infrastructure / DevOps** | Docker, CI/CD, deployment, monitoring |
-
----
-
-## Quick Start
-
-```bash
-# Clone the repository
-git clone https://github.com/societas/societas.git
-cd societas
-
-# Run the setup script
-# macOS / Linux
-./scripts/setup.sh
-
-# Windows
-.\scripts\setup.ps1
-
-# Start development environment
-docker compose -f docker/docker-compose.yml up -d
-```
-
-See [docs/guides/setup.md](docs/guides/setup.md) for detailed setup instructions.
-
----
-
-## Development Workflow
-
-Every feature follows this pipeline:
-
-**Research → Specification → Architecture → Planning → Implementation → Testing → Documentation → Review → Merge**
-
-AI coding agents must follow the workflow defined in [docs/guides/development-workflow.md](docs/guides/development-workflow.md) and observe the rules in [docs/guides/ai-agent-rules.md](docs/guides/ai-agent-rules.md).
-
----
-
-## Documentation
-
-| Resource | Location |
-|----------|----------|
-| Architecture Decisions | [docs/adr/](docs/adr/) |
-| Setup Guide | [docs/guides/setup.md](docs/guides/setup.md) |
-| Coding Standards | [docs/guides/coding-standards.md](docs/guides/coding-standards.md) |
-| Branching Strategy | [docs/guides/branching-strategy.md](docs/guides/branching-strategy.md) |
-| Feature Specs | [vault/060-Features/](vault/060-Features/) |
-| Sprint Planning | [vault/030-Sprints/](vault/030-Sprints/) |
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. All contributions must follow the established workflows, pass CI checks, and include documentation updates.
+| Scenario | Agents | Ticks | Time | Per Tick |
+|----------|--------|-------|------|----------|
+| Deterministic | 100 | 10 | 1.72s | ~24ms |
+| Deterministic | 30 | 10 | 0.6s | ~4ms |
+| With LLM (MI300X) | 80 | 1 | 2-4s | 2,000–4,000ms |
 
 ---
 
 ## License
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).
+
+---
+
+**Built for AMD Hackathon 2026** · AMD MI300X · Gemma 4 · Next.js · FastAPI
