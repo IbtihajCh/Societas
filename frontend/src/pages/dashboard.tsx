@@ -75,25 +75,24 @@ export default function Dashboard() {
     };
   }, [isMouseOnScreen]);
 
-  /* ── Poll vLLM availability ── */
-  useEffect(() => {
-    let cancelled = false;
-    const poll = async () => {
-      try {
-        const status = await apiService.getAIStatus();
-        if (!cancelled && !status.available) {
-          (window as any).__addToast?.('vLLM is offline, AI features degraded', 'system');
-        }
-      } catch {
-        if (!cancelled) {
-          (window as any).__addToast?.('vLLM is offline, AI features degraded', 'system');
-        }
-      }
-    };
-    poll();
-    const id = setInterval(poll, 30000);
-    return () => { cancelled = true; clearInterval(id); };
+  /* ── LLM availability check ── */
+  const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null);
+
+  const checkLLM = useCallback(async () => {
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/ai/status');
+      const data = await res.json();
+      setLlmAvailable(data.available);
+    } catch {
+      setLlmAvailable(null);
+    }
   }, []);
+
+  useEffect(() => {
+    checkLLM();
+    const interval = setInterval(checkLLM, 15000);
+    return () => clearInterval(interval);
+  }, [checkLLM]);
 
   /* ── Canvas particle system ── */
   const particleCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -303,14 +302,16 @@ export default function Dashboard() {
       await refreshAgents();
     } catch { /* ignore */ }
     setStarting(false);
-  }, [refreshAgents, setupPop, setupSeed, setupAI, store]);
+    checkLLM();
+  }, [refreshAgents, setupPop, setupSeed, setupAI, store, checkLLM]);
 
   const stopSim = useCallback(async () => {
     try {
       stopAutoRun();
       await stopSimulation();
     } catch { /* ignore */ }
-  }, [stopAutoRun, stopSimulation]);
+    checkLLM();
+  }, [stopAutoRun, stopSimulation, checkLLM]);
 
   const handleAgentClick = useCallback(async (agentId: string) => {
     setSelectedAgent(agentId);
@@ -457,6 +458,22 @@ export default function Dashboard() {
           color: var(--ink-soft);
           white-space: nowrap;
         }
+        .llm-fallback-badge {
+          display: flex; align-items: center; gap: 6px;
+          padding: 4px 12px;
+          background: rgba(168, 110, 38, 0.15);
+          border: 1px solid var(--ochre);
+          border-radius: 12px;
+          font-family: var(--font-mono);
+          font-size: 9.5px;
+          color: var(--ochre);
+          white-space: nowrap;
+        }
+        .llm-fallback-dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: var(--ochre);
+          animation: pulse-glow 2s ease-in-out infinite;
+        }
       `}</style>
       <ToastStack />
 
@@ -525,6 +542,12 @@ export default function Dashboard() {
             <div className="dateline-bar">
               YEAR {year} · DAY {day} · {String(hour).padStart(2, '0')}:00 · {dayPhase} · {dayName}
             </div>
+            {llmAvailable === false && (
+              <div className="llm-fallback-badge" title="LLM endpoints unavailable — using deterministic fallback mode">
+                <span className="llm-fallback-dot" />
+                LLM Offline — Fallback Mode
+              </div>
+            )}
             <div className="topbar-controls">
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--ink-soft)' }}>
                 Pop {pop}
@@ -535,13 +558,8 @@ export default function Dashboard() {
               {!isAutoRunning ? (
                 <button className="btn primary" style={{ fontSize: '11px', padding: '5px 10px' }}
                   onClick={async () => {
-                    try {
-                      const status = await apiService.getAIStatus();
-                      if (!status.available) {
-                        (window as any).__addToast?.('vLLM is offline, AI features degraded', 'system');
-                        return;
-                      }
-                    } catch {
+                    await checkLLM();
+                    if (llmAvailable === false || llmAvailable === null) {
                       (window as any).__addToast?.('vLLM is offline, AI features degraded', 'system');
                       return;
                     }

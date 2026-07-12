@@ -64,6 +64,10 @@ function getWealthColor(wealthClass?: string | null): string {
   return cssMap[wc] || cssMap.poor;
 }
 
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
 function drawAgent(
   ctx: CanvasRenderingContext2D,
   agent: AgentSummaryDTO,
@@ -126,11 +130,21 @@ const AgentGrid: React.FC<AgentGridProps> = ({ agents, onAgentClick, selectedAge
   const hoveredRef = useRef<string | null>(null);
   const selectedAgentRef = useRef(selectedAgent);
   const agentsRef = useRef<AgentSummaryDTO[]>([]);
+  const displayPosRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   agentsRef.current = agents;
   selectedAgentRef.current = selectedAgent;
 
-  const draw = useCallback(() => {
+  useEffect(() => {
+    const currentIds = new Set(agents.map((a) => a.id));
+    for (const id of displayPosRef.current.keys()) {
+      if (!currentIds.has(id)) {
+        displayPosRef.current.delete(id);
+      }
+    }
+  }, [agents]);
+
+  const drawFrame = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -178,18 +192,21 @@ const AgentGrid: React.FC<AgentGridProps> = ({ agents, onAgentClick, selectedAge
 
     for (let i = 0; i < live.length; i++) {
       const a = live[i];
-      let cx: number;
-      let cy: number;
+      const tx = a.grid_x !== undefined ? a.grid_x : (i % GRID);
+      const ty = a.grid_y !== undefined ? a.grid_y : Math.floor(i / GRID);
 
-      if (a.grid_x !== undefined && a.grid_y !== undefined) {
-        cx = a.grid_x * cellW + cellW / 2;
-        cy = a.grid_y * cellH + cellH / 2;
-      } else {
-        const col = i % GRID;
-        const row = Math.floor(i / GRID);
-        cx = col * cellW + cellW / 2;
-        cy = row * cellH + cellH / 2;
+      let current = displayPosRef.current.get(a.id);
+      if (!current) {
+        current = { x: tx, y: ty };
+        displayPosRef.current.set(a.id, current);
       }
+
+      // Smooth lerp toward target
+      current.x = lerp(current.x, tx, 0.12);
+      current.y = lerp(current.y, ty, 0.12);
+
+      const cx = current.x * cellW + cellW / 2;
+      const cy = current.y * cellH + cellH / 2;
 
       const isSelected = selectedAgentRef.current === a.id;
       const isHovered = hoveredRef.current === a.id;
@@ -198,16 +215,27 @@ const AgentGrid: React.FC<AgentGridProps> = ({ agents, onAgentClick, selectedAge
     }
   }, []);
 
-  // Redraw on hover/selection changes and on resize
+  // Continuous animation loop
   useEffect(() => {
-    draw();
-  }, [draw, selectedAgent, tooltip?.agent?.id]);
+    let rafId: number;
+    const loop = () => {
+      drawFrame();
+      rafId = requestAnimationFrame(loop);
+    };
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+  }, [agents]);
+
+  // Redraw on hover/selection changes
+  useEffect(() => {
+    drawFrame();
+  }, [drawFrame, selectedAgent, tooltip?.agent?.id]);
 
   useEffect(() => {
-    const handleResize = () => draw();
+    const handleResize = () => drawFrame();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [draw]);
+  }, [drawFrame]);
 
   const findAgentAtMouse = useCallback(
     (clientX: number, clientY: number): AgentSummaryDTO | null => {
@@ -232,7 +260,11 @@ const AgentGrid: React.FC<AgentGridProps> = ({ agents, onAgentClick, selectedAge
         let cx: number;
         let cy: number;
 
-        if (a.grid_x !== undefined && a.grid_y !== undefined) {
+        const displayPos = displayPosRef.current.get(a.id);
+        if (displayPos) {
+          cx = displayPos.x * cellW + cellW / 2;
+          cy = displayPos.y * cellH + cellH / 2;
+        } else if (a.grid_x !== undefined && a.grid_y !== undefined) {
           cx = a.grid_x * cellW + cellW / 2;
           cy = a.grid_y * cellH + cellH / 2;
         } else {
@@ -262,18 +294,18 @@ const AgentGrid: React.FC<AgentGridProps> = ({ agents, onAgentClick, selectedAge
       const next = best?.id ?? null;
       if (prev !== next) {
         hoveredRef.current = next;
-        draw();
+        drawFrame();
       }
       setTooltip(best ? { x: e.clientX, y: e.clientY, agent: best } : null);
     },
-    [findAgentAtMouse, draw]
+    [findAgentAtMouse, drawFrame]
   );
 
   const handleMouseLeave = useCallback(() => {
     hoveredRef.current = null;
     setTooltip(null);
-    draw();
-  }, [draw]);
+    drawFrame();
+  }, [drawFrame]);
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {

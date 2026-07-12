@@ -105,6 +105,7 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
           const simState = await apiService.getSimulationState();
           setState(simState);
           store.appendTickData(simState);
+          await fetchAgents();
         } catch {
           // ignore fetch errors on WS push
         }
@@ -264,19 +265,20 @@ export function SimulationProvider({ children }: SimulationProviderProps) {
         clearInterval(autoRunRef.current);
       }
       // Run one tick immediately for responsiveness
-      apiService.advanceTick().catch(() => {});
+      apiService.advanceTick().then(() => fetchAgents()).catch(() => {});
       autoRunRef.current = setInterval(async () => {
         try {
           const result = await apiService.advanceTick();
           setState(result);
           useSimulationStore.getState().appendTickData(result);
+          await fetchAgents();
         } catch {
           stopAutoRun();
         }
       }, intervalMs);
       setIsAutoRunning(true);
     },
-    [],
+    [fetchAgents],
   );
 
   // Stop auto-run on unmount
