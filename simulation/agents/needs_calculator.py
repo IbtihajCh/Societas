@@ -171,7 +171,7 @@ def progress_age(agent: AgentState) -> None:
     Args:
         agent: The agent to age (modified in place).
     """
-    agent.age += AGE_PROGRESSION_INTERVAL
+    agent.age = int(agent.age + AGE_PROGRESSION_INTERVAL)
     agent.age_bracket = get_age_bracket(agent.age)
 
 
@@ -200,21 +200,46 @@ def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState
     if not agent.is_alive:
         return False
 
-    if agent.needs.get_level(NeedType.FOOD) <= FOOD_DEATH_THRESHOLD:
-        agent.cause_of_death = "food_starvation"
-        return True
+    # ── Phase 5: smooth probability curves (no sudden cliffs) ──────────
+    # Each need is checked against its threshold, but instead of binary
+    # death at threshold, we use a sigmoid-shaped probability curve so
+    # an agent at threshold has ~0% chance, at 0 has ~5% chance, and the
+    # curve ramps smoothly between them.
 
-    if agent.needs.get_level(NeedType.WATER) <= WATER_DEATH_THRESHOLD:
-        agent.cause_of_death = "water_dehydration"
-        return True
+    food = agent.needs.get_level(NeedType.FOOD)
+    if food < FOOD_DEATH_THRESHOLD * 3:  # start fading before threshold
+        # Map food in [0, FOOD_DEATH_THRESHOLD*3] -> death prob [0.05, 0.0]
+        ratio = (food - 0.0) / max(0.001, FOOD_DEATH_THRESHOLD * 3)
+        ratio = max(0.0, min(1.0, ratio))
+        death_prob = 0.05 * (1.0 - ratio)
+        if death_prob > 0 and rng.random() < death_prob:
+            agent.cause_of_death = "food_starvation"
+            return True
 
-    if agent.resources.health <= HEALTH_DEATH_THRESHOLD and rng.random() < 0.5:
-        agent.cause_of_death = "health_failure"
-        return True
+    water = agent.needs.get_level(NeedType.WATER)
+    if water < WATER_DEATH_THRESHOLD * 3:
+        ratio = (water - 0.0) / max(0.001, WATER_DEATH_THRESHOLD * 3)
+        ratio = max(0.0, min(1.0, ratio))
+        death_prob = 0.04 * (1.0 - ratio)
+        if death_prob > 0 and rng.random() < death_prob:
+            agent.cause_of_death = "water_dehydration"
+            return True
 
-    if agent.needs.get_level(NeedType.SLEEP) < SLEEP_DEATH_THRESHOLD and agent.ticks_without_sleep >= 50 and rng.random() < 0.3:
-        agent.cause_of_death = "insomnia_exhaustion"
-        return True
+    if agent.resources.health < HEALTH_DEATH_THRESHOLD * 3:
+        ratio = agent.resources.health / max(0.001, HEALTH_DEATH_THRESHOLD * 3)
+        ratio = max(0.0, min(1.0, ratio))
+        death_prob = 0.5 * (1.0 - ratio)
+        if death_prob > 0 and rng.random() < death_prob:
+            agent.cause_of_death = "health_failure"
+            return True
+
+    if agent.ticks_without_sleep >= 30:
+        # Sleep death ramps with ticks_without_sleep: 0 at 30, 0.3 at 80
+        sleep_age = agent.ticks_without_sleep - 30
+        death_prob = min(0.3, sleep_age / 200.0)
+        if rng.random() < death_prob:
+            agent.cause_of_death = "insomnia_exhaustion"
+            return True
 
     if agent.emotions.primary == EmotionType.DESPAIR:
         if rng.random() < DESPAIR_MORTALITY_RATE:
@@ -226,17 +251,28 @@ def check_death(agent: AgentState, rng: DeterministicRNG, world: SimulationState
         return True
 
     if agent.age_bracket == "elderly":
-        mortality_chance = AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY
+        # Age-graded elderly mortality: lower for "young-elderly" (66-79),
+        # ramps up for 80-89, peaks for 90+. Without this gradient the
+        # entire initial cohort dies at the same time, causing a population
+        # crash before grandchildren can mature.
+        if agent.age < 80:
+            mortality_chance = AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY
+        elif agent.age < 90:
+            mortality_chance = AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY * 2.5
+        else:
+            mortality_chance = AGE_MORTALITY_BASE + AGE_MORTALITY_ELDERLY * 5.0
         if rng.random() < mortality_chance:
             agent.cause_of_death = "old_age"
             return True
 
     if world is not None:
+        # Smooth hardship: scales continuously with unemployment + low money + inflation
+        # Max risk ~ 0.5% per tick when fully destitute in hyperinflation
         hardship_risk = (
             (1.0 - agent.resources.employed)
             * (1.0 - min(1.0, agent.resources.money / 500.0))
-            * max(0.0, world.economy.inflation_rate) * 10.0
-            * ECONOMIC_HARDSHIP_DEATH_RATE * 2.0
+            * max(0.0, world.economy.inflation_rate) * 5.0
+            * ECONOMIC_HARDSHIP_DEATH_RATE
         )
         if hardship_risk > 0 and rng.random() < hardship_risk:
             return True
@@ -339,3 +375,4 @@ def maybe_lose_job(agent: AgentState, rng: DeterministicRNG, world: SimulationSt
         agent.resources.base_salary = 0.0
         return True
     return False
+

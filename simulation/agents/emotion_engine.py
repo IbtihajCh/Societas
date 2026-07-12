@@ -130,17 +130,25 @@ def apply_sleep_reset(agent: AgentState) -> None:
     """Apply sleep-based emotional reset.
 
     Agents with unmet needs sleep less (insomnia), meaning
-    negative states persist longer.
+    negative states persist longer. Never overrides negative
+    emotions (SAD, ANGRY, DESPAIR) — sleep may improve mood
+    but does not cure despair, anger, or sadness.
 
     sleep_quality = safety * (1 - unlust) * resilience
 
-    - sleep_quality > 0.5: reset to NORMAL immediately
-    - sleep_quality > 0.3: halve the timer
+    - sleep_quality > 0.5: reset to NORMAL immediately (only if
+      current emotion is HAPPY or NORMAL)
+    - sleep_quality > 0.3: halve the timer (only if current
+      emotion is HAPPY or NORMAL)
     - else: insomnia, no reset
 
     Args:
         agent: The agent to apply sleep reset to.
     """
+    # Never override negative emotions
+    if agent.emotions.primary in (EmotionType.SAD, EmotionType.ANGRY, EmotionType.DESPAIR):
+        return
+
     sleep_quality = (
         agent.needs.get_level(NeedType.SAFETY)
         * (1.0 - agent.unlust)

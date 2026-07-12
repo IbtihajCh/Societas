@@ -32,6 +32,7 @@ function setupMocks(overrides: Partial<{
     stopSimulation,
     advanceTick,
     refreshAgents: jest.fn().mockResolvedValue(undefined),
+    refreshState: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   });
 

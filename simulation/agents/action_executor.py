@@ -124,6 +124,20 @@ def move_agent(agent: AgentState, rng: DeterministicRNG) -> None:
         agent.grid_y = type(agent.grid_y)((int(agent.grid_y) + dy) % GRID_SIZE)
 
 
+def _repay_debt(agent: AgentState) -> None:
+    """Repay 1% of outstanding debt each tick if the agent has positive money.
+
+    Args:
+        agent: The agent to apply repayment to (modified in place).
+    """
+    if agent.resources.debt > 0 and agent.resources.money > 0:
+        repayment = min(agent.resources.debt * 0.01, agent.resources.money)
+        agent.resources.money -= repayment
+        agent.resources.wealth = agent.resources.money
+        agent.resources.debt -= repayment
+        agent.resources.debt = max(0.0, agent.resources.debt)
+
+
 def execute_action(
     agent: AgentState,
     action: ActionType,
@@ -144,12 +158,19 @@ def execute_action(
     Returns:
         AgentActionResult with action, outcome, and score_delta.
     """
+    # Automatic debt repayment (once per tick before the action)
+    _repay_debt(agent)
+
     result = AgentActionResult(
         agent_id=agent.id,
         action=action,
         outcome="",
         score_delta={},
     )
+
+    # Snapshot agent state BEFORE action for world-side delta tracking
+    _money_before = agent.resources.money
+    _happiness_before = agent.emotions.happiness_score
 
     if action == ActionType.WORK:
         _do_work(agent, world, result)
@@ -209,7 +230,138 @@ def execute_action(
     # Update last action
     agent.last_action = action
 
+    # ── Phase 4: apply world-state side effects (organic whole) ─────
+    _apply_world_effects(agent, action, world, _money_before, _happiness_before)
+
     return result
+
+
+def _apply_world_effects(
+    agent: AgentState,
+    action: ActionType,
+    world: SimulationState,
+    money_before: float,
+    happiness_before: float,
+) -> None:
+    """Apply world-state side effects from agent actions. Makes actions ORGANIC.
+
+    Each action nudges world variables. The world then feeds back to agents
+    in the next tick via decision_engine and metrics_calculator. This creates
+    the agent → world → agent feedback loop that was missing in v1.
+    """
+    money_delta = agent.resources.money - money_before
+    happiness_delta = agent.emotions.happiness_score - happiness_before
+
+    if action == ActionType.WORK:
+        # Work: builds economy, GDP grows, tax revenue accumulates
+        world.economy.gdp += max(0.0, money_delta)
+        world.economy.tax_revenue += max(0.0, money_delta) * world.tax_rate
+        world.economy.employment_rate = min(1.0, world.economy.employment_rate + 0.001)
+        world.economy.consumer_confidence = min(1.0, world.economy.consumer_confidence + 0.0005)
+        world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0003)
+        # Work slightly reduces public_order loss (people are busy, less unrest)
+        world.public_order = min(1.0, world.public_order + 0.0005)
+
+    elif action == ActionType.BUY_FOOD:
+        # Market demand signals scarcity: aggregate demand pushes prices/food availability
+        if money_delta < 0:  # Money was spent
+            world.economy.gdp += abs(money_delta)
+            world.economy.trade_balance += abs(money_delta) * 0.01
+            # Buying reduces immediate scarcity by drawing down market supply
+            world.food_availability = max(0.0, world.food_availability - 0.0002)
+            world.water_availability = max(0.0, world.water_availability - 0.0001)
+        world.economy.inflation_rate = min(0.5, world.economy.inflation_rate + 0.0001)
+
+    elif action == ActionType.REST:
+        # Resting agents contribute to labor productivity, slight innovation boost
+        world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0001)
+
+    elif action == ActionType.BEFRIEND:
+        # Social bonds build social cohesion
+        world.social_cohesion = min(1.0, world.social_cohesion + 0.0008)
+        world.psychology.social_satisfaction = min(1.0, world.psychology.social_satisfaction + 0.001)
+
+    elif action == ActionType.CONSOLE:
+        # Comforting others reduces unlust at the society level
+        world.unlust = max(0.0, world.unlust - 0.0005)
+        world.social_cohesion = min(1.0, world.social_cohesion + 0.0005)
+
+    elif action == ActionType.SHARE:
+        # Sharing resources reduces inequality slightly
+        if money_delta < 0:
+            # Wealth transferred → lower gini (already tracked), slight cohesion gain
+            world.social_cohesion = min(1.0, world.social_cohesion + 0.0003)
+            world.economy.consumer_confidence = min(1.0, world.economy.consumer_confidence + 0.0002)
+
+    elif action == ActionType.STEAL or action == ActionType.HARM_OTHER or action == ActionType.FRAUD:
+        # Crime erodes public_order, social_cohesion, consumer confidence
+        world.crime.public_safety_index = max(0.0, world.crime.public_safety_index - 0.001)
+        world.economy.consumer_confidence = max(0.0, world.economy.consumer_confidence - 0.0008)
+        world.economy.market_stability = max(0.0, world.economy.market_stability - 0.0005)
+        world.public_order = max(0.0, world.public_order - 0.0003)
+
+    elif action == ActionType.PROTEST:
+        # Protest builds protest_intensity (already in metrics), erodes market stability
+        world.economy.market_stability = max(0.0, world.economy.market_stability - 0.001)
+        world.economy.consumer_confidence = max(0.0, world.economy.consumer_confidence - 0.0005)
+
+    elif action == ActionType.COMPLAIN:
+        # Complaining erodes satisfaction (already happens at agent level)
+        world.psychology.life_satisfaction = max(0.0, world.psychology.life_satisfaction - 0.0003)
+
+    elif action == ActionType.INVEST:
+        # Investment grows innovation and GDP
+        if money_delta < 0:
+            world.economy.gdp += abs(money_delta)
+            world.innovation_index = min(1.0, world.innovation_index + 0.001)
+            world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0005)
+
+    elif action == ActionType.BUY_PROPERTY:
+        # Property investment builds economy
+        world.economy.gdp += max(0.0, abs(money_delta))
+        world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0003)
+        world.economy.consumer_confidence = min(1.0, world.economy.consumer_confidence + 0.0005)
+
+    elif action == ActionType.TREAT or action == ActionType.COUNSEL:
+        # Healthcare improves mental health, reduces stress
+        world.psychology.mental_health_index = min(1.0, world.psychology.mental_health_index + 0.0005)
+        world.psychology.average_stress = max(0.0, world.psychology.average_stress - 0.0003)
+
+    elif action == ActionType.COMPLY:
+        # Compliance reinforces public order
+        world.public_order = min(1.0, world.public_order + 0.001)
+        world.economy.market_stability = min(1.0, world.economy.market_stability + 0.0002)
+
+    elif action == ActionType.CAMPAIGN:
+        # Political campaigns polarize (slight morale shift)
+        if happiness_delta != 0:
+            world.psychology.life_satisfaction = max(0.0, min(1.0, world.psychology.life_satisfaction + happiness_delta * 0.01))
+
+    elif action == ActionType.HOBBY:
+        # Hobbies reduce stress
+        world.psychology.average_stress = max(0.0, world.psychology.average_stress - 0.0005)
+        world.psychology.life_satisfaction = min(1.0, world.psychology.life_satisfaction + 0.0003)
+
+    elif action == ActionType.SUPPORT_FAMILY:
+        # Family support strengthens social cohesion
+        world.social_cohesion = min(1.0, world.social_cohesion + 0.0003)
+
+    elif action == ActionType.SPREAD_RUMOR:
+        # Rumors affect media sentiment
+        if isinstance(world.media_state, dict):
+            world.media_state["fake_news_level"] = min(1.0, world.media_state.get("fake_news_level", 0.0) + 0.0005)
+            world.media_state["sentiment_economy"] = max(-1.0, min(1.0, world.media_state.get("sentiment_economy", 0.0) - 0.0005))
+
+    # Government spending: scales with tax revenue & welfare spending
+    world.economy.government_spending = (
+        world.economy.tax_revenue * 0.7
+        + (world.welfare_amount * world.welfare_enabled * alive_count_proxy(world))
+    )
+
+
+def alive_count_proxy(world: SimulationState) -> int:
+    """Lightweight alive count proxy for use in side-effect functions."""
+    return world.population
 
 
 def _do_work(agent: AgentState, world: SimulationState, result: AgentActionResult) -> None:
@@ -390,8 +542,12 @@ def _do_befriend(
         other.needs.set_level(NeedType.SOCIAL_CONNECTION, other_social + 0.10)
 
         if other.id not in agent.social_connections:
+            if len(agent.social_connections) >= 20:
+                agent.social_connections.pop(0)
             agent.social_connections.append(other.id)
         if agent.id not in other.social_connections:
+            if len(other.social_connections) >= 20:
+                other.social_connections.pop(0)
             other.social_connections.append(agent.id)
 
         agent.needs.set_level(
@@ -447,74 +603,6 @@ def _do_isolate(agent: AgentState, result: AgentActionResult) -> None:
     agent.needs.set_level(NeedType.SOCIAL_CONNECTION, social - 0.02)
     result.outcome = "isolated"
     result.score_delta = {"social": -0.02}
-
-
-def _do_support_family(
-    agent: AgentState,
-    all_agents: list[AgentState],
-    rng: DeterministicRNG,
-    result: AgentActionResult,
-) -> None:
-    """Support family action: send money to living family members.
-
-    Finds living children, parents, and spouse, then distributes a small
-    amount of money to each. Both the agent and recipients get a small
-    unlust relief and happiness boost.
-
-    Args:
-        agent: The agent providing support.
-        all_agents: All agents in the simulation.
-        rng: Deterministic RNG.
-        result: Action result to populate.
-    """
-    family: list[AgentState] = []
-    # Living children
-    for child_id in agent.children_ids:
-        for a in all_agents:
-            if a.id == child_id and a.is_alive:
-                family.append(a)
-                break
-    # Living parents
-    for parent_id in agent.parent_ids:
-        for a in all_agents:
-            if a.id == parent_id and a.is_alive:
-                family.append(a)
-                break
-    # Living spouse
-    if agent.spouse is not None:
-        for a in all_agents:
-            if a.id == agent.spouse and a.is_alive:
-                family.append(a)
-                break
-
-    if not family:
-        result.outcome = "no_family_nearby"
-        return
-
-    total_shared = 0.0
-    for member in family:
-        amount = min(agent.resources.money * 0.03, 10.0)
-        if amount <= 0:
-            continue
-        agent.resources.money -= amount
-        agent.resources.wealth = agent.resources.money
-        member.resources.money += amount
-        member.resources.wealth = member.resources.money
-        member.unlust = max(0.0, member.unlust - 0.02)
-        total_shared += amount
-
-    if total_shared > 0:
-        agent.unlust = max(0.0, agent.unlust - 0.02)
-        agent.emotions.happiness_score = min(1.0, agent.emotions.happiness_score + 0.03)
-        agent.good_acts += 1
-        agent.needs.set_level(
-            NeedType.FAMILY_BOND,
-            agent.needs.get_level(NeedType.FAMILY_BOND) + 0.05,
-        )
-        result.outcome = f"supported_family:£{total_shared:.2f}"
-        result.score_delta = {"money": -total_shared, "happiness": 0.03}
-    else:
-        result.outcome = "no_money_to_share"
 
 
 def _do_share(
@@ -800,6 +888,28 @@ def _do_support_family(
 
         total_sent += amount
         recipients += 1
+
+    # Spouse support
+    if agent.spouse is not None:
+        spouse_agent = next(
+            (a for a in all_agents if a.id == agent.spouse and a.is_alive), None
+        )
+        if spouse_agent is not None:
+            amount = min(agent.resources.money * 0.05, 10.0)
+            if amount > 0:
+                agent.resources.money -= amount
+                agent.resources.wealth = agent.resources.money
+                spouse_agent.resources.money += amount
+                spouse_agent.resources.wealth = spouse_agent.resources.money
+
+                agent.unlust = max(0.0, agent.unlust - SUPPORT_FAMILY_UNLUST_RELIEF)
+                spouse_agent.unlust = max(0.0, spouse_agent.unlust - SUPPORT_FAMILY_UNLUST_RELIEF)
+
+                agent.support_given = getattr(agent, "support_given", 0.0) + amount
+                spouse_agent.support_received = getattr(spouse_agent, "support_received", 0.0) + amount
+
+                total_sent += amount
+                recipients += 1
 
     result.outcome = f"sent £{total_sent:.2f} to {recipients} family member(s)"
     result.score_delta = {"money": -total_sent, "unlust": -SUPPORT_FAMILY_UNLUST_RELIEF * (recipients + 1)}

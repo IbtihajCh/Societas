@@ -296,14 +296,18 @@ class TestRunTickEdgeCases:
         - Only agent so STEAL has no victim
         """
         agent = create_agent(0, rng)
-        agent.needs.set_level(NeedType.FOOD, 0.01)
+        # Phase 5: smooth curve, food=0.0 has 5% prob per tick.
+        # Run multiple ticks to ensure death fires.
+        agent.needs.set_level(NeedType.FOOD, 0.0)
         agent.resources.money = 0.0
         agent.resources.employed = False
         agent.resources.base_salary = 0.0
         agents = [agent]
-        run_tick(tick_number=0, agents=agents, world=world, rng=rng)
-        # The agent should be dead after the tick
-        assert not agent.is_alive, "Agent with critically low food should die"
+        for tick in range(50):
+            run_tick(tick_number=tick, agents=agents, world=world, rng=rng)
+            if not agent.is_alive:
+                break
+        assert not agent.is_alive, "Agent with food=0 should die within 50 ticks (smooth curve)"
 
     def test_run_tick_movement(
         self,

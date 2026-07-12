@@ -296,27 +296,67 @@ class TestEmotionStateMachine:
 class TestSleepReset:
     """Sleep-based emotional reset."""
 
-    def test_sleep_reset_good_sleep(self) -> None:
-        """safety=0.9, unlust=0.1, resilience=0.8 -> sleep_quality=0.648 > 0.5 -> resets to NORMAL."""
+    def test_sleep_reset_good_sleep_normal(self) -> None:
+        """safety=0.9, unlust=0.1, resilience=0.8, primary=NORMAL -> sleep_quality=0.648 > 0.5 -> resets to NORMAL (no-op)."""
         agent = _make_agent(
             safety=0.9, unlust=0.1, resilience=0.8,
-            primary_emotion=EmotionType.SAD, emotion_timer=3,
+            primary_emotion=EmotionType.NORMAL, emotion_timer=3,
         )
         apply_sleep_reset(agent)
         assert agent.emotions.primary == EmotionType.NORMAL
         assert agent.emotions.emotion_timer == 0
 
-    def test_sleep_reset_moderate_sleep(self) -> None:
-        """safety=0.6, unlust=0.2, resilience=0.7 -> sleep_quality=0.336, between 0.3 and 0.5 -> halves timer."""
+    def test_sleep_reset_good_sleep_happy(self) -> None:
+        """safety=0.9, unlust=0.1, resilience=0.8, primary=HAPPY -> sleep_quality=0.648 > 0.5 -> resets to NORMAL."""
+        agent = _make_agent(
+            safety=0.9, unlust=0.1, resilience=0.8,
+            primary_emotion=EmotionType.HAPPY, emotion_timer=2,
+        )
+        apply_sleep_reset(agent)
+        assert agent.emotions.primary == EmotionType.NORMAL
+        assert agent.emotions.emotion_timer == 0
+
+    def test_sleep_reset_moderate_sleep_normal(self) -> None:
+        """safety=0.6, unlust=0.2, resilience=0.7, primary=NORMAL -> sleep_quality=0.336 -> halves timer."""
         agent = _make_agent(
             safety=0.6, unlust=0.2, resilience=0.7,
-            primary_emotion=EmotionType.SAD, emotion_timer=5,
+            primary_emotion=EmotionType.NORMAL, emotion_timer=5,
         )
         apply_sleep_reset(agent)
         # Timer should be halved: 5 // 2 = 2
         assert agent.emotions.emotion_timer == 2
-        # Emotion unchanged
+        assert agent.emotions.primary == EmotionType.NORMAL
+
+    def test_sleep_reset_does_not_override_sad(self) -> None:
+        """safety=0.9, unlust=0.1, resilience=0.8, primary=SAD -> no override."""
+        agent = _make_agent(
+            safety=0.9, unlust=0.1, resilience=0.8,
+            primary_emotion=EmotionType.SAD, emotion_timer=3,
+        )
+        apply_sleep_reset(agent)
+        # Negative emotions are never overridden by sleep
         assert agent.emotions.primary == EmotionType.SAD
+        assert agent.emotions.emotion_timer == 3  # unchanged (early return)
+
+    def test_sleep_reset_does_not_override_angry(self) -> None:
+        """safety=0.9, unlust=0.1, resilience=0.8, primary=ANGRY -> no override."""
+        agent = _make_agent(
+            safety=0.9, unlust=0.1, resilience=0.8,
+            primary_emotion=EmotionType.ANGRY, emotion_timer=3,
+        )
+        apply_sleep_reset(agent)
+        assert agent.emotions.primary == EmotionType.ANGRY
+        assert agent.emotions.emotion_timer == 3
+
+    def test_sleep_reset_does_not_override_despair(self) -> None:
+        """safety=0.9, unlust=0.1, resilience=0.8, primary=DESPAIR -> no override."""
+        agent = _make_agent(
+            safety=0.9, unlust=0.1, resilience=0.8,
+            primary_emotion=EmotionType.DESPAIR, emotion_timer=5,
+        )
+        apply_sleep_reset(agent)
+        assert agent.emotions.primary == EmotionType.DESPAIR
+        assert agent.emotions.emotion_timer == 5
 
     def test_sleep_reset_insomnia(self) -> None:
         """safety=0.2, unlust=0.7, resilience=0.3 -> sleep_quality=0.018 < 0.3 -> no reset."""
@@ -325,20 +365,20 @@ class TestSleepReset:
             primary_emotion=EmotionType.SAD, emotion_timer=3,
         )
         apply_sleep_reset(agent)
-        # No change
+        # No change (both negative guard and low quality apply)
         assert agent.emotions.primary == EmotionType.SAD
         assert agent.emotions.emotion_timer == 3
 
-    def test_sleep_reset_exact_threshold_good(self) -> None:
-        """sleep_quality exactly at 0.5 -> reset (strictly greater)."""
+    def test_sleep_reset_exact_threshold_good_normal(self) -> None:
+        """sleep_quality exactly at 0.5, primary=NORMAL -> halves timer (no full reset)."""
         agent = _make_agent(
             safety=0.8, unlust=0.0, resilience=0.625,
-            primary_emotion=EmotionType.ANGRY, emotion_timer=3,
+            primary_emotion=EmotionType.NORMAL, emotion_timer=3,
         )
         # sleep_quality = 0.8 * 1.0 * 0.625 = 0.5 -> exactly equal, NOT greater
         apply_sleep_reset(agent)
         # 0.5 is not > 0.5, so should NOT reset
-        assert agent.emotions.primary == EmotionType.ANGRY
+        assert agent.emotions.primary == EmotionType.NORMAL
         # 0.5 > 0.3, so halves the timer
         assert agent.emotions.emotion_timer == 1  # 3 // 2 = 1
 
@@ -346,11 +386,11 @@ class TestSleepReset:
         """sleep_quality exactly at 0.3 -> halves timer (strictly greater check)."""
         agent = _make_agent(
             safety=0.6, unlust=0.0, resilience=0.5,
-            primary_emotion=EmotionType.ANGRY, emotion_timer=4,
+            primary_emotion=EmotionType.NORMAL, emotion_timer=4,
         )
         # sleep_quality = 0.6 * 1.0 * 0.5 = 0.3 -> not > 0.3, so no halving
         apply_sleep_reset(agent)
-        assert agent.emotions.primary == EmotionType.ANGRY
+        assert agent.emotions.primary == EmotionType.NORMAL
         assert agent.emotions.emotion_timer == 4  # unchanged
 
 

@@ -8,7 +8,7 @@ from backend.app.services.agent_service import AgentService
 router = APIRouter()
 
 
-@router.get("/", response_model=AgentListResponseDTO)
+@router.get("", response_model=AgentListResponseDTO)
 async def list_agents(
     limit: int = 100,
     offset: int = 0,
@@ -34,3 +34,4 @@ async def get_agent_history(
     service: AgentService = Depends(get_agent_service),
 ):
     return {"agent_id": agent_id, "history": []}
+
