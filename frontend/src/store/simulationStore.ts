@@ -13,6 +13,7 @@ export interface MetricsHistoryEntry {
   protest_intensity: number;
   unemployment_rate: number;
   avg_unlust: number;
+  morality: number;
   population: number;
 }
 
@@ -156,6 +157,7 @@ export const useSimulationStore = create<SimulationStore>((set) => ({
         protest_intensity: state.protest_intensity,
         unemployment_rate: state.unemployment_rate,
         avg_unlust: state.unlust,
+        morality: state.morality,
         population: state.population,
       };
 
