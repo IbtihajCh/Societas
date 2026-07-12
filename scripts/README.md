@@ -1,28 +1,25 @@
-# Scripts — Build, Deploy & Utility Scripts
+# Build & Deploy Scripts
 
-**Owner:** Infrastructure / DevOps Engineer
+Idempotent automation scripts for development, testing, and deployment.
 
-Contains scripts for local development, testing, building, and deployment. All scripts are provided in both PowerShell (Windows) and Bash (macOS/Linux).
+## Key Files
 
-## Available Scripts
+- `setup.sh` / `setup.ps1` — One-command environment bootstrap
+- `test.sh` / `test.ps1` — Full test suite runner
+- `lint.sh` / `lint.ps1` — Cross-project linting
+- `clean.sh` / `clean.ps1` — Build artifact cleanup
 
-| Script | Purpose |
-|--------|---------|
-| `setup.sh` / `setup.ps1` | One-command development environment bootstrap |
-| `lint.sh` / `lint.ps1` | Run all linters across the project |
-| `test.sh` / `test.ps1` | Run the full test suite |
-| `clean.sh` / `clean.ps1` | Clean build artifacts and caches |
+## How to Run
 
-## Conventions
+```bash
+# macOS / Linux
+./scripts/setup.sh
 
-- All scripts are idempotent (safe to run multiple times)
-- PowerShell scripts use `.ps1` extension
-- Bash scripts use `.sh` extension
-- Scripts print clear error messages on failure
-- No script requires interactive input
+# Windows
+./scripts/setup.ps1
+```
 
-## Related
+## Dependencies
 
-- [Setup Guide](../docs/guides/setup.md)
-- [Docker Compose](../docker/docker-compose.yml)
-- [CI Workflows](../.github/workflows/)
+- Bash or PowerShell
+- Python 3.11+, Node.js 18+

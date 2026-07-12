@@ -1,21 +1,18 @@
-# Presentation — Competition Materials
+# Competition Materials
 
-**Owner:** Technical Lead / All
+AMD Hackathon 2026 submission assets: pitch decks, demo scripts, screenshots, and presentation diagrams.
 
-Contains presentation materials for the AMD Developer Hackathon, including slides, demo scripts, competition documents, and pitch materials.
+## Key Files
 
-## Structure
+- `pitch/` — Investor/competition pitch decks
+- `demo/` — Demo scripts and walkthrough scenarios
+- `assets/` — Diagrams, logos, screenshots
+- `submission/` — Final competition submission documents
 
-```
-presentation/
-├── pitch/           # Investor/competition pitch decks
-├── demo/            # Demo scripts and scenarios
-├── assets/          # Diagrams, logos, screenshots
-└── submission/      # Competition submission materials
-```
+## How to Use
 
-## Related
+Open in browser or presentation software. See `demo/` for step-by-step demo scripts.
 
-- [ROADMAP Phase 5](../ROADMAP.md#phase-5--integration--demo-preparation)
-- [Feature Priority Matrix](../ROADMAP.md#feature-priority-matrix)
-- [Competition Strategy](../docs/SOCIETAS_Master_Context.md#3-competition-strategy)
+## Dependencies
+
+- None (static assets)

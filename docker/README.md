@@ -1,48 +1,29 @@
-# Docker — Container Definitions & Orchestration
+# Docker & Orchestration
 
-**Owner:** Infrastructure / DevOps Engineer
+Container definitions and compose configuration for consistent, reproducible SOCIETAS deployments.
 
-Contains Dockerfiles and docker-compose configuration for the entire SOCIETAS stack. Enables consistent development environments and reproducible builds.
+## Key Files
 
-## Quick Start (No Docker - Recommended for AMD Act 2 Demo)
+- `backend.Dockerfile` — FastAPI backend image
+- `frontend.Dockerfile` — Next.js frontend image
+- `vllm-rocm.Dockerfile` — vLLM serving on AMD MI300X (ROCm)
+- `docker-compose.yml` — Full stack orchestration
+- `.env.example` — Environment variable template
 
-```bash
-# Windows
-start.bat
+## How to Run
 
-# Linux/Mac
-bash start.sh
-```
-
-Or directly:
+**Native (recommended for demo):**
 ```bash
 pip install -r backend/requirements.txt
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 ```
 
-The server runs on **http://localhost:8000** with API docs at **http://localhost:8000/docs**.
-
-Configuration via `.env` file (copy from `docker/.env.example`):
-```bash
-cp docker/.env.example .env
-```
-
-## Services (Docker)
-
-| Service | Dockerfile | Port | Dependencies |
-|---------|-----------|------|-------------|
-| `backend` | `backend.Dockerfile` | 8000 | — |
-| `frontend` | `frontend.Dockerfile` | 3000 | backend |
-| `vllm` | `vllm-rocm.Dockerfile` | 8001 | — (ROCm / AMD GPU) |
-
-## Docker Deploy
-
+**Docker:**
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
 
-Set API keys in `docker/.env`:
-```bash
-cp docker/.env.example docker/.env
-# Edit docker/.env with your AMD Developer Console API keys
-```
+## Dependencies
+
+- Docker, Docker Compose
+- AMD ROCm (for vLLM service)

@@ -1,49 +1,22 @@
-# AI Models Module
+# AI Model Router
 
-**Owner:** AI Engineer
+Inference routing and response handling for the SOCIETAS 3× Gemma 4 cluster on AMD MI300X.
 
-## Purpose
+## Key Files
 
-AI model routing and inference for SOCIETAS. Handles all interactions with the Gemma 2 9B IT model via vLLM.
+- `ai_router.py` — `IAIRouter` implementation, request dispatch
+- `vllm_client.py` — vLLM API client (ROCm / AMD GPU)
+- `prompt_renderer.py` — Jinja2 prompt template rendering
+- `response_parser.py` — Structured output parsing and validation
+- `cache.py` — Inference result cache layer
 
-## Responsibilities
+## How to Test
 
-- Route requests to appropriate AI models
-- Manage prompt templates and rendering
-- Parse and validate AI responses
-- Handle batching and caching
-- Provide fallback behavior when AI unavailable
+```bash
+pytest tests/unit/models/ -v
+```
 
 ## Dependencies
 
-- `shared/` - Shared schemas, types, and interfaces
-- `prompts/` - Prompt templates
-- `httpx` - HTTP client for vLLM API
-- `jinja2` - Prompt template rendering
-
-## Public Interfaces
-
-### AIRouter
-- `translate_policy()` - Translate goals to utility weights
-- `tie_break()` - Resolve ambiguous decisions
-- `generate_news()` - Generate news articles
-- `generate_persona()` - Generate agent personas
-- `generate_narration()` - Generate spotlight narrations
-- `is_available()` - Check AI availability
-
-## Prompt Templates
-
-- `prompts/policy-translation.md` - Goal to weight translation (temp 0.3)
-- `prompts/tie-break.md` - Ambiguous decision resolution (temp 0.2)
-- `prompts/narrative-generation.md` - News generation (temp 0.8)
-- `prompts/persona-generation.md` - Persona creation (temp 0.7)
-
-## Future Work
-
-- Implement vLLM API client
-- Add prompt template rendering
-- Implement response parsing and validation
-- Add batching support
-- Add caching layer
-- Implement error handling and retries
-- Add evaluation metrics
+- `shared/`, `prompts/`
+- httpx, jinja2

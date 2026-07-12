@@ -1,35 +1,23 @@
-# Tools — Developer Tooling Configuration
+# Developer Tooling
 
-**Owner:** Technical Lead / Infrastructure
+Shared configuration for code quality, formatting, and pre-commit enforcement across the project.
 
-Shared configuration for development tools used across the project. These configurations ensure consistent code quality, formatting, and behavior across all six team members.
+## Key Files
 
-## Configuration Files
+- `pyproject.toml` — ruff, mypy, pytest settings
+- `package.json` — npm workspace and lint scripts
+- `.pre-commit-config.yaml` — Git hook definitions
+- `.editorconfig` — Cross-editor formatting rules
 
-| File | Tool | Purpose |
-|------|------|---------|
-| `pyproject.toml` | Python tooling | ruff, mypy, pytest configuration |
-| `package.json` | Node tooling | npm workspace config, lint scripts |
-| `.pre-commit-config.yaml` | pre-commit | Git hook configuration |
-| `.editorconfig` | EditorConfig | Cross-editor formatting settings |
-
-## Pre-commit Hooks
-
-The project uses pre-commit to enforce code quality before commits reach CI:
+## How to Run
 
 ```bash
 pip install pre-commit
 pre-commit install
-```
-
-Hooks run automatically on `git commit`. To run manually:
-
-```bash
 pre-commit run --all-files
 ```
 
-## Related
+## Dependencies
 
-- [Coding Standards](../docs/guides/coding-standards.md)
-- [CI Workflows](../.github/workflows/)
-- [CONTRIBUTING](../CONTRIBUTING.md)
+- pre-commit, ruff, mypy
+- EditorConfig plugin (IDE)
