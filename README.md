@@ -27,14 +27,14 @@ See [Architecture Overview](docs/references/architecture-overview.md) and [AI Ph
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   Layer 3 — Presentation                 │
+│                   Layer 3 — Presentation                │
 │  Dashboard · Charts · News Feed · Agent Stories · UI    │
 ├─────────────────────────────────────────────────────────┤
-│                   Layer 2 — Cognitive Reasoning           │
+│                   Layer 2 — Cognitive Reasoning         │
 │  Gemma LLM · Tie-Breaking · Policy Translation ·        │
 │  Narrative Generation · Advisory                        │
 ├─────────────────────────────────────────────────────────┤
-│                   Layer 1 — Deterministic Simulation      │
+│                   Layer 1 — Deterministic Simulation    │
 │  World · Agents · Economy · Needs · Psychology ·        │
 │  Emotions · Policies · Environment · Crime · Tick       │
 └─────────────────────────────────────────────────────────┘
