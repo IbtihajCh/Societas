@@ -42,7 +42,7 @@ function RingGauge({ value, label }: { value: number; label: string }) {
   const y1 = 48 + R * Math.sin(startAngle);
   const x2 = 48 + R * Math.cos(startAngle + sweepAngle);
   const y2 = 48 + R * Math.sin(startAngle + sweepAngle);
-  const largeArc = pct > 0.5 ? 1 : 0;
+  const largeArc = sweepAngle > Math.PI ? 1 : 0;
 
   const color = value > 0.7 ? 'var(--moss)' : value > 0.4 ? 'var(--ochre)' : 'var(--oxblood)';
 

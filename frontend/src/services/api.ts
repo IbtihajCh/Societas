@@ -112,7 +112,7 @@ export const apiService = {
 
   // Policies
   getPolicies: async (): Promise<PolicyListResponseDTO> => {
-    const response = await apiClient.get<PolicyListResponseDTO>('/policies');
+    const response = await apiClient.get<PolicyListResponseDTO>('/policies/');
     return response.data;
   },
 
@@ -120,7 +120,7 @@ export const apiService = {
     policyData: PolicyCreateRequestDTO,
   ): Promise<PolicyResponseDTO> => {
     const response = await apiClient.post<PolicyResponseDTO>(
-      '/policies',
+      '/policies/',
       policyData,
     );
     return response.data;

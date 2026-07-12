@@ -38,7 +38,7 @@ interface PanelDef {
 }
 
 export default function Dashboard() {
-  const { state, agents, isConnected, isRunning, isAutoRunning, startSimulation, stopSimulation, advanceTick, startAutoRun, stopAutoRun, refreshAgents } = useSimulation();
+  const { state, agents, isConnected, isRunning, isAutoRunning, startSimulation, stopSimulation, advanceTick, startAutoRun, stopAutoRun, refreshAgents, refreshSimulationState } = useSimulation();
   const store = useSimulationStore();
   const events = store.events;
 
@@ -232,7 +232,13 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    apiService.getPolicies().then((res: any) => setPolicies(res.policies || res));
+    if (isConnected && !state) {
+      refreshSimulationState();
+    }
+  }, [isConnected, state, refreshSimulationState]);
+
+  useEffect(() => {
+    apiService.getPolicies().then((res: any) => setPolicies(res.policies || res)).catch(() => {});
   }, [state?.tick]);
 
   useEffect(() => {
