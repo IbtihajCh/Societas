@@ -1,10 +1,29 @@
 # SOCIETAS
 
-> AI-Powered Governance & Society Simulation Platform
+<p align="center">
+  <img src="frontend/public/societas_logo_v2.png" alt="SOCIETAS Logo" width="160" />
+</p>
+
+> **AI-Powered Governance & Society Simulation Platform**
 >
 > **AMD Hackathon 2026 — Track 3: Unicorn Pre-Screening**
 
+<p align="center">
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT" />
+  <img src="https://img.shields.io/badge/AMD-Hackathon-red.svg" alt="AMD Hackathon" />
+  <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+" />
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome" />
+</p>
+
 SOCIETAS is a real-time, large-scale agent-based civilisation simulator that models how policy decisions cascade through an artificial society of autonomous individuals with realistic psychological, economic, and social behavior. 1000+ agents live, work, trade, marry, protest, commit crimes, and die on a toroidal grid — governed by a 17-step tick engine, 24 actions, 13 needs across 5 Maslow layers, and an optional 3-model LLM reasoning layer running on AMD MI300X GPUs.
+
+---
+
+## At a Glance
+
+| 🌐 **1000+ Agents** | 🧠 **3-Model LLM** | 🎨 **Dark Dashboard** | ⚡ **24ms/tick** |
+|:---:|:---:|:---:|:---:|
+| Autonomous citizens with traits, needs, emotions, jobs | Gemma 4 E2B · 26B · 31B on AMD MI300X | Dune Imperial theme, 30×30 agent grid, 11 panels | Deterministic fallback when GPU unavailable |
 
 ---
 
