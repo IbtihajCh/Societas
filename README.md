@@ -183,7 +183,7 @@ societas/
 | Deterministic | 100 | 10 | 1.72s | ~24ms |
 | Deterministic | 30 | 10 | 0.6s | ~4ms |
 | Remote Inference Calls | 80 | 10 | 22–35s | 2,200–3,500ms |
-| Hybrid LLM (on AMD MI300X) | 5,000 | 10 | 8–12s | 800–1,200ms |
+| Hybrid LLM (on AMD MI300X) | 1,000 | 10 | 8–12s | 800–1,200ms |
 
 ---
 
