@@ -48,6 +48,13 @@ curl -X POST http://localhost:8000/api/v1/simulation/tick
 open http://localhost:3000/dashboard
 ```
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/setup-screen.png" alt="Setup Screen" width="45%" />
+  <img src="docs/images/dashboard.png" alt="Live Dashboard" width="45%" />
+</p>
+
 ---
 
 ## AMD Resource Usage
